@@ -266,6 +266,77 @@ def build_id():
 BUILD = None    # filled at startup
 
 
+# ---------------------------------------------------------------------------
+# Usage counters — aggregates only.
+#
+# The people using this app include police and soldiers during attacks. Nothing here identifies anybody:
+# no IP is stored, no path history, no location, no per-device timeline. A device is counted once per day
+# through a hash of (IP + user-agent + a salt that is thrown away and regenerated every day), so the same
+# person cannot be followed from one day to the next, and the hash cannot be turned back into an address.
+# Kept: a daily row of totals. That is enough to see whether the app is being used, and nothing more.
+class Usage:
+    def __init__(self, store):
+        self.store = store
+        self.lock = threading.Lock()
+        self.day = None
+        self.salt = os.urandom(16)
+        self.seen = set()          # hashes seen today, in memory only, dropped at midnight
+        with store.lock:
+            store.conn.execute("""CREATE TABLE IF NOT EXISTS usage(
+                day TEXT PRIMARY KEY, devices INTEGER, loads INTEGER, pings INTEGER,
+                lang TEXT, pwa INTEGER, lite INTEGER)""")
+            store.conn.commit()
+
+    def _roll(self):
+        d = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
+        if d != self.day:
+            self.day, self.seen, self.salt = d, set(), os.urandom(16)   # new day, new salt: no linking across days
+        return d
+
+    def hit(self, ip, ua, kind, lang=None, pwa=False, lite=False):
+        try:
+            import hashlib
+            with self.lock:
+                day = self._roll()
+                h = hashlib.blake2s(self.salt + (ip or "").encode() + (ua or "")[:120].encode(), digest_size=8).hexdigest()
+                new = h not in self.seen
+                if new:
+                    self.seen.add(h)
+            with self.store.lock:
+                c = self.store.conn
+                c.execute("INSERT OR IGNORE INTO usage(day,devices,loads,pings,lang,pwa,lite) VALUES(?,0,0,0,'{}',0,0)", (day,))
+                if new:
+                    c.execute("UPDATE usage SET devices=devices+1 WHERE day=?", (day,))
+                if kind == "load":
+                    c.execute("UPDATE usage SET loads=loads+1 WHERE day=?", (day,))
+                    if pwa:
+                        c.execute("UPDATE usage SET pwa=pwa+1 WHERE day=?", (day,))
+                    if lite:
+                        c.execute("UPDATE usage SET lite=lite+1 WHERE day=?", (day,))
+                    if lang in ("en", "uk", "fr"):
+                        row = c.execute("SELECT lang FROM usage WHERE day=?", (day,)).fetchone()
+                        d = json.loads(row[0] or "{}") if row else {}
+                        d[lang] = d.get(lang, 0) + 1
+                        c.execute("UPDATE usage SET lang=? WHERE day=?", (json.dumps(d), day))
+                else:
+                    c.execute("UPDATE usage SET pings=pings+1 WHERE day=?", (day,))
+                c.commit()
+        except Exception:
+            pass       # counting must never get in the way of an alert
+
+    def report(self, days=30):
+        with self.store.lock:
+            rows = self.store.conn.execute(
+                "SELECT day,devices,loads,pings,lang,pwa,lite FROM usage ORDER BY day DESC LIMIT ?", (days,)).fetchall()
+        out = [{"day": r[0], "devices": r[1], "loads": r[2], "pings": r[3],
+                "lang": json.loads(r[4] or "{}"), "pwa": r[5], "lite": r[6]} for r in rows]
+        with self.lock:
+            live = len(self.seen)
+        return {"days": out, "today_devices": live,
+                "push_subs": len(self.store.push_all()),
+                "generated": now_iso()}
+
+
 def _clean_post(text):
     """What the reader sees: the warning without the channel's ad tail ("Купуємо контент | ❤️")."""
     if not _tr:
@@ -1620,6 +1691,11 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _peer_ip(self):
+        # only ever used to make a daily, salted, one-way hash — never stored, never logged
+        fwd = self.headers.get("X-Forwarded-For") or ""
+        return (fwd.split(",")[0].strip() if fwd else (self.client_address[0] if self.client_address else ""))
+
     def _authorized(self, u, q):
         key = self.state.cfg.get("access_key") or os.environ.get("ACCESS_KEY") or ""
         if not key:
@@ -1645,6 +1721,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(302); self.send_header("Location", u.path or "/"); self.send_header("Set-Cookie", f"uak={q['key'][0]}; Path=/; Max-Age=31536000; SameSite=Lax"); self.end_headers(); return
         try:
             if u.path in ("/", "/m", "/k", "/kyiv"):
+                usage = getattr(st, "usage", None)
+                if usage:
+                    ua = self.headers.get("User-Agent") or ""
+                    usage.hit(self._peer_ip(), ua, "load",
+                              lang=(q.get("lang", [None])[0] or ("uk" if "uk" in (self.headers.get("Accept-Language") or "").lower() else None)),
+                              pwa="standalone" in (self.headers.get("Sec-Fetch-Site") or ""), lite=False)
                 return self._file("kyiv.html", "text/html; charset=utf-8")
             if u.path in ("/desktop", "/index.html", "/dash"):
                 return self._file("index.html", "text/html; charset=utf-8")
@@ -1659,7 +1741,19 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"places": pl})
             if u.path == "/api/markers":
                 return self._json({"now": now_iso(), "ttl_minutes": int(st.cfg.get("marker_ttl_minutes", 45)), "stale_minutes": int(st.cfg.get("track_stale_minutes", 5)), "markers": st.markers()})
+            # The dashboard is yours alone: it needs ACCESS_KEY, and it refuses to serve anything when no key
+            # is configured, so an open deployment can never expose it by accident.
+            if u.path in ("/api/usage", "/admin"):
+                if not (st.cfg.get("access_key") or os.environ.get("ACCESS_KEY")):
+                    return self._json({"error": "set ACCESS_KEY to enable the dashboard"}, 403)
+                if u.path == "/admin":
+                    return self._file("admin.html", "text/html; charset=utf-8")
+                usage = getattr(st, "usage", None)
+                return self._json(usage.report(int(q.get("days", ["30"])[0])) if usage else {"days": []})
             if u.path == "/api/version":
+                usage = getattr(st, "usage", None)
+                if usage:
+                    usage.hit(self._peer_ip(), self.headers.get("User-Agent") or "", "ping")
                 with st.cond:
                     seq = st.seq
                 return self._json({"v": f"{seq}-{st.store.feed_count()}", "now": now_iso(), "missile": st.missile_active(), "build": BUILD})
@@ -1827,6 +1921,7 @@ def main():
     BUILD = build_id()
     log("build", BUILD)
     state = State(store, cfg)
+    state.usage = Usage(store)
     state.pusher = Pusher(store)
     log("push notifications:", "enabled (VAPID key ready)" if state.pusher.enabled else "disabled — pip install cryptography to enable")
     Handler.state = state

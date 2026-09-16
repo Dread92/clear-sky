@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.3.0 — 2026-09-17
+
+### Added
+- **A private usage dashboard at `/admin`** — devices per day, app opens, push subscribers, language split,
+  how many run it as an installed app. It needs `ACCESS_KEY` and is not served at all when no key is set.
+  **Nothing identifies anybody**: a device is counted once a day through a one-way hash of address and browser,
+  salted with a value thrown away and regenerated every midnight, so the same person cannot be followed from one
+  day to the next and no hash can be reversed. No address is stored, no location, no path through the app, no
+  per-person history — only the daily totals. `tests/test_usage.py` pins those properties.
+- The footer now sits under every tab of the panel, not only the Map tab: the free-to-use line, the two support
+  destinations, the community link once configured, and © 2026 Black Flame Studio & NGO 07300 · Developed by
+  Dread92 · v1.2.
+
+### Changed
+- **The welcome screen now uses proper native wording in all three languages**, replacing my own translation:
+  the unofficial-volunteer framing, "these are NOT radar data", the main rule about city sirens and the official
+  app, and the line about never sharing air-defence footage or impact locations during an attack.
+
 ## 1.2.1 — 2026-09-17
 
 ### Fixed

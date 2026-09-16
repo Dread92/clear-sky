@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d11">
+<meta name="robots" content="noindex, nofollow">
+<title>Clear Sky — usage</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{--bg:#0b0d11;--ink:#e8e6df;--ink2:#a9a79f;--ink3:#6c6b66;--line:#242830;--panel:#12151b;
+  --ua-yellow:#ffd500;--green:#2fbf71;--orange:#ff8a3d;--blue:#5b9cff;--red:#e0342c;
+  --cond:"Barlow Condensed",system-ui,sans-serif;--sans:"Barlow",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 var(--sans);padding:16px;max-width:900px;margin:0 auto}
+h1{font:800 26px/1 var(--cond);letter-spacing:.04em;text-transform:uppercase;margin:0 0 2px}
+.sub{color:var(--ink3);font:500 12px var(--mono);margin-bottom:18px}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:20px}
+.card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--ua-yellow);padding:12px 14px}
+.card .v{font:800 30px/1 var(--cond)}
+.card .l{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-top:4px}
+.card.g{border-left-color:var(--green)}.card.b{border-left-color:var(--blue)}.card.o{border-left-color:var(--orange)}
+h2{font:700 13px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin:22px 0 8px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:120px;margin-bottom:4px}
+.bars .b{flex:1;min-width:3px;background:var(--blue);border-radius:2px 2px 0 0;position:relative;opacity:.9}
+.bars .b:hover{opacity:1;outline:1px solid var(--ink2)}
+.days{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--ink3)}
+table{width:100%;border-collapse:collapse;font:13px var(--sans)}
+th{text-align:left;font:600 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);padding:6px 4px;border-bottom:1px solid var(--line)}
+td{padding:6px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
+td.n{text-align:right;font-family:var(--mono)}
+.foot{color:var(--ink3);font:12px/1.5 var(--sans);margin-top:24px;border-top:1px solid var(--line);padding-top:12px}
+.err{background:#3a1512;border-left:3px solid var(--red);padding:12px;font:13px var(--sans)}
+a{color:#8fb4ff}
+.lang span{display:inline-block;margin-right:12px;font:600 12px var(--mono)}
+</style>
+</head>
+<body>
+<h1>Clear Sky — usage</h1>
+<div class="sub" id="gen">loading…</div>
+<div id="out"></div>
+<div class="foot">
+  <b>What is counted, and what is not.</b><br>
+  A device is counted once a day through a one-way hash of its address and browser, salted with a random value
+  that is thrown away and regenerated every midnight — so the same person cannot be followed from one day to the
+  next, and no hash can be turned back into an address. No IP is stored. No location, no path through the app, no
+  per-person history, nothing that identifies anybody. Only the daily totals on this page are kept.<br><br>
+  This page needs the access key and is not served at all unless <code>ACCESS_KEY</code> is set.
+</div>
+<script>
+const $=i=>document.getElementById(i);
+const fmt=n=>(n||0).toLocaleString('en-GB');
+(async()=>{
+  let d;
+  try{ const r=await fetch('/api/usage?days=30'+(location.search.includes('key=')?'&'+location.search.slice(1):''));
+       d=await r.json(); if(d.error) throw new Error(d.error); }
+  catch(e){ $('out').innerHTML='<div class="err">'+String(e.message||e)+'</div>'; $('gen').textContent=''; return; }
+  const days=(d.days||[]).slice().reverse();          // oldest first for the chart
+  const last7=days.slice(-7), last30=days;
+  const sum=(a,k)=>a.reduce((s,x)=>s+(x[k]||0),0);
+  const peak=Math.max(1,...days.map(x=>x.devices||0));
+  const langs={}; days.forEach(x=>Object.entries(x.lang||{}).forEach(([k,v])=>langs[k]=(langs[k]||0)+v));
+  const langTot=Object.values(langs).reduce((a,b)=>a+b,0)||1;
+
+  $('gen').textContent='generated '+(d.generated||'').replace('T',' ').replace('Z',' UTC');
+  $('out').innerHTML=`
+    <div class="cards">
+      <div class="card"><div class="v">${fmt(d.today_devices)}</div><div class="l">devices today</div></div>
+      <div class="card b"><div class="v">${fmt(sum(last7,'devices'))}</div><div class="l">devices · 7 days</div></div>
+      <div class="card b"><div class="v">${fmt(sum(last30,'devices'))}</div><div class="l">devices · 30 days</div></div>
+      <div class="card g"><div class="v">${fmt(d.push_subs)}</div><div class="l">push subscribers</div></div>
+      <div class="card o"><div class="v">${fmt(sum(last30,'loads'))}</div><div class="l">app opens · 30 d</div></div>
+      <div class="card o"><div class="v">${fmt(sum(last30,'pwa'))}</div><div class="l">opened as an app</div></div>
+    </div>
+
+    <h2>Devices per day</h2>
+    <div class="bars">${days.map(x=>`<div class="b" style="height:${Math.max(2,(x.devices||0)/peak*100)}%" title="${x.day}: ${x.devices} devices, ${x.loads} opens"></div>`).join('')}</div>
+    <div class="days"><span>${days[0]?days[0].day:''}</span><span>${days.length?days[days.length-1].day:''}</span></div>
+
+    <h2>Language</h2>
+    <div class="lang">${['uk','en','fr'].map(l=>`<span>${l.toUpperCase()}: ${Math.round((langs[l]||0)/langTot*100)}% <span style="color:var(--ink3)">(${fmt(langs[l]||0)})</span></span>`).join('')}</div>
+
+    <h2>Daily detail</h2>
+    <table><tr><th>Day</th><th style="text-align:right">Devices</th><th style="text-align:right">Opens</th><th style="text-align:right">Pings</th><th style="text-align:right">As app</th><th style="text-align:right">Blackout</th></tr>
+      ${days.slice().reverse().map(x=>`<tr><td>${x.day}</td><td class="n">${fmt(x.devices)}</td><td class="n">${fmt(x.loads)}</td><td class="n">${fmt(x.pings)}</td><td class="n">${fmt(x.pwa)}</td><td class="n">${fmt(x.lite)}</td></tr>`).join('')}
+    </table>`;
+})();
+</script>
+</body>
+</html>

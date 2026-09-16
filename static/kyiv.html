@@ -463,6 +463,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <div id="layers" hidden><div class="layermenu" id="layerbox"><span class="lbl" data-t="l_title">Layers</span><label><input type="checkbox" data-l="tiles"> <span data-t="l_tiles">Streets &amp; buildings (OSM, zoomed in)</span></label><label><input type="checkbox" data-l="himp"> <span data-t="l_himp">History: explosions ✸</span></label><label><input type="checkbox" data-l="hdown"> <span data-t="l_hdown">History: confirmed shot down ✕</span></label><label><input type="checkbox" data-l="trails"> <span data-t="l_trails">Tracks</span></label><label><input type="checkbox" data-l="cones"> <span data-t="l_cones">Course rays</span></label><label><input type="checkbox" data-l="rivers"> <span data-t="l_rivers">Rivers</span></label><label><input type="checkbox" data-l="roads"> <span data-t="l_roads">Roads</span></label><label><input type="checkbox" data-l="infra"> <span data-t="l_infra">Airports / plants</span></label><label><input type="checkbox" data-l="rings"> <span data-t="l_rings">Rings</span></label><label><input type="checkbox" data-l="minor"> <span data-t="l_minor">Villages &amp; small towns (off by default — clutters the phone)</span></label></div>
       <div class="foot" data-t-html="legend"></div>
       <div class="foot" id="mapfoot"></div></div>
+    <div class="foot" id="panelfoot"></div>
   </div>
 </aside>
 
@@ -558,6 +559,7 @@ pushInit();
 function paintFooters(){ const h=footerHTML();
   const a=$('discfoot'); if(a) a.innerHTML=h;
   const b2=$('mapfoot'); if(b2) b2.innerHTML=h;
+  const c=$('panelfoot'); if(c) c.innerHTML=`<div style="margin-bottom:6px">${esc(t('sup_free'))}</div>`+h;
   document.querySelectorAll('#bt2').forEach(e=>{ if(MYBUILD) e.textContent=' · '+t('build_lbl')+' '+MYBUILD; }); }
 function discHomeLabel(){ const b=$('dischome'); if(b) b.textContent=HOME?`${t('d_home_set')}: ${homeName()} ✓`:t('d_home_btn'); }
 function fillDiscOblasts(){ const sel=$('discobl'); if(!sel||!MAP) return; const list=(MAP.oblasts||[]).filter(o=>o.uid!=='31'&&o.uid!=='30').sort((a,b)=>oblName(a.uid).localeCompare(oblName(b.uid),LOCALE()));
