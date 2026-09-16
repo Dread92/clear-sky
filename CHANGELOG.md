@@ -6,7 +6,10 @@
 - **A threat is no longer invented when the post does not name one.** A post that says only where —
   "Васильків увага ‼️", "Лісники" — used to be drawn as a Shahed. It is now an amber warning triangle labelled
   *type not stated*, counted separately from drones. The channels' own shorthand still counts as naming it:
-  🛸 / 🛵 / 🏍 / 🅿 is a strike drone, 🚀 a missile, 💣 a KAB.
+  🛸 / 🛵 / 🏍 / 🅿 is a strike drone, 🚀 a missile, 💣 a KAB. The sign stays upright and blinks red, lives five
+  minutes and then disappears outright — no grey fade, because there is no target type to keep half-remembered.
+  Where the channel's own habits make one type likely it says so as a guess — "⚠ likely a drone", with the reason —
+  rather than either hiding the context or stating it as fact.
 - **No marker where the source said the sky is clear.** "Чисте небо Київська область та Київ. Васильків увага"
   produced threat markers over Kyiv — a false alarm on a city that had just been declared clear. Clear sentences
   are now removed before anything is parsed, and "чисте небо" is recognised as an all-clear.
@@ -29,6 +32,9 @@
   explosions per day. The "alerts / 24 h", "under alert" and per-oblast figures are gone; they were double
   counting and nobody used them.
 - The drawer opens and closes with a proper tab on its top edge instead of a 3-px pill.
+- Ukrainian wording corrected throughout, using the terms the people reading it actually use: *Збито / Приземлено*,
+  *Залишив область / Вийшов із зони*, *Локаційно втрачено*, *Позначка не фіксується*. Several strings were plainly
+  ungrammatical ("Позиції — де сказав допис"); a glossary of the status words is now in the help page.
 - Credit: built by **Dread92**.
 
 ## 1.1.0 — 2026-09-17

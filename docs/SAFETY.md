@@ -88,6 +88,11 @@ If the post does not say what is flying, the map does not say it either: the mar
 labelled *type not stated*, counted apart from drones and missiles. "Васильків увага ‼️" tells you where to worry,
 not what to worry about, and a Shahed icon there would be a claim nobody made.
 
+Its sign stands upright and blinks red, and it never turns with the reported heading — a warning sign that is
+rotated 200° reads as a decoration, not a warning; the heading is shown by the chevron beside it. It lives five
+minutes and then disappears outright, with none of the grey fading a drone track gets: there is no target type
+to keep half-remembered.
+
 The channels' shorthand does count as naming it — 🛸 🛵 🏍 🅿 for a strike drone, 🚀 for a missile, 💣 for a KAB —
 because that is how those channels write, every night.
 

@@ -926,6 +926,11 @@ class State:
                     keep.append(m)
                 continue
             if age > stale:
+                # An unspecified threat ("Васильків увага") says where, not what. It is a loud red sign while it
+                # is fresh, and then it is simply gone — no grey ghost fading for ten more minutes, because there
+                # is nothing to keep half-alive: nobody ever said what it was.
+                if m.get("type") == "unknown":
+                    continue
                 if age > max(stale * 3, 15):
                     continue                      # nothing for 15 min → gone
                 m["stale"] = round(age)           # not re-reported for > stale min: kept as "? location not updated"

@@ -69,3 +69,26 @@ def test_stated_altitude_in_metres_is_read():
 def test_altitude_is_never_invented():
     m = geo.parse_post("2 БпЛА курсом на Бровари")[0]
     assert m.get("alt") is None
+
+
+# --- a threat type is never invented, but the channel's context is offered as a labelled guess ---
+def test_a_place_only_post_is_not_called_a_shahed():
+    m = geo.parse_for_channel("kyiv_airdef", "Васильків увага ‼️")[0]
+    assert m["type"] == "unknown"
+
+
+def test_the_channel_context_is_carried_as_a_likelihood():
+    """'most likely a drone' is useful; 'Shahed' would be a claim nobody made."""
+    m = geo.parse_for_channel("kyiv_airdef", "Лісники")[0]
+    assert m["type"] == "unknown" and m["likely"] == "drones"
+    assert m["evidence"]["type"]["confidence"] == "none"
+
+
+def test_the_channels_emoji_shorthand_counts_as_naming_it():
+    assert geo.parse_for_channel("kyiv_airdef", "Козин🛸")[0]["type"] == "drones"
+    assert geo.parse_for_channel("kyiv_airdef", "Козин🛸")[0]["likely"] is None
+
+
+def test_no_marker_on_a_place_the_post_declared_clear():
+    out = geo.parse_for_channel("kyiv_airdef", "Чисте небо Київська область та Київ. Васильків увага ‼️")
+    assert [m["place"] for m in out] == ["Васильків"]

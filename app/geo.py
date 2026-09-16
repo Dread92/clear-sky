@@ -758,7 +758,7 @@ def _parse_live(text, uid):
     if mc:
         cnt = int(mc.group(1) or mc.group(2))
     return [{"type": mtype, "status": st, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None, "place": name, "target": None, "count": cnt,
-             "jet": bool(re.search(r"реактив", t)), "oblast_uid": uid, "live": True,
+             "jet": bool(re.search(r"реактив", t)), "oblast_uid": uid, "live": True, "likely": (None if stated else "drones"),
              "evidence": {"segment": t.strip(), "type": {"matched": "(none)", "method": ("keyword" if stated else "the post names only a place — this channel tracks strike drones, but it did not say so here"), "confidence": ("high" if stated else "none")},
                           "position": {"matched": t[s:e], "place": name, "method": "bare place name = current position of the tracked target (gazetteer)", "confidence": "high"},
                           "heading": {"matched": None, "method": "derived from the previous report of this channel when available", "confidence": "medium"}, "count": None}}]
