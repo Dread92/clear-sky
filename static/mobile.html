@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0c0f14">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23e5484d'/></svg>">
+<title>UA Alerts</title>
+<style>
+:root{--bg:#0c0f14;--panel:#141922;--panel2:#1b2230;--line:#232c3b;--text:#e6e9ef;--muted:#8a94a6;
+  --red:#e5484d;--yellow:#f5b940;--green:#3ecf8e;--blue:#5b9cff;--orange:#ff8a3d;--purple:#b07cff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overscroll-behavior:none}
+body{padding-top:var(--sat);padding-bottom:calc(var(--sab) + 8px)}
+/* header */
+.hero{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 14px 8px;border-bottom:1px solid var(--line)}
+.hero .row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.hero .brand{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px}
+.hero .clock{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.kyiv{margin-top:8px;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;border:1px solid var(--line);background:var(--panel)}
+.kyiv.A{background:linear-gradient(135deg,rgba(229,72,77,.35),rgba(229,72,77,.08));border-color:rgba(229,72,77,.7)}
+.kyiv.P{background:linear-gradient(135deg,rgba(245,185,64,.3),rgba(245,185,64,.06));border-color:rgba(245,185,64,.6)}
+.kyiv.N{background:linear-gradient(135deg,rgba(62,207,142,.22),rgba(62,207,142,.04));border-color:rgba(62,207,142,.45)}
+.kyiv .big{font-size:20px;font-weight:800;line-height:1.1}
+.kyiv .small{font-size:12.5px;color:var(--muted);margin-top:3px}
+.kyiv .dur{margin-left:auto;font-family:var(--mono);font-size:22px;font-weight:700;white-space:nowrap}
+.dot{width:14px;height:14px;border-radius:50%;flex:none}
+.dot.A{background:var(--red);box-shadow:0 0 0 0 rgba(229,72,77,.6);animation:pulse 1.5s infinite}
+.dot.P{background:var(--yellow)}.dot.N{background:var(--green)}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.6)}70%{box-shadow:0 0 0 12px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:8px 0 0;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;display:inline-flex;align-items:center;gap:5px;padding:4px 9px;border-radius:999px;font-size:12.5px;background:var(--panel2);border:1px solid var(--line);white-space:nowrap}
+.chip.red{background:rgba(229,72,77,.18);border-color:rgba(229,72,77,.55);color:#ffb3b5}
+.chip.yellow{background:rgba(245,185,64,.16);border-color:rgba(245,185,64,.5);color:#ffd88a}
+.chip.kyiv{background:rgba(91,156,255,.16);border-color:rgba(91,156,255,.5);color:#bcd5ff}
+.chip.clear{background:rgba(62,207,142,.14);border-color:rgba(62,207,142,.4);color:#a8f0cf}
+.chip b{font-family:var(--mono);font-weight:600}
+.chip.on{border-color:var(--blue);color:#bcd5ff;background:rgba(91,156,255,.14)}
+/* map */
+.mapwrap{position:relative;background:#0a0d12;border-bottom:1px solid var(--line);touch-action:none;user-select:none}
+svg#map{display:block;width:100%;height:min(62vh,520px)}
+.obl{fill:#1a2130;stroke:#2a3547;stroke-width:1.2;transition:fill .4s}
+.obl.A{fill:rgba(229,72,77,.42)}.obl.A.red{fill:rgba(229,72,77,.62)}.obl.P{fill:rgba(245,185,64,.32)}
+.obl.fav{stroke:#5b9cff;stroke-width:2}
+.obl.occ{fill:#151a24;stroke-dasharray:3 3}
+.mk{cursor:pointer}
+.mk .halo{fill:none;stroke-width:1.5;opacity:.5}
+.mk .glyph{stroke:#0a0d12;stroke-width:1;vector-effect:non-scaling-stroke}
+.mk.drones .glyph{fill:#ff8a3d}.mk.drones .halo{stroke:#ff8a3d}
+.mk.cruise_missiles .glyph,.mk.unspecified_missiles .glyph{fill:#ff5c61}.mk.cruise_missiles .halo{stroke:#ff5c61}
+.mk.ballistic_missiles .glyph{fill:#ff3b3f}.mk.ballistic_missiles .halo{stroke:#ff3b3f}
+.mk.guided_aerial_bombs .glyph,.mk.tactic_aircraft_activity .glyph{fill:#b07cff}.mk.guided_aerial_bombs .halo,.mk.tactic_aircraft_activity .halo{stroke:#b07cff}
+.mk .course{stroke-width:2;stroke-dasharray:5 4;fill:none;opacity:.8}
+.mk.drones .course{stroke:#ff8a3d}.mk.cruise_missiles .course,.mk.ballistic_missiles .course{stroke:#ff5c61}
+.mk .tgt{stroke:#ffffff;stroke-width:1;stroke-dasharray:2 4;fill:none;opacity:.35}
+.mk .cnt{font:700 13px var(--mono);fill:#fff;paint-order:stroke;stroke:#0a0d12;stroke-width:3}
+.mk.old{opacity:.45}
+.city{fill:#e6e9ef;font:600 11px system-ui;paint-order:stroke;stroke:#0a0d12;stroke-width:3;pointer-events:none}
+.citydot{fill:#e6e9ef;stroke:#0a0d12;stroke-width:1}
+.mapctl{position:absolute;right:8px;top:8px;display:flex;flex-direction:column;gap:6px}
+.mapctl button,.legendbtn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:rgba(20,25,34,.92);color:var(--text);font-size:18px}
+.mapfoot{position:absolute;left:8px;bottom:6px;display:flex;gap:10px;font-size:11px;color:var(--muted);background:rgba(12,15,20,.75);padding:3px 8px;border-radius:8px}
+.mapfoot i{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+/* sections */
+.tabs{display:flex;gap:0;margin:10px 14px 0;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:3px}
+.tabs button{flex:1;border:0;background:transparent;color:var(--muted);font:600 13.5px system-ui;padding:8px 4px;border-radius:9px}
+.tabs button.on{background:var(--panel2);color:var(--text)}
+.sec{padding:10px 14px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.card.kyiv{border-color:rgba(91,156,255,.55);background:rgba(91,156,255,.08)}
+.card.red{border-color:rgba(229,72,77,.5)}.card.yellow{border-color:rgba(245,185,64,.45)}
+.card .h{display:flex;flex-wrap:wrap;justify-content:space-between;gap:4px 8px;font-size:11.5px;color:var(--muted);font-family:var(--mono);margin-bottom:4px;align-items:center}
+.card .h .tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.card .h .tags span{padding:0 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);font-size:10.5px;color:var(--text)}
+.card .h .tags span.kyiv{color:#bcd5ff;border-color:rgba(91,156,255,.5)}
+.card .txt{white-space:pre-wrap;word-break:break-word;font-size:14.5px}
+.card .title{font-weight:700}.card .meta{font-size:12.5px;color:var(--muted)}
+.card.new{animation:flash 2.5s ease-out}
+@keyframes flash{0%{background:rgba(245,185,64,.35)}100%{background:var(--panel)}}
+.empty{color:var(--muted);padding:12px 4px;text-align:center}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat .v{font-family:var(--mono);font-size:20px;font-weight:700}.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.track{position:relative;height:18px;background:var(--panel2);border-radius:5px;border:1px solid var(--line);overflow:hidden;margin-top:6px}
+.bar{position:absolute;top:2px;bottom:2px;background:var(--red);border-radius:3px;min-width:2px;opacity:.85}
+.ticks{display:flex;justify-content:space-between;font:10.5px var(--mono);color:var(--muted);margin-top:3px}
+.foot{padding:6px 14px 14px;font-size:11px;color:var(--muted);text-align:center}
+/* sheet */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#1a2130;border-top:1px solid var(--line);border-radius:18px 18px 0 0;padding:12px 16px calc(16px + var(--sab));transform:translateY(105%);transition:transform .25s;box-shadow:0 -12px 40px rgba(0,0,0,.5)}
+.sheet.show{transform:none}
+.sheet .grab{width:40px;height:4px;background:var(--line);border-radius:2px;margin:0 auto 10px}
+.sheet .type{font-weight:800;font-size:17px;display:flex;align-items:center;gap:8px}
+.sheet .kv{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;font-size:13.5px;margin:8px 0;color:var(--muted)}
+.sheet .kv b{color:var(--text);font-weight:600}
+.sheet .txt{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:14px;white-space:pre-wrap}
+.sheet a{color:var(--blue);font-size:13px}
+.toast{position:fixed;left:12px;right:12px;top:calc(var(--sat) + 10px);z-index:30;background:#1d2533;border:1px solid var(--line);border-left:4px solid var(--red);border-radius:12px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:none}
+.toast.show{display:block}
+.srcs{display:flex;gap:4px}
+.srcs i{width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block}.srcs i.ok{background:var(--green)}.srcs i.bad{background:var(--red)}
+button.tgl{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:8px;padding:4px 8px;font-size:12px}
+button.tgl.on{border-color:var(--green);color:var(--green)}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="row">
+    <div class="brand">UA Alerts <span class="srcs" id="srcs"></span></div>
+    <div class="row" style="gap:6px"><button class="tgl on" id="snd">🔊</button><button class="tgl" id="vib">📳</button><span class="clock" id="clock">--:--</span></div>
+  </div>
+  <div class="kyiv N" id="kyiv"><div class="dot N"></div><div><div class="big">Kyiv — chargement…</div><div class="small"></div></div></div>
+  <div class="chips" id="threats"></div>
+</div>
+
+<div class="mapwrap" id="mapwrap">
+  <svg id="map" viewBox="150 -30 640 429" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <symbol id="g-drone" viewBox="-10 -10 20 20"><path class="glyph" d="M0-9 L3-2 L9 1 L9 3 L2.5 1.6 L1.5 6 L4 8 L4 9 L0 8 L-4 9 L-4 8 L-1.5 6 L-2.5 1.6 L-9 3 L-9 1 L-3-2 Z"/></symbol>
+      <symbol id="g-missile" viewBox="-10 -10 20 20"><path class="glyph" d="M0-10 L2.5-5 L2.5 4 L5 8 L5 10 L1.5 7.5 L-1.5 7.5 L-5 10 L-5 8 L-2.5 4 L-2.5-5 Z"/></symbol>
+      <symbol id="g-bomb" viewBox="-10 -10 20 20"><circle class="glyph" cx="0" cy="3" r="6"/><path class="glyph" d="M-2-3 L2-3 L2-7 L-2-7 Z"/></symbol>
+    </defs>
+    <g id="oblasts"></g>
+    <g id="cities"></g>
+    <g id="markers"></g>
+  </svg>
+  <div class="mapctl"><button id="zin">+</button><button id="zout">−</button><button id="zreset">⌂</button><button id="zkyiv">📍</button></div>
+  <div class="mapfoot"><span><i style="background:#ff8a3d"></i>Shahed</span><span><i style="background:#ff5c61"></i>Missile</span><span><i style="background:#b07cff"></i>KAB</span><span id="mkcount"></span></div>
+</div>
+
+<div class="tabs" id="tabs"><button data-t="feed" class="on">Fil</button><button data-t="alerts">Alertes</button><button data-t="hist">Kyiv 24h</button></div>
+<div class="sec" id="feedwrap"><div class="chips" style="padding:0 0 8px"><span class="chip on" id="fAll" data-f="all">Pertinent</span><span class="chip" data-f="kyiv">📍 Kyiv</span><span class="chip" data-f="official">Officiel</span><span class="chip" data-f="everything">Tout</span></div><div id="feed"></div></div>
+<div class="sec" id="alerts" hidden></div>
+<div class="sec" id="hist" hidden></div>
+<div class="foot">Sources : alerts.in.ua · ubilling (keyless) · Telegram @kpszsu, @povitryanatrivogaaa, @war_monitor, @monitor_ukr, @kyivoda, @KyivCityOfficial. Positions des cibles = interprétation automatique des messages de l'Armée de l'air (approximatives, dérivées selon le cap). Pas un système de sécurité : garde la sirène de l'app officielle.</div>
+
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const THREAT={drones:['🛸','Drones (Shahed)'],ballistic_missiles:['🚀','Balistique'],cruise_missiles:['🎯','Missiles de croisière'],unspecified_missiles:['🎯','Missiles'],
+  mig31k_departure:['✈️','MiG-31K en vol'],strategic_aircraft_activity:['🛩️','Aviation stratégique'],tactic_aircraft_activity:['🛩️','Aviation tactique / KAB'],
+  guided_aerial_bombs:['💣','KAB'],air_defense:['🛡️','DCA active'],kyiv:['📍','Kyiv'],clear:['✅','Fin'],unknown:['❔','?']};
+const ATYPE={air_raid:'Alerte aérienne',artillery_shelling:'Tirs d\'artillerie',urban_fights:'Combats urbains',chemical:'Chimique',nuclear:'Nucléaire',info:'Info'};
+const SPEED={drones:2.6,cruise_missiles:12,unspecified_missiles:12,ballistic_missiles:0,guided_aerial_bombs:0,tactic_aircraft_activity:0}; // km per minute of drift
+const OCC=new Set(['29','30']);
+const TZ='Europe/Kyiv';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtT=iso=>iso?new Date(iso).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:TZ}):'';
+const dur=(a,b)=>{const ms=(b?new Date(b):new Date())-new Date(a);if(isNaN(ms)||ms<0)return'—';const m=Math.floor(ms/60000),h=Math.floor(m/60);return h?`${h}h${String(m%60).padStart(2,'0')}`:`${m} min`;};
+const agoMin=iso=>(Date.now()-new Date(iso))/60000;
+
+let MAP=null,S=null,MK=[],ttl=45,hist=[],soundOn=true,vibOn=false,seen=new Set(),firstFeed=true;
+try{soundOn=localStorage.getItem('snd')!=='0';vibOn=localStorage.getItem('vib')==='1';}catch(e){}
+$('snd').classList.toggle('on',soundOn);$('vib').classList.toggle('on',vibOn);
+$('snd').onclick=()=>{soundOn=!soundOn;$('snd').classList.toggle('on',soundOn);try{localStorage.setItem('snd',soundOn?'1':'0')}catch(e){}};
+$('vib').onclick=()=>{vibOn=!vibOn;$('vib').classList.toggle('on',vibOn);try{localStorage.setItem('vib',vibOn?'1':'0')}catch(e){};if(vibOn&&navigator.vibrate)navigator.vibrate(80);};
+
+// ---- projection ----
+function proj(lon,lat){const p=MAP.proj;return [p.x[0]*lon+p.x[1]*lat+p.x[2], p.y[0]*lon+p.y[1]*lat+p.y[2]];}
+function drift(m){ // move along heading according to age
+  const sp=SPEED[m.type]??0; if(!sp||m.heading==null) return [m.lon,m.lat];
+  const km=Math.min(agoMin(m.ts),m.type==='drones'?ttl:8)*sp;
+  const dlat=km/111*Math.cos(m.heading*Math.PI/180), dlon=km/(111*Math.cos(m.lat*Math.PI/180))*Math.sin(m.heading*Math.PI/180);
+  return [m.lon+dlon,m.lat+dlat];
+}
+
+// ---- audio / notify ----
+let actx;
+function beep(kind){ if(!soundOn) return; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); const seq=kind==='end'?[[660,.12],[880,.2]]:kind==='threat'?[[520,.1],[520,.1],[520,.1]]:[[880,.15],[660,.15],[880,.15],[660,.3]]; let t=actx.currentTime; for(const [f,d] of seq){const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);t+=d+.05;} }catch(e){} }
+function notify(title,body,kind){ const el=$('toast'); el.style.borderLeftColor=kind==='end'?'var(--green)':kind==='threat'?'var(--yellow)':'var(--red)'; el.innerHTML=`<b>${esc(title)}</b><div style="color:var(--muted);font-size:12.5px;margin-top:3px">${esc(body||'')}</div>`; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),7000); beep(kind); if(vibOn&&navigator.vibrate) navigator.vibrate(kind==='end'?[80]:[200,100,200]); }
+
+// ---- map ----
+const CITIES=[['Київ',30.52,50.45],['Харків',36.23,49.99],['Одеса',30.73,46.48],['Дніпро',35.04,48.46],['Львів',24.03,49.84],['Запоріжжя',35.14,47.84],['Полтава',34.55,49.59],['Суми',34.80,50.91],['Чернігів',31.29,51.50],['Вінниця',28.48,49.23],['Житомир',28.66,50.25],['Миколаїв',31.99,46.97],['Херсон',32.62,46.64],['Черкаси',32.06,49.44],['Кропивницький',32.26,48.51],['Рівне',26.25,50.62],['Луцьк',25.32,50.75],['Тернопіль',25.59,49.55],['Хмельницький',26.98,49.42],['Чернівці',25.94,48.29],['Івано-Франківськ',24.71,48.92],['Ужгород',22.30,48.62],['Кривий Ріг',33.39,47.91],['Кременчук',33.42,49.07],['Донецьк',37.80,48.02],['Луганськ',39.31,48.57],['Сімферополь',34.10,44.95]];
+async function loadMap(){
+  MAP=await (await fetch('/static/ukraine-map.json')).json();
+  $('oblasts').innerHTML=MAP.oblasts.map(o=>`<path id="o${o.uid}" class="obl ${OCC.has(o.uid)?'occ':''}" data-uid="${o.uid}" d="${o.path}"/>`).join('');
+  $('cities').innerHTML=CITIES.map(([n,lo,la])=>{const [x,y]=proj(lo,la);return `<circle class="citydot" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${n==='Київ'?4:2.5}"/><text class="city" x="${(x+6).toFixed(1)}" y="${(y+4).toFixed(1)}" style="font-size:${n==='Київ'?15:12}px">${n}</text>`;}).join('');
+}
+// pan / zoom on viewBox
+const ASPECT=()=>{const r=svg.getBoundingClientRect();return r.width?r.height/r.width:0.67;};
+const HOME={x:205,y:-12,w:520,h:693}; const VB={...HOME};
+function setHome(){const a=ASPECT();HOME.w=520;HOME.h=520*a;HOME.x=465-260;HOME.y=Math.max(-80,176-HOME.h/2);} const svg=$('map');
+function applyVB(){svg.setAttribute('viewBox',`${VB.x} ${VB.y} ${VB.w} ${VB.h}`);}
+function zoomAt(f,cx,cy){ // cx,cy in svg coords
+  const nw=Math.max(150,Math.min(1000,VB.w/f)), nh=nw*ASPECT(); VB.x=cx-(cx-VB.x)*(nw/VB.w); VB.y=cy-(cy-VB.y)*(nh/VB.h); VB.w=nw; VB.h=nh; clamp(); applyVB(); }
+function clamp(){VB.x=Math.max(-100,Math.min(1100-VB.w,VB.x));VB.y=Math.max(-80,Math.min(750-VB.h,VB.y));}
+function toSvg(px,py){const r=svg.getBoundingClientRect();return [VB.x+(px-r.left)/r.width*VB.w, VB.y+(py-r.top)/r.height*VB.h];}
+$('zin').onclick=()=>zoomAt(1.5,VB.x+VB.w/2,VB.y+VB.h/2); $('zout').onclick=()=>zoomAt(1/1.5,VB.x+VB.w/2,VB.y+VB.h/2);
+$('zreset').onclick=()=>{VB.w=1000;VB.h=1000*ASPECT();VB.x=0;VB.y=335-VB.h/2;applyVB();}; $('zkyiv').onclick=()=>{Object.assign(VB,HOME);applyVB();};
+let touches={},lastDist=null,lastMid=null,moved=false;
+const wrap=$('mapwrap');
+wrap.addEventListener('pointerdown',e=>{touches[e.pointerId]=[e.clientX,e.clientY];moved=false;wrap.setPointerCapture(e.pointerId);});
+wrap.addEventListener('pointermove',e=>{ if(!(e.pointerId in touches)) return; const pts=Object.values(touches); const prev=touches[e.pointerId]; touches[e.pointerId]=[e.clientX,e.clientY];
+  const r=svg.getBoundingClientRect(); const k=VB.w/r.width;
+  if(pts.length===1){ const dx=(e.clientX-prev[0])*k, dy=(e.clientY-prev[1])*k; if(Math.abs(dx)+Math.abs(dy)>0.5){moved=true;} VB.x-=dx;VB.y-=dy;clamp();applyVB(); }
+  else if(pts.length>=2){ const [a,b]=Object.values(touches); const d=Math.hypot(a[0]-b[0],a[1]-b[1]); const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2]; if(lastDist){ const [cx,cy]=toSvg(mid[0],mid[1]); zoomAt(d/lastDist,cx,cy); if(lastMid){VB.x-=(mid[0]-lastMid[0])*k;VB.y-=(mid[1]-lastMid[1])*k;clamp();applyVB();} } lastDist=d; lastMid=mid; moved=true; }
+});
+const endT=e=>{delete touches[e.pointerId]; if(Object.keys(touches).length<2){lastDist=null;lastMid=null;}};
+wrap.addEventListener('pointerup',endT);wrap.addEventListener('pointercancel',endT);
+wrap.addEventListener('wheel',e=>{e.preventDefault();const [cx,cy]=toSvg(e.clientX,e.clientY);zoomAt(e.deltaY<0?1.2:1/1.2,cx,cy);},{passive:false});
+
+function renderMarkers(){
+  if(!MAP) return;
+  const now=Date.now(); const g=$('markers'); const out=[];
+  const live=MK.filter(m=>agoMin(m.ts)<=ttl).sort((a,b)=>new Date(a.ts)-new Date(b.ts));
+  for(const m of live){
+    const [lo,la]=drift(m); const [x,y]=proj(lo,la); const age=agoMin(m.ts);
+    const G={drone:'<path class="glyph" d="M0-9 L3-2 L9 1 L9 3 L2.5 1.6 L1.5 6 L4 8 L4 9 L0 8 L-4 9 L-4 8 L-1.5 6 L-2.5 1.6 L-9 3 L-9 1 L-3-2 Z"/>',missile:'<path class="glyph" d="M0-10 L2.5-5 L2.5 4 L5 8 L5 10 L1.5 7.5 L-1.5 7.5 L-5 10 L-5 8 L-2.5 4 L-2.5-5 Z"/>',bomb:'<circle class="glyph" cx="0" cy="3" r="6"/><path class="glyph" d="M-2-3 L2-3 L2-7 L-2-7 Z"/>'};
+    const glyph=m.type==='drones'?G.drone:(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?G.bomb:G.missile;
+    const rot=m.heading==null?0:m.heading; const sz=m.type==='drones'?30:32;
+    let course=''; if(m.heading!=null){ const L=52; const ex=x+L*Math.sin(rot*Math.PI/180), ey=y-L*Math.cos(rot*Math.PI/180); course=`<line class="course" x1="${x}" y1="${y}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}"/>`; }
+    let tgt=''; if(m.target&&m.target!=='область'&&MAP){ /* target line drawn from parsed heading only (no coords client-side) */ }
+    out.push(`<g class="mk ${m.type} ${age>ttl*0.6?'old':''}" data-id="${esc(m.id)}">
+      ${course}
+      <circle class="halo" cx="${x}" cy="${y}" r="${sz*0.75}"><animate attributeName="r" values="${sz*0.5};${sz*0.95};${sz*0.5}" dur="2.4s" repeatCount="indefinite"/></circle>
+      <g transform="translate(${x} ${y}) rotate(${rot}) scale(${(sz/20).toFixed(2)})">${glyph}</g>
+      ${m.count&&m.count>1?`<text class="cnt" x="${x+sz/2-2}" y="${y-sz/2+8}">×${m.count}</text>`:''}
+      <circle cx="${x}" cy="${y}" r="${sz}" fill="transparent"/>
+    </g>`);
+  }
+  g.innerHTML=out.join('');
+  $('mkcount').textContent=live.length?`${live.length} cible(s) · ${ttl} min`:'aucune cible signalée';
+  g.querySelectorAll('.mk').forEach(el=>el.addEventListener('pointerup',e=>{ if(moved) return; e.stopPropagation(); openSheet(el.dataset.id); }));
+}
+function openSheet(id){
+  const m=MK.find(x=>x.id===id); if(!m) return;
+  const t=THREAT[m.type]||THREAT.unknown; const dirs=['N','NE','E','SE','S','SO','O','NO'];
+  const hd=m.heading==null?'—':`${dirs[Math.round(m.heading/45)%8]} (${m.heading}°)`;
+  $('sheetbody').innerHTML=`<div class="type">${t[0]} ${t[1]}${m.count?` <span class="chip">×${m.count}</span>`:''}</div>
+    <div class="kv"><span>Signalé</span><b>${fmtT(m.ts)} · il y a ${Math.round(agoMin(m.ts))} min</b><span>Position</span><b>${esc(m.place==='область'?'région (approx.)':m.place)}</b><span>Cap</span><b>${hd}${m.target?` → ${esc(m.target==='область'?'région voisine':m.target)}`:''}</b></div>
+    <div class="txt">${esc(m.text)}</div>
+    <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center"><a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">Ouvrir sur Telegram ↗</a><button class="tgl" onclick="closeSheet()">Fermer</button></div>`;
+  $('sheet').classList.add('show');
+}
+function closeSheet(){$('sheet').classList.remove('show');}
+document.addEventListener('pointerdown',e=>{ if($('sheet').classList.contains('show') && !$('sheet').contains(e.target)) closeSheet(); });
+
+// ---- state rendering ----
+function render(){
+  if(!S) return; const ob=S.oblasts, favs=S.favourites;
+  // sources
+  $('srcs').innerHTML=Object.entries(S.sources).map(([k,v])=>`<i class="${v.ok?'ok':'bad'}" title="${esc(k)}"></i>`).join('');
+  // kyiv card: worst of favourites
+  const k=ob['31'], ko=ob['14'];
+  const st=(k.status==='A'||ko.status==='A')?'A':(k.status==='P'||ko.status==='P')?'P':'N';
+  const el=$('kyiv'); el.className='kyiv '+st;
+  const subs=S.active.filter(a=>(a.oblast_uid==='14'||a.oblast_uid==='31')&&a.location_type!=='oblast');
+  const since=k.since||ko.since||(subs[0]&&subs[0].started_at);
+  const thr=[...k.threats,...ko.threats].map(t=>`${THREAT[t.threat_type]?.[0]||''} ${THREAT[t.threat_type]?.[1]||t.threat_type}`);
+  const uniq=[...new Set(thr)];
+  el.innerHTML=`<div class="dot ${st}"></div><div><div class="big">${st==='A'?'🔴 Kyiv — ALERTE':st==='P'?'🟠 Kyiv — alerte partielle':'🟢 Kyiv — calme'}</div>
+    <div class="small">${st==='A'?`ville ${k.status==='A'?'✔':'—'} · oblast ${ko.status==='A'?'✔':'—'}${since?' · depuis '+fmtT(since):''}`:st==='P'?`${subs.map(a=>a.location_title_en||a.location_title).join(', ')}`:'aucune alerte à Kyiv ni dans l\'oblast'}${uniq.length?' · '+uniq.join(', '):''}</div></div>
+    ${st!=='N'&&since?`<div class="dur">${dur(since)}</div>`:''}`;
+  document.title=(st==='A'?'🔴 ':'')+'UA Alerts';
+  // threats chips across country
+  const groups={}; for(const a of S.active) for(const t of a.threats||[]){ const g=groups[t.threat_type]||={n:new Set(),lvl:'yellow'}; g.n.add(ob[a.oblast_uid]?.en||a.location_title); if(t.level==='red')g.lvl='red'; }
+  const nA=Object.values(ob).filter(o=>o.status==='A').length;
+  $('threats').innerHTML=`<span class="chip ${nA?'red':'clear'}"><b>${nA}</b> oblast${nA>1?'s':''} en alerte</span>`+Object.entries(groups).map(([t,g])=>`<span class="chip ${g.lvl}">${THREAT[t]?.[0]||''} ${THREAT[t]?.[1]||t} <b>${g.n.size}</b></span>`).join('')
+    +(!S.config.has_token&&!S.config.demo?`<span class="chip">mode keyless</span>`:'');
+  // oblasts
+  for(const [uid,o] of Object.entries(ob)){ const p=$('o'+uid); if(!p) continue; p.setAttribute('class',`obl ${o.status} ${o.level==='red'?'red':''} ${favs.includes(uid)?'fav':''} ${OCC.has(uid)?'occ':''}`); }
+  // alerts tab
+  const act=[...S.active].sort((a,b)=>(favs.includes(b.oblast_uid)-favs.includes(a.oblast_uid))||(a.started_at<b.started_at?1:-1));
+  $('alerts').innerHTML=act.length?act.map(a=>`<div class="card ${a.alert_level||''} ${favs.includes(a.oblast_uid)?'kyiv':''}"><div class="title">${esc(a.location_title_en||a.location_title)} <span style="color:var(--muted);font-weight:400">· ${esc(a.location_title)}</span></div>
+     <div class="meta">${ATYPE[a.alert_type]||a.alert_type} · ${a.location_type} · depuis ${fmtT(a.started_at)} (${dur(a.started_at)})${(a.threats||[]).length?' · '+a.threats.map(t=>THREAT[t.threat_type]?.[0]||'').join(''):''}</div></div>`).join('')
+     :'<div class="empty">Aucune alerte active en Ukraine 🟢</div>';
+}
+let feedFilter='all', lastPosts=[];
+const CH={kpszsu:'ПС ЗСУ',povitryanatrivogaaa:'Карта тривог',war_monitor:'monitor',monitor_ukr:'monitor UA',kyivoda:'КОВА (oblast)',KyivCityOfficial:'КМДА (Kyiv)',demo:'demo'};
+document.querySelectorAll('#feedwrap .chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('#feedwrap .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');feedFilter=c.dataset.f;renderFeed(lastPosts,false);});
+function renderFeed(posts,flash){
+  lastPosts=posts;
+  const rel=p=>{const t=p.tags||[]; if(feedFilter==='everything')return true; if(feedFilter==='kyiv')return t.includes('kyiv'); if(feedFilter==='official')return t.includes('official'); return t.some(x=>x!=='air_defense')||t.includes('official');};
+  const shown=posts.filter(rel);
+  $('feed').innerHTML=shown.length?shown.map(p=>{const tags=(p.tags||[]).filter(t=>t!=='geo'&&t!=='official');const isNew=flash&&!seen.has(p.post_id);seen.add(p.post_id);
+    return `<div class="card ${tags.includes('kyiv')?'kyiv':''} ${isNew?'new':''}"><div class="h"><span>${fmtT(p.ts)} · <b style="color:var(--text)">${esc(CH[p.channel]||'@'+p.channel)}</b></span><span class="tags">${tags.map(t=>`<span class="${t==='kyiv'?'kyiv':''}">${THREAT[t]?.[0]||''} ${THREAT[t]?.[1]||t}</span>`).join('')}</span></div><div class="txt">${esc(p.text)}</div></div>`;}).join('')
+    :'<div class="empty">Rien pour ce filtre.</div>';
+}
+function renderHist(){
+  const now=Date.now(),start=now-24*3600e3,W=now-start;
+  const html=['31','14'].map(u=>{ const rows=hist.filter(a=>a.oblast_uid===u&&a.location_type==='oblast'); const within=rows.filter(a=>(a.finished_at?new Date(a.finished_at):now)>=start);
+    const mins=within.reduce((s,a)=>s+Math.max(0,((a.finished_at?new Date(a.finished_at):now)-Math.max(start,new Date(a.started_at)))/60000),0);
+    const bars=within.map(a=>{const s=Math.max(start,new Date(a.started_at)),e=a.finished_at?new Date(a.finished_at):now;return `<div class="bar" style="left:${(s-start)/W*100}%;width:${Math.max(.2,(e-s)/W*100)}%"></div>`;}).join('');
+    return `<div class="card"><div class="title">${S?.oblasts[u]?.en||u}</div><div class="stats" style="margin-top:6px"><div class="stat"><div class="v">${within.length}</div><div class="l">alertes / 24h</div></div><div class="stat"><div class="v">${Math.floor(mins/60)}h${String(Math.round(mins%60)).padStart(2,'0')}</div><div class="l">sous alerte (${(mins/1440*100).toFixed(0)} %)</div></div></div>
+      <div class="track">${bars}</div><div class="ticks"><span>${fmtT(new Date(start))}</span><span>${fmtT(new Date(start+W/2))}</span><span>maintenant</span></div></div>`; }).join('');
+  $('hist').innerHTML=html;
+}
+// ---- data ----
+async function loadState(){try{S=await(await fetch('/api/state')).json();render();}catch(e){}}
+async function loadMarkers(){try{const d=await(await fetch('/api/markers')).json();MK=d.markers;ttl=d.ttl_minutes||45;renderMarkers();}catch(e){}}
+async function loadFeed(flash){try{const posts=(await(await fetch('/api/feed?limit=120')).json()).feed;renderFeed(posts,flash&&!firstFeed);firstFeed=false;}catch(e){}}
+async function loadHist(){try{hist=(await(await fetch('/api/history?hours=24&oblast=31,14')).json()).alerts;renderHist();}catch(e){}}
+let es; function connect(){ es=new EventSource('/api/stream');
+  const onA=kind=>ev=>{const d=JSON.parse(ev.data),a=d.alert,fav=S&&S.favourites.includes(a.oblast_uid); loadState(); if(kind!=='update')loadHist(); if(!fav)return;
+    if(kind==='start')notify(`🔴 ${ATYPE[a.alert_type]||'Alerte'} — ${a.location_title_en||a.location_title}`,`${a.location_type} · ${fmtT(a.started_at)}`,'start');
+    else if(kind==='end')notify(`🟢 Fin d'alerte — ${a.location_title_en||a.location_title}`,`durée ${dur(a.started_at,a.finished_at)}`,'end');
+    else if(kind==='threat'){const t=d.threat||{};notify(`⚠️ ${THREAT[t.threat_type]?.[1]||t.threat_type} — ${a.location_title_en||a.location_title}`,t.source_message||'','threat');}};
+  ['start','end','threat','update'].forEach(k=>es.addEventListener(k,onA(k)));
+  es.addEventListener('feed',ev=>{const d=JSON.parse(ev.data);loadFeed(true);loadMarkers();if((d.post.tags||[]).includes('kyiv'))notify('📍 PS ЗСУ — Kyiv mentionné',d.post.text.slice(0,160),'threat');});
+  es.onerror=()=>{es.close();setTimeout(connect,3000);};
+}
+// tabs
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=()=>{document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');['feedwrap','alerts','hist'].forEach(t=>$(t).hidden=t!==b.dataset.t);});
+setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',timeZone:TZ});},1000);
+setInterval(renderMarkers,15000); setInterval(render,30000); setInterval(loadState,20000); setInterval(loadMarkers,60000); setInterval(()=>loadFeed(false),90000); setInterval(loadHist,180000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){loadState();loadMarkers();loadFeed(false);}});
+window.addEventListener('resize',()=>{setHome();});
+(async()=>{await loadMap();setHome();Object.assign(VB,HOME);applyVB();await loadState();await Promise.all([loadMarkers(),loadFeed(false),loadHist()]);connect();})();
+</script>
+</body>
+</html>

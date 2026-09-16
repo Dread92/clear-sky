@@ -1,0 +1,13 @@
+# render.com — New → Blueprint → point at this repo. Free tier sleeps after 15 min idle (use a paid
+# instance or a cron ping of /healthz to keep it warm).
+services:
+  - type: web
+    name: kyiv-air-watch
+    runtime: docker
+    plan: free
+    healthCheckPath: /healthz
+    envVars:
+      - key: ACCESS_KEY
+        sync: false
+      - key: ALERTS_IN_UA_TOKEN
+        sync: false

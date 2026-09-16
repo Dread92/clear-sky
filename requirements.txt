@@ -1,0 +1,4 @@
+# Clear Sky runs on the Python standard library alone.
+# The single optional dependency below only enables Web Push notifications
+# (phone alerts with the app closed). Without it the app runs, push is disabled.
+cryptography>=42.0

@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Tests and lint
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dev dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint
+        run: python -m ruff check app tests
+
+      - name: Tests
+        run: python -m pytest
+
+      - name: The service must start and answer
+        run: |
+          python app/server.py --demo --port 8123 &
+          for i in $(seq 1 30); do
+            sleep 1
+            curl -fsS http://127.0.0.1:8123/api/version && break
+          done
+          curl -fsS http://127.0.0.1:8123/api/version | grep -q '"now"'
+          curl -fsS -o /dev/null http://127.0.0.1:8123/m
+          curl -fsS -o /dev/null http://127.0.0.1:8123/static/i18n.js
+
+  frontend:
+    name: Front-end syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: The page script and the translations must parse
+        run: |
+          node --check static/i18n.js
+          node --check static/sw.js
+          node -e "
+            const fs = require('fs');
+            const html = fs.readFileSync('static/kyiv.html', 'utf8');
+            const m = html.match(/<script>([\s\S]*)<\/script>/);
+            if (!m) { console.error('no inline script found'); process.exit(1); }
+            new Function(m[1]);
+            console.log('kyiv.html inline script parses');
+          "
+      - name: Every UI string must exist in all three languages
+        run: |
+          node -e "
+            const fs = require('fs');
+            const src = fs.readFileSync('static/i18n.js', 'utf8');
+            const I18N = new Function(src + '; return I18N')();
+            let bad = 0;
+            for (const lang of ['uk', 'fr']) {
+              const missing = Object.keys(I18N.en).filter(k => !(k in I18N[lang]) && !/^raion_/.test(k));
+              if (missing.length) { console.error(lang + ' missing: ' + missing.join(', ')); bad = 1; }
+            }
+            process.exit(bad);
+          "

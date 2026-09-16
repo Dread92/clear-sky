@@ -1,0 +1,22 @@
+{
+  "python.defaultInterpreterPath": "python",
+  "python.analysis.extraPaths": ["app"],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.unittestEnabled": false,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "**/.ruff_cache": true
+  },
+  "files.associations": { "*.json": "jsonc" },
+  "search.exclude": {
+    "static/kyiv-map.json": true,
+    "static/ukraine-map.json": true,
+    "**/*.sqlite*": true
+  },
+  "[python]": { "editor.rulers": [160] },
+  "[html]": { "editor.wordWrap": "on" },
+  "editor.formatOnSave": false,
+  "html.format.wrapLineLength": 0
+}

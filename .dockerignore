@@ -1,0 +1,21 @@
+# runtime data and local state — never goes into the image
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+__pycache__/
+*.pyc
+.venv/
+config.json
+.flyapp
+*.log
+
+# repo furniture the service does not need at runtime
+.git/
+.github/
+.vscode/
+docs/
+tests/
+scripts/
+*.bat
+*.md
+!README.md

@@ -1,0 +1,6 @@
+* text=auto eol=lf
+*.bat text eol=crlf
+*.png binary
+*.json text
+static/kyiv-map.json  linguist-generated=true
+static/ukraine-map.json linguist-generated=true

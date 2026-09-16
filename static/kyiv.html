@@ -1,0 +1,1022 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0e13">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/static/logo-64.png"><link rel="apple-touch-icon" href="/static/logo-192.png">
+<title>Clear Sky</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+:root{--top:86px;--peek:40px;--bg:#0b0d11;--ink:#e8e6df;--ink2:#a9a79f;--ink3:#6c6b66;--line:#242830;--panel:#12151b;--panel2:#181c24;
+  --ua-blue:#0057b7;--ua-yellow:#ffd500;--red:#e0342c;--red2:#ff5b52;--yellow:#f2c200;--green:#2fbf71;--orange:#ff8a3d;--purple:#b07cff;--blue:#5b9cff;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--sans:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;--mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sat:env(safe-area-inset-top,0px);--sab:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:14px/1.4 var(--sans);overscroll-behavior:none;overflow:hidden}
+body{padding-top:var(--sat)}
+button{font:inherit;cursor:pointer}
+/* ---------- top strip ---------- */
+#top{position:fixed;left:0;right:0;top:var(--sat);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+#top .r1{height:40px;display:flex;align-items:center;gap:10px;padding:0 10px 0 8px;border-bottom:1px solid var(--line)}
+#top .logo{width:28px;height:28px;flex:none}
+#top .name{font:700 17px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
+.menu{position:absolute;right:8px;top:44px;background:#14171d;border:1px solid var(--line);display:flex;flex-direction:column;min-width:230px;z-index:25;box-shadow:0 8px 24px #0009}
+.menu[hidden]{display:none}
+.ticker{height:18px;overflow:hidden;background:#0f1218;border-bottom:1px solid var(--line);font:600 10.5px/18px var(--mono);color:#b9c2d0;letter-spacing:.03em;white-space:nowrap}
+.ticker .tk{display:inline-block;animation:tkscroll 55s linear infinite}.ticker .tk span{padding-right:40px}@keyframes tkscroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+.upd .cd{display:inline-block;min-width:26px;color:var(--ua-yellow);font-weight:700}
+.modal{position:fixed;inset:0;background:rgba(5,7,10,.78);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}.modal[hidden]{display:none}
+.mbox{background:#14171d;border:1px solid var(--line);border-top:3px solid var(--ua-yellow);max-width:480px;max-height:calc(100vh - 32px - var(--sat) - var(--sab));overflow:auto;padding:16px 18px;font:14px/1.45 var(--sans);color:var(--ink)}.mbox p{margin:8px 0}.mbox .type{font:700 20px var(--cond);text-transform:uppercase;letter-spacing:.03em}
+.sbars{display:flex;align-items:flex-end;gap:2px;height:46px;margin-top:4px}.sbars .sb{flex:1;min-width:2px;border-radius:1px 1px 0 0;opacity:.9}.sbars.h24 .sb{min-width:4px}
+.sdays{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted);margin-top:2px}.sdays span{flex:1;text-align:center}.sdays span:first-child{text-align:left}.sdays span:last-child{text-align:right}
+.slbl{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:12px}
+.srow{display:flex;gap:10px;font:500 12.5px var(--sans);padding:3px 0;border-bottom:1px solid var(--line)}.srow span{flex:1}.srow b{min-width:44px;text-align:right}
+.sfoot{font:11.5px var(--sans);color:var(--muted);margin-top:10px;line-height:1.35}
+.sbars .sb2{flex:1;min-width:2px;display:flex;align-items:flex-end;gap:1px;height:100%}.sbars .sb2 i{flex:1;display:block;border-radius:1px 1px 0 0;opacity:.9}
+.wtab .srow b{text-align:right}.wtab .srow span{font-weight:500}
+.mi[hidden]{display:none}
+.dset{margin-top:10px;border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:8px}.dset label{display:flex;flex-direction:column;gap:4px;font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink2)}.dset select{width:100%;padding:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:14px var(--sans);border-radius:2px}.dset .tgl{align-self:flex-start;text-transform:none;letter-spacing:0;font:600 13px var(--sans)}
+.kv1{font:500 13.5px/1.35 var(--sans);margin-top:5px}.kv1.muted{color:var(--muted);font-size:12.5px}.kv1.green{color:#a8f0cf}.kv1.yellow{color:#ffd166}.kv1 a{color:#8fb4ff}
+.sheet .type{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.tstrip{font:700 12px/1.25 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:5px 12px;background:#3a1030;color:#ffd0f0;border-bottom:1px solid #7a2a6a;animation:tpulse 1.6s ease-in-out infinite}.tstrip small{font:600 10.5px var(--mono);color:inherit;opacity:.8;text-transform:none;letter-spacing:0}
+.tstrip.bal{background:#4a0d12;color:#ffd6d6;border-color:#8a2a2a}.tstrip.mig{background:#2b1440;color:#e9d6ff;border-color:#5f2f8a}.tstrip[hidden]{display:none}
+@keyframes tpulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
+.mi{background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--ink);text-align:left;padding:11px 14px;font:500 13px var(--sans)}.mi:last-child{border-bottom:0}.mi.on::after{content:' ✓';color:var(--ua-yellow)}
+#top .name small{display:block;font:500 9.5px/1 var(--mono);letter-spacing:.14em;color:var(--ink3);margin-top:3px}
+.srcs{display:flex;gap:4px;margin-left:2px;align-items:center}.srcs i{width:6px;height:6px;background:var(--ink3);display:inline-block}.srcs i.ok{background:var(--green)}.srcs i.warn{background:var(--yellow)}.srcs i.bad{background:var(--red)}.srcs .sn{font:600 10px var(--mono);color:var(--ink3);letter-spacing:.02em}@media (max-width:999px){.srcs .sn{display:none}}
+#top .sp{flex:1}
+#top .clock{font:600 13px var(--mono);color:var(--ink2);white-space:nowrap;letter-spacing:.02em}
+.ib{width:34px;height:30px;border:1px solid var(--line);background:var(--panel);color:var(--ink2);border-radius:2px;font:600 12px var(--mono);display:inline-flex;align-items:center;justify-content:center;padding:0}
+.ib.on{color:var(--ua-yellow);border-color:#5a4d00;background:#1e1a05}
+/* status band = #kyiv (filled by render) */
+.band{height:28px;display:flex;align-items:center;gap:10px;padding:0 10px;background:#1a2a1f;border-left:6px solid var(--green);position:relative}
+.band.R,.band.A{background:#3a1512;border-left-color:var(--red)}.band.Y,.band.P{background:#3a2f08;border-left-color:var(--yellow)}.band.N{background:#0f2418;border-left-color:var(--green)}
+.band .dot{display:none}.band>div:not(.dur):not(.dot){flex:1;min-width:0}
+.band .big{font:700 14px/1 var(--cond);letter-spacing:.05em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band .small{font:500 10px/1.1 var(--mono);color:var(--ink2);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band .dur{margin-left:auto;font:600 13px/1 var(--mono);white-space:nowrap}
+.band.R .big,.band.A .big{color:#ffd9d6}.band.Y .big,.band.P .big{color:#ffefa8}.band.N .big{color:#c9f2da}
+/* clear state: no sub-line */
+.band.N .small,.band.N .dur{display:none}
+/* ---------- map ---------- */
+#stage{position:fixed;left:0;right:0;top:calc(var(--sat) + var(--top));bottom:calc(var(--peek) + var(--sab))}
+.mapwrap{position:absolute;inset:0;background:#0a0c10;touch-action:none;user-select:none;overflow:hidden}
+svg#map{display:block;width:100%;height:100%}
+/* situation overlay (raions + home) */
+#situ{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:6px;max-width:calc(100% - 60px);pointer-events:none}
+#situ>*{pointer-events:auto}
+#raions{display:flex;gap:3px;flex-wrap:wrap}#raions[hidden]{display:none}
+@media (max-width:999px){#raions{flex-wrap:nowrap;overflow-x:auto;max-width:calc(100vw - 60px);scrollbar-width:none;-webkit-overflow-scrolling:touch}#raions::-webkit-scrollbar{display:none}#raions .rt{white-space:nowrap;flex:0 0 auto}}
+.rt.rg{opacity:.8;font-size:9.5px}.rt i{font-style:normal;color:#ffc9a3;margin-left:3px}
+.rt{font:600 10.5px/1 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:5px 7px;background:rgba(18,21,27,.92);border:1px solid var(--line);color:var(--ink2);border-left:3px solid var(--green)}
+.rt.R{border-left-color:var(--red);color:#ffd9d6;background:rgba(58,21,18,.92)}.rt.Y{border-left-color:var(--yellow);color:#ffefa8;background:rgba(58,47,8,.92)}
+.rt.note{border-left-color:var(--ink3);color:var(--ink3)}
+.homerow{font:500 11.5px/1.3 var(--sans);padding:5px 8px;background:rgba(18,21,27,.92);border:1px solid var(--line);border-left:3px solid var(--ua-blue);max-width:min(360px,calc(100vw - 60px));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.homerow.danger{border-left-color:var(--red2);background:rgba(58,21,18,.94)}.homerow b{font-weight:600}
+.livebar{position:absolute;left:8px;bottom:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 60px);pointer-events:none}
+.livebar .chip{font:600 11px/1 var(--mono);letter-spacing:.03em;padding:6px 8px;white-space:nowrap;background:rgba(18,21,27,.92);border:1px solid var(--line);color:var(--ink2);border-radius:0}
+.livebar .chip.red{color:#ffd9d6;border-color:#6a2a26}.livebar .chip.orange{color:#ffc9a3}.livebar .chip.green{color:#c9f2da}.livebar .chip.yellow{color:#ffefa8}.livebar .chip.blue{color:#bcd5ff}
+.livebar .chip b{font-weight:600}
+.mapctl{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:4px}
+.mapctl button{width:34px;height:34px;border:1px solid var(--line);background:rgba(18,21,27,.94);color:var(--ink);border-radius:2px;font:600 15px var(--mono);padding:0}
+.mapctl button.on{color:var(--ua-yellow);border-color:#5a4d00}
+#impbtn{position:relative;color:#ff8a80}#impbtn:not(.on){color:#8f9bb0}#impbtn small{position:absolute;right:2px;bottom:1px;font:600 8.5px var(--mono);color:var(--ua-yellow)}
+.imp{cursor:pointer}.imp .ig{fill:#ff5a4e;stroke:#080b10;stroke-width:calc(var(--k,1)*1px)}.imp .ir{fill:none;stroke:#ff5a4e;stroke-width:1;vector-effect:non-scaling-stroke;opacity:.5}
+.imp .it{font:600 calc(var(--k,1)*9.5px) system-ui;fill:#ffb3ad;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}svg.far .imp .it{display:none}
+.imp.d1{opacity:.75}.imp.d2{opacity:.5}
+.imp.dn .ig{fill:#39d98a}.imp.dn .ir{stroke:#39d98a}.imp.dn .it{fill:#b8f0d3}svg.no-himp .imp.im,svg.no-hdown .imp.dn{display:none}
+.mapfoot{display:none}
+.tip{position:absolute;z-index:6;max-width:300px;background:rgba(18,21,27,.98);border:1px solid var(--line);border-left:3px solid var(--orange);padding:8px 10px;font-size:12.5px;pointer-events:none}
+.tip b{display:block;font:700 15px/1.1 var(--cond);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}.tip .m{color:var(--ink2);font-family:var(--mono);font-size:11px}.tip .q{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);white-space:pre-wrap}
+/* ---------- drawer ---------- */
+#drawer{position:fixed;left:0;right:0;bottom:0;z-index:15;background:var(--panel);border-top:1px solid var(--line);height:var(--peek);transition:height .25s;display:flex;flex-direction:column;padding-bottom:var(--sab)}
+#drawer.open{height:72%}
+#drawer .handle{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;cursor:pointer;flex:none;border-bottom:1px solid var(--line)}
+#drawer .handle .bar{width:36px;height:3px;background:var(--ink3);margin:0 auto;position:absolute;left:50%;transform:translateX(-50%);top:6px}
+.tabs{display:flex;gap:14px}
+.tabs button{border:0;background:transparent;color:var(--ink3);font:700 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:0;height:30px;border-bottom:2px solid transparent}
+.tabs button.on{color:var(--ink);border-bottom-color:var(--ua-yellow)}
+.upd{font:500 10.5px var(--mono);color:var(--ink3)}
+#drawer .body{flex:1;overflow:auto;min-height:0}
+.sec{padding:8px 12px}
+.filters{display:flex;gap:2px;margin-bottom:8px}
+.filters .chip{font:600 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border:1px solid var(--line);background:transparent;color:var(--ink3);cursor:pointer}
+.filters .chip.on{color:var(--ink);background:var(--panel2);border-color:#3a3f4a}
+.card{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.card .when{flex:none;width:56px;font:600 11px/1.45 var(--mono);color:var(--ink3);word-break:break-word}
+.card .when b{display:block;color:var(--ink2);font-weight:500;font-size:10px;letter-spacing:.02em;line-height:1.3;margin-top:2px}
+.card .bd{flex:1;min-width:0}
+.card .txt{white-space:pre-wrap;word-break:break-word;overflow-wrap:anywhere;font-size:14px;line-height:1.4}
+.card .tags{display:flex;gap:4px;flex-wrap:wrap;margin-top:5px}
+.card .tags span{font:500 10px var(--mono);letter-spacing:.04em;text-transform:uppercase;color:var(--ink3);border:1px solid var(--line);padding:1px 5px}
+.card .tags span.kyiv{color:#bcd5ff;border-color:#2b4370}
+.card.kyiv{border-left:3px solid var(--ua-blue);padding-left:8px}
+.card.red{border-left:3px solid var(--red);padding-left:8px}.card.yellow{border-left:3px solid var(--yellow);padding-left:8px}
+.card.plain{display:block}.card .title{font:700 15px var(--cond);letter-spacing:.02em}.card .meta{font:500 11.5px var(--mono);color:var(--ink2);margin-top:2px}
+.card.new{animation:flash 2.5s ease-out}
+@keyframes flash{0%{background:rgba(255,213,0,.18)}100%{background:transparent}}
+.empty{color:var(--ink3);font-family:var(--mono);font-size:12px;padding:12px 4px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.stat .v{font:700 24px/1 var(--cond)}.stat .l{font:500 10px var(--mono);color:var(--ink3);text-transform:uppercase;letter-spacing:.08em;margin-top:2px}
+.track{position:relative;height:16px;background:var(--panel2);border:1px solid var(--line);overflow:hidden;margin-top:6px}
+.bar{position:absolute;top:2px;bottom:2px;background:var(--red)}
+.ticks{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--ink3);margin-top:3px}
+.foot{padding:10px 12px 14px;font:11px/1.45 var(--mono);color:var(--ink3)}
+.layermenu{display:flex;flex-wrap:wrap;gap:4px 12px;padding:8px 12px;border-bottom:1px solid var(--line);font:500 11px var(--mono);color:var(--ink2)}
+.layermenu label{display:flex;gap:5px;align-items:center;white-space:nowrap}.layermenu .lbl{color:var(--ink3);letter-spacing:.1em;text-transform:uppercase}
+/* sheets & toast */
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#14171d;border-top:2px solid var(--ua-yellow);padding:12px 14px calc(14px + var(--sab));transform:translateY(105%);transition:transform .22s;max-height:82vh;overflow:auto}
+.sheet.show{transform:none}
+.sheet .grab{display:none}
+.sheet .type{font:800 22px/1.05 var(--cond);letter-spacing:.03em;text-transform:uppercase;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sheet .kv{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;font-size:13px;margin:8px 0;color:var(--ink3)}
+.sheet .kv>span{font:600 10.5px/1.6 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.sheet .kv b{color:var(--ink);font-weight:600}
+.sheet .txt{background:var(--panel);border-left:3px solid var(--line);padding:8px 10px;font-size:14px;white-space:pre-wrap}
+.sheet a{color:#8fb4ff;font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:4px;font:600 10.5px var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:2px 6px;border:1px solid var(--line);color:var(--ink2)}
+.chip.red{color:#ffd9d6;border-color:#6a2a26}.chip.yellow{color:#ffefa8;border-color:#5a4d00}.chip.green{color:#c9f2da;border-color:#1f5a3a}.chip.blue{color:#bcd5ff;border-color:#2b4370}.chip.orange{color:#ffc9a3}
+.tgl{border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:2px;padding:6px 10px;font:600 12px var(--mono)}
+.tgl.on{color:var(--ua-yellow);border-color:#5a4d00}
+.hitem{padding:9px 6px;border-bottom:1px solid var(--line);cursor:pointer;display:flex;justify-content:space-between;font-size:14px}.hitem:hover{background:var(--panel2)}.hitem span{color:var(--ink3);font:500 11px var(--mono)}
+#homeq{width:100%;padding:10px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:15px var(--sans);border-radius:2px}
+.toast{position:fixed;left:10px;right:10px;top:calc(var(--sat) + var(--top) + 8px);z-index:40;background:#14171d;border:1px solid var(--line);border-left:4px solid var(--red);padding:10px 12px;display:none;box-shadow:0 10px 30px rgba(0,0,0,.6)}
+.toast.show{display:block}.toast b{font:700 16px/1.1 var(--cond);text-transform:uppercase;letter-spacing:.03em}
+@media (max-width:520px){
+  #top .name small{display:none}#top .name{font-size:15px}#top .clock{font-size:11px}.ib{width:30px;height:28px;font-size:11px}#top .r1{gap:6px}
+  .band .big{font-size:13px}.band .dur{font-size:12px}
+}
+/* ---------- desktop ---------- */
+@media (min-width:1000px){
+  :root{--peek:0px}
+  #stage{right:380px}
+  .toast{top:auto;bottom:64px;left:16px;right:auto;width:360px}
+  #drawer{left:auto;width:380px;top:calc(var(--sat) + var(--top));height:auto!important;border-top:0;border-left:1px solid var(--line)}
+  #drawer .handle{cursor:default}#drawer .handle .bar{display:none}
+  .band .small{max-width:none}.band .big{max-width:none}
+}
+/* ---------- map (svg) ---------- */
+svg#map{display:block;width:100%;height:min(64vh,560px)}
+.nb{fill:#0e1116;stroke:#1a1f28;stroke-width:1px;vector-effect:non-scaling-stroke;transition:fill .5s}
+.nb.R{fill:rgba(229,72,77,.34)}.nb.Y{fill:rgba(245,185,64,.22)}.nb.oR{fill:rgba(229,72,77,.11)}.nb.oY{fill:rgba(245,185,64,.08)}
+.ob{fill:none;stroke:#2a3344;stroke-width:1.3px;vector-effect:non-scaling-stroke;transition:fill .5s}.ob.far{stroke:#1a2029;fill:#0b0d11}
+.ob.region.R{fill:rgba(229,72,77,.10)}.ob.region.Y{fill:rgba(245,185,64,.07)}
+.oblbl{fill:#3f4a5c;font:800 calc(var(--k,1)*13px) system-ui;text-transform:uppercase;letter-spacing:.6px;pointer-events:none}svg.close .oblbl{display:none}svg:not(.veryfar) .oblbl.faro{display:none}
+.ob.occ{fill:url(#occ);stroke:#5a6272;stroke-dasharray:4 3}.nb.occ{fill:none;stroke:#3a4252}
+.ob.far.R{fill:rgba(229,72,77,.12)}.ob.far.Y{fill:rgba(245,185,64,.08)}
+.kozak{pointer-events:none}.kozak text{font:700 calc(var(--k,1)*9px) system-ui;fill:#ffd166;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px);text-anchor:middle}.kozak .sub{fill:#c9d1de;font-weight:500}svg.close .kozak{display:none}
+.nblbl{fill:#4a5568;font:700 calc(var(--k,1)*10px) system-ui;text-transform:uppercase;letter-spacing:.3px;pointer-events:none}svg.close .nblbl{display:none}
+.town.rg{fill:#9aa5b8}svg.close .town.rg,svg.close .towndot.rg,svg.ua .town.rg,svg.ua .towndot.rg,svg.ua .town:not(.big):not(.uac),svg.ua .towndot:not(.big):not(.uac){display:none}
+.town.uac{fill:#aeb8c8;font-size:calc(var(--k,1)*10.5px)}.town.uac:not(.show),.towndot.uac:not(.show){display:none}svg:not(.far) .town.uac,svg:not(.far) .towndot.uac{display:none}
+.selo{fill:rgba(255,209,102,.07);stroke:#ffd166;stroke-width:2px;vector-effect:non-scaling-stroke;pointer-events:none;filter:drop-shadow(0 0 3px #ffd16688)}
+.river{fill:none;stroke:#2a4a73;stroke-opacity:.6;stroke-linecap:round;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.river.wide{stroke-width:5px}.river.mid{stroke-width:3px}.river.thin{stroke-width:1.5px}
+.rvlbl{fill:#6fa3e8;fill-opacity:.8;font:italic 600 calc(var(--k,1)*10px) system-ui;pointer-events:none}
+.rn{fill:#141920;stroke:#2b3340;stroke-width:1px;vector-effect:non-scaling-stroke;transition:fill .5s}
+.rn.R{fill:rgba(229,72,77,.34)}.rn.Y{fill:rgba(245,185,64,.24)}.rn.P{fill:rgba(245,185,64,.22)}
+.rn.city{stroke:#8fb4ff;stroke-width:1.6px;fill:#181f2a}
+.rn.city.R{fill:rgba(229,72,77,.46)}.rn.city.Y{fill:rgba(245,185,64,.34)}.rn.city.P{fill:rgba(245,185,64,.32)}
+.rnb{fill:none;stroke:#3a4a63;stroke-width:1.1;pointer-events:none}
+.ring{fill:none;stroke:#5b9cff;stroke-opacity:.22;stroke-width:1px;vector-effect:non-scaling-stroke;stroke-dasharray:4 4}
+.ringlbl{fill:#5b9cff;fill-opacity:.55;font:600 calc(var(--k,1)*10px) var(--mono)}
+.town{fill:#e6ebf2;font:600 calc(var(--k,1)*11px) system-ui;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3.5px);pointer-events:none}
+.town.big{font-size:calc(var(--k,1)*14px);fill:#fff}
+.town[data-hid]{display:none!important}
+#tiles{filter:invert(1) hue-rotate(180deg) brightness(.72) contrast(.95) saturate(.3)}#tiles image{opacity:.95}svg.no-tiles #tiles{display:none}
+svg.tiled .road,svg.tiled .roadlbl,svg.tiled .river,svg.tiled .rvlbl,svg.tiled .bridge{display:none}svg.tiled .nb:not(.R):not(.Y):not(.oR):not(.oY),svg.tiled .ob.far:not(.R):not(.Y){fill:none}svg.tiled .nb.R{fill:rgba(229,72,77,.3)}svg.tiled .nb.Y{fill:rgba(245,185,64,.22)}svg.tiled .nb.oR{fill:rgba(229,72,77,.18)}svg.tiled .nb.oY{fill:rgba(245,185,64,.13)}
+svg.tiled .rn{fill:rgba(20,25,32,.25)}svg.tiled .rn.city{fill:rgba(24,31,42,.15)}svg.tiled .rn.R{fill:rgba(229,72,77,.32)}svg.tiled .rn.Y{fill:rgba(245,185,64,.26)}svg.tiled .rn.city.R{fill:rgba(229,72,77,.36)}svg.tiled .rn.city.Y{fill:rgba(245,185,64,.3)}
+.attrib{position:absolute;right:8px;top:8px;font:10px var(--mono);color:#6f7b90;pointer-events:none;background:rgba(10,12,16,.6);padding:1px 4px}.attrib[hidden]{display:none}
+.town.minor{fill:#8f9bb0;font-weight:500;font-size:calc(var(--k,1)*10px)}
+.towndot{fill:#c9d1de;stroke:#080b10;stroke-width:1px;vector-effect:non-scaling-stroke}
+.towndot.minor{fill:#6f7b90}
+svg.far .minor{display:none}
+svg:not(.close) .district{display:none}
+@media (max-width:999px){svg:not(.close) .minor{display:none}svg:not(.vclose) .district{display:none}}
+/* raid declutter: outcome markers keep only their glyph until you zoom in; closed tracks keep no label at all */
+svg:not(.close) .mk.st .lbl2{display:none}svg.far .mk.st .lbl{display:none}
+.mk.ended .lbl,.mk.ended .lbl2{display:none}
+@media (max-width:999px){svg:not(.close) .mk.st .lbl{display:none}}
+svg.veryfar .town:not(.big):not(.rg):not(.uac){display:none}svg.veryfar .rnlbl{display:none}svg.veryfar .towndot:not(.rg):not(.uac){display:none}
+.road{fill:none;stroke:#3b4757;stroke-width:1.2px;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
+.road.ring2{stroke:#4a5870;stroke-width:1.6px}
+.roadlbl{fill:#5f6b80;font:600 calc(var(--k,1)*9px) system-ui;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*2.5px);pointer-events:none}
+.bridge{fill:#8fa3c0;stroke:#080b10;stroke-width:.6px;vector-effect:non-scaling-stroke}
+.poi{font:calc(var(--k,1)*12px) system-ui;pointer-events:none;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*2px)}
+.poi.air{fill:#9fb7dc}.poi.pow{fill:#f5b940}
+.poilbl{fill:#8f9bb0;font:500 calc(var(--k,1)*9.5px) system-ui;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*2.5px);pointer-events:none}
+svg.far .poilbl{display:none}svg:not(.close) .poi,svg:not(.close) .poilbl{display:none}
+.kd{fill:#161c26;stroke:#5b6f95;stroke-width:1.2px;vector-effect:non-scaling-stroke}.kd.Y{fill:rgba(245,185,64,.3)}.kd.R{fill:rgba(229,72,77,.4)}.kd.hot{stroke:#ff4d57;stroke-width:2.2px}
+#kdistg{display:none}svg.city #kdistg{display:block}
+svg.city #tiles,svg.city #oblastsg,svg.city #neighbors,svg.city #obllbl,svg.city #selg,svg.city .river,svg.city .rvlbl,svg.city .road,svg.city .roadlbl,svg.city .bridge,svg.city .poi,svg.city .poilbl,svg.city .rnlbl,svg.city .town.minor:not(.district),svg.city .towndot.minor:not(.district),svg.city .ring,svg.city .ringlbl,svg.city .town.rg,svg.city .towndot.rg,svg.city .town.uac,svg.city .towndot.uac,svg.city .imp{display:none}
+svg.city .rn{fill:#0e1116;stroke:#2b3340}svg.city .rn.city{fill:none;stroke:#8fb4ff;stroke-width:1.6px}svg.city .kdist{display:block;font-size:calc(var(--k,1)*12.5px);fill:#dbe4f5}
+svg.city .town.district{fill:#aeb8c8;font-weight:500}
+.kdist{fill:#9fb4d8;fill-opacity:.8;font:800 calc(var(--k,1)*10px) system-ui;letter-spacing:.2px;pointer-events:none;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}svg:not(.close) .kdist{display:none}
+.rnlbl{fill:#8a96aa;font:700 calc(var(--k,1)*11px) system-ui;text-transform:uppercase;letter-spacing:.3px;pointer-events:none;opacity:.8}
+.mk{cursor:pointer}
+.mk .glyph{stroke:#080b10;stroke-width:1px;vector-effect:non-scaling-stroke}
+.mk .jetfx{display:none}.mk.jet .jetfx{display:block}.mk .flame{fill:#ffb347;opacity:.9;animation:flick .18s steps(2) infinite}.mk .flame2{fill:#fff4d6;animation:flick .12s steps(2) infinite alternate}
+@keyframes flick{0%{transform:scaleY(1)}100%{transform:scaleY(.6)}}.mk .flame,.mk .flame2{transform-origin:0 9px;transform-box:view-box}
+.mk .loiter{fill:none;stroke:#ff8a3d;stroke-opacity:.45;stroke-width:1px;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}.mk.jet .loiter{stroke:#ffb15c}.mk.inbound .loiter{stroke:#ff4d57}.mk.tohome .loiter{stroke:#ff2d55}
+.mk.ended .loiter,.mk.ended .orbit animateTransform{display:none}
+.mk .hdg{fill:#ff8a3d;stroke:#080b10;stroke-width:.6px;vector-effect:non-scaling-stroke}.mk.jet .hdg{fill:#ffb15c}.mk.inbound .hdg{fill:#ff4d57}.mk.tohome .hdg{fill:#ff2d55}.mk.ballistic_missiles .hdg,.mk.cruise_missiles .hdg{fill:#ff5a5a}.mk.guided_aerial_bombs .hdg{fill:#c78bff}
+.mk.drones .glyph{fill:#ff8a3d}.mk.drones.jet .glyph{fill:#ffb15c}
+.mk.cruise_missiles .glyph,.mk.unspecified_missiles .glyph,.mk.ballistic_missiles .glyph{fill:#ff5c61}
+.mk.guided_aerial_bombs .glyph,.mk.tactic_aircraft_activity .glyph{fill:#b07cff}
+.mk.inbound .glyph{fill:#ff3b3f}
+.mk .halo{fill:none;stroke:#ff8a3d;stroke-width:1.5px;vector-effect:non-scaling-stroke;opacity:.6;transform-box:fill-box;transform-origin:center;animation:halo 2.2s ease-out infinite}
+.mk.inbound .halo{stroke:#ff3b3f;animation-duration:1.1s}
+.mk.cruise_missiles .halo,.mk.ballistic_missiles .halo{stroke:#ff5c61}
+.mk.guided_aerial_bombs .halo{stroke:#b07cff}
+@keyframes halo{0%{transform:scale(.4);opacity:.9}100%{transform:scale(1.6);opacity:0}}
+.mk .trail{fill:none;stroke:#ff8a3d;stroke-width:2px;vector-effect:non-scaling-stroke;stroke-opacity:.45;stroke-linecap:round}
+.mk.inbound .trail{stroke:#ff3b3f}
+.mk .ahead{fill:none;stroke:#ff8a3d;stroke-width:2.5px;vector-effect:non-scaling-stroke;stroke-dasharray:6 5;stroke-opacity:.85;animation:march .7s linear infinite}
+.mk.inbound .ahead{stroke:#ff3b3f;stroke-width:3px}
+.mk.cruise_missiles .ahead,.mk.ballistic_missiles .ahead{stroke:#ff5c61}
+@keyframes march{to{stroke-dashoffset:-11}}
+.mk .spawn{fill:none;stroke:#fff;stroke-width:2px;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center;animation:spawn 1.2s ease-out 1 forwards}
+@keyframes spawn{0%{transform:scale(.2);opacity:1}100%{transform:scale(3);opacity:0}}
+.mk .lbl{font:700 calc(var(--k,1)*11px) var(--mono);fill:#fff;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}
+.mk .lbl2{font:600 calc(var(--k,1)*10px) system-ui;fill:#ffd6b8;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}
+svg.far .mk:not(.inbound):not(.tohome) .lbl2{display:none}
+.mk:not(.inbound):not(.tohome):not(.ended):not(.st):not(.stale) .lbl2{display:none}svg.far .mk.stale .lbl2{display:none}
+svg.veryfar .mk .lbl{display:none}svg:not(.close) .mk:not(.inbound):not(.tohome):not(.st) .lbl{display:none}
+.mk.inbound .lbl2{fill:#ffb3b5}
+.mk.old{opacity:.5}
+.mk .hit{fill:transparent}
+.mk.st .glyph.x{fill:none;stroke:#fff;stroke-width:2.2px;vector-effect:non-scaling-stroke;stroke-linecap:round}
+.mk.st .glyph.ring{fill:rgba(11,14,19,.85);stroke:#fff;stroke-width:1.5px;vector-effect:non-scaling-stroke}
+.mk.st .glyph.q{fill:#fff;font:700 11px var(--mono);stroke:none}
+.mk.st-down .glyph.x,.mk.st-down .glyph.ring{stroke:#3ecf8e}.mk.st-impact .glyph.x{fill:#ff5c61;stroke:#080b10;stroke-width:1px}
+.mk.st-lost .glyph.ring{stroke:#8a94a6}.mk.st-lost .glyph.q{fill:#c9d1de}.mk.st-clear .glyph.x,.mk.st-clear .glyph.ring{stroke:#3ecf8e}
+.mk.st .halo{stroke:#3ecf8e;animation-iteration-count:3}.mk.st-impact .halo{stroke:#ff5c61}.mk.st-lost .halo{stroke:#8a94a6}
+.mk.st .lbl2{fill:#a8f0cf}.mk.st-impact .lbl2{fill:#ffb3b5}.mk.st-lost .lbl2{fill:#c9d1de}
+.mk.stale{opacity:.8}.mk.stale.s2{opacity:.55}.mk.stale.s3{opacity:.32}.mk.stale.s3 .lbl,.mk.stale.s3 .lbl2{display:none}.mk.stale.s2 .lbl2{display:none}.mk.stale .loiter,.mk.stale .cone,.mk.stale .ahead,.mk.stale .hdg,.mk.stale .halo,.mk.stale .spawn,.mk.stale .jetfx{display:none}
+.mk.stale .glyph{fill:#7d8797!important;stroke:#080b10}.mk.stale .lbl{fill:#aeb8c8}.mk.stale .lbl2{fill:#9aa5b8}.mk.stale .qm{fill:#c9d1de}
+.mk .cnt circle{fill:#fff;stroke:#080b10;stroke-width:1}.mk .cnt text{font:800 9px var(--mono);fill:#080b10;text-anchor:middle}.mk.inbound .cnt circle,.mk.tohome .cnt circle{fill:#ff4d57}.mk.inbound .cnt text,.mk.tohome .cnt text{fill:#fff}.mk.stale .cnt circle{fill:#9aa5b8}
+.mk .qm{display:none;font:700 calc(var(--k,1)*11px) var(--mono);fill:#ffd166;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px);text-anchor:middle}.mk.stale .qm{display:block}
+.mk.ended{opacity:.55}.mk.ended .halo{display:none}.mk.ended .glyph{fill:#6f7b90}.mk.ended .lbl2{fill:#a8f0cf}
+.trail.ended{stroke:#3ecf8e;stroke-dasharray:4 4;stroke-opacity:.8}
+.trail.hist{stroke:#ff8a3d;stroke-width:1.5px;stroke-opacity:.5;fill:none;stroke-dasharray:1 3}
+.mk .cone{fill:#ff8a3d;fill-opacity:.07;stroke:none}.mk.inbound .cone{fill:#ff3b3f;fill-opacity:.10}
+.homemk .ring{stroke:#5b9cff;stroke-opacity:.5;stroke-dasharray:3 3}
+.homemk .ico{font:calc(var(--k,1)*16px) system-ui;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}
+.homemk .hl{fill:#bcd5ff;font:700 calc(var(--k,1)*11px) system-ui;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}
+.mk.tohome .glyph{fill:#ff2d55}.mk.tohome .halo{stroke:#ff2d55;animation-duration:.8s}.mk.tohome .ahead{stroke:#ff2d55}.mk.tohome .lbl2{fill:#ffb3c5}
+svg.no-trails .trail{display:none}svg.no-cones .ahead,svg.no-cones .cone{display:none}svg.no-rivers .river,svg.no-rivers .rvlbl{display:none}
+svg.no-roads .road,svg.no-roads .roadlbl,svg.no-roads .bridge{display:none}svg.no-infra .poi,svg.no-infra .poilbl{display:none}svg.no-rings .ring,svg.no-rings .ringlbl{display:none}svg.no-minor .minor{display:none}
+.edge{pointer-events:none}
+.edge .arrow{fill:#ff8a3d;stroke:#080b10;stroke-width:1px;vector-effect:non-scaling-stroke}
+.edge.inbound .arrow{fill:#ff3b3f}
+.edge .etxt{font:700 calc(var(--k,1)*10px) var(--mono);fill:#fff;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}
+  svg#map{height:100%}
+</style>
+</head>
+<body>
+
+<header id="top">
+  <div class="r1">
+    <img class="logo" src="/static/logo-64.png" alt="07300">
+    <div class="name">Clear Sky</div>
+    <span class="srcs" id="srcs"></span>
+    <span class="sp"></span>
+    <span class="clock" id="clock">--:--</span>
+    <button class="ib" id="menubtn" data-t-title="t_settings" title="Settings">☰</button>
+  </div>
+  <div class="menu" id="menu" hidden>
+    <button class="mi" id="langbtn"></button>
+    <button class="mi" id="oblbtn" data-t="m_obl">My oblast…</button>
+    <button class="mi" id="homebtn" data-t="m_home">Priority location…</button>
+    <button class="mi" id="lang" data-t="m_ua">Show original Ukrainian</button>
+    <button class="mi on" id="snd" data-t="m_snd">Sound alerts</button>
+    <button class="mi" id="vib" data-t="m_vib">Vibration</button>
+    <button class="mi" id="pushbtn" data-t="m_push">Push notifications (phone, app closed)</button>
+    <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
+    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">build 2026-09-16 20:15 UTC</div>
+    <button class="mi" id="est" data-t="m_est">Estimate motion along heading (EST)</button>
+    <button class="mi" id="zcity2" data-t="m_city">Kyiv city map (10 districts) — toggle</button><button class="mi" id="zobl" data-t="m_zobl">Zoom out to whole oblast</button><button class="mi" id="zreg" data-t="m_zreg">Zoom out to surrounding oblasts</button><button class="mi" id="zua" data-t="m_zua">Zoom out to all of Ukraine</button>
+  </div>
+  <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
+  <div class="ticker"><div class="tk"><span id="tk1"></span><span id="tk2"></span></div></div>
+  <div class="tstrip" id="tstrip" hidden></div>
+</header>
+
+<div id="stage">
+<div class="mapwrap" id="mapwrap">
+  <svg id="map" viewBox="-75 -100 150 200" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+    <g id="tiles"></g>
+    <g id="oblastsg"></g>
+    <g id="neighbors"></g>
+    <g id="obllbl"></g>
+    <g id="selg"></g>
+    <g id="raionsg"></g>
+    <g id="kdistg"></g>
+    <g id="rings"></g>
+    <g id="homeg"></g>
+    <g id="infra"></g>
+    <g id="towns"></g>
+    <g id="impactsg"></g>
+    <g id="trails"></g>
+    <g id="markers"></g>
+    <g id="edges"></g>
+  </svg>
+  <div id="situ"><div id="raions" hidden></div><div class="homerow" id="homerow" hidden></div></div>
+  <div class="livebar" id="livebar"></div>
+  <div class="attrib" id="attrib" hidden>© OpenStreetMap contributors</div>
+  <div class="mapctl"><button id="zin">+</button><button id="zout">−</button><button id="zkyiv" data-t-title="t_center" title="Centre on my oblast">◎</button><button id="impbtn" data-t-title="t_hist" title="History of explosions and confirmed shoot-downs: off / 24 h / 48 h / 72 h">✸<small id="imph"></small></button></div>
+  <div class="tip" id="tip" hidden></div>
+</div>
+</div>
+
+<aside id="drawer">
+  <div class="handle" id="handle"><div class="bar"></div>
+    <div class="tabs" id="tabs"><button data-tab="feedwrap" class="on" data-t="tab_feed">Feed</button><button data-tab="alerts" data-t="tab_alerts">Alerts</button><button data-tab="hist" data-t="tab_stats">Stats</button><button data-tab="layers" data-t="tab_map">Map</button></div>
+    <span class="upd" id="upd">—</span>
+  </div>
+  <div class="body">
+    <div class="sec" id="feedwrap"><div class="filters"><span class="chip on" data-f="kyiv" data-t="f_kyiv">Kyiv area</span><span class="chip" data-f="region" data-t="f_region">Region</span><span class="chip" data-f="all" data-t="f_threats">Threats</span><span class="chip" data-f="official" data-t="f_official">Official</span><span class="chip" data-f="everything" data-t="f_all">All</span></div><div id="feed"></div></div>
+    <div class="sec" id="alerts" hidden></div>
+    <div class="sec" id="hist" hidden></div>
+    <div id="layers" hidden><div class="layermenu" id="layerbox"><span class="lbl" data-t="l_title">Layers</span><label><input type="checkbox" data-l="tiles"> <span data-t="l_tiles">Streets &amp; buildings (OSM, zoomed in)</span></label><label><input type="checkbox" data-l="himp"> <span data-t="l_himp">History: explosions ✸</span></label><label><input type="checkbox" data-l="hdown"> <span data-t="l_hdown">History: confirmed shot down ✕</span></label><label><input type="checkbox" data-l="trails"> <span data-t="l_trails">Tracks</span></label><label><input type="checkbox" data-l="cones"> <span data-t="l_cones">Course rays</span></label><label><input type="checkbox" data-l="rivers"> <span data-t="l_rivers">Rivers</span></label><label><input type="checkbox" data-l="roads"> <span data-t="l_roads">Roads</span></label><label><input type="checkbox" data-l="infra"> <span data-t="l_infra">Airports / plants</span></label><label><input type="checkbox" data-l="rings"> <span data-t="l_rings">Rings</span></label><label><input type="checkbox" data-l="minor"> <span data-t="l_minor">Villages &amp; small towns (off by default — clutters the phone)</span></label></div>
+      <div class="foot" data-t-html="legend"></div></div>
+  </div>
+</aside>
+
+<div class="sheet" id="homesheet"><div class="grab"></div><div class="type" data-t="h_title">Priority location</div><div style="color:var(--ink3);font:12px var(--mono);margin:6px 0 10px" data-t="h_desc">Your district or village. Targets heading there or within 10 km alert first; its raion is watched first.</div>
+<input id="homeq" data-t-ph="h_ph" placeholder="Search: Troieshchyna, Bucha, Boryspil, Obolon…">
+<div id="homelist" style="max-height:40vh;overflow:auto;margin-top:8px"></div>
+<div style="margin-top:8px;display:flex;justify-content:space-between"><button class="tgl" id="homeclear" data-t="btn_clear">Clear</button><button class="tgl" onclick="$('homesheet').classList.remove('show')" data-t="btn_close">Close</button></div></div>
+<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="disc" hidden><div class="mbox"><div class="type" style="display:flex;align-items:center;gap:8px"><span data-t="d_title">Clear Sky — please read</span><span style="margin-left:auto;display:inline-flex;gap:3px" id="dlang"></span></div>
+  <p data-t-html="d_p1"></p>
+  <p data-t-html="d_p2"></p>
+  <p data-t-html="d_p3"></p>
+  <div class="dset"><label><span data-t="d_obl">My oblast</span><select id="discobl"></select></label>
+    <label><span data-t="d_home">Precise place to watch — optional</span><button class="tgl" id="dischome" type="button"></button></label></div>
+  <div style="text-align:right;margin-top:10px"><button class="tgl on" id="discok" data-t="d_ok">I understand</button></div></div></div>
+
+<script src="/static/i18n.js"></script>
+<script>
+const THREAT={drones:['🛸',t('th_drones')],ballistic_missiles:['🚀',t('th_bal')],cruise_missiles:['🎯',t('th_cruise')],unspecified_missiles:['🎯',t('th_msl')],
+  mig31k_departure:['✈️',t('th_mig')],strategic_aircraft_activity:['🛩️',t('th_strat')],tactic_aircraft_activity:['🛩️',t('th_tac')],
+  guided_aerial_bombs:['💣',t('th_kab')],air_defense:['🛡️',t('th_ad')],kyiv:['📍',t('th_kyiv')],clear:['✅',t('th_clear')],official:['🏛️',t('th_official')],geo:['🗺️',t('th_geo')],unknown:['❔','?']};
+const ATYPE={air_raid:t('at_air_raid'),artillery_shelling:t('at_art'),urban_fights:t('at_urban'),chemical:t('at_chem'),nuclear:t('at_nuc'),info:t('at_info')};
+const LT=x=>({oblast:t('lt_oblast'),raion:t('lt_raion'),hromada:t('lt_hromada'),city:t('lt_city')}[x]||x);
+// static markup: data-t = textContent, data-t-html = innerHTML, data-t-title / data-t-ph = attributes
+document.documentElement.lang=LANG;
+document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t)); document.querySelectorAll('[data-t-html]').forEach(el=>el.innerHTML=t(el.dataset.tHtml));
+document.querySelectorAll('[data-t-title]').forEach(el=>el.title=t(el.dataset.tTitle)); document.querySelectorAll('[data-t-ph]').forEach(el=>el.placeholder=t(el.dataset.tPh));
+document.getElementById('tk1').textContent=t('ticker'); document.getElementById('tk2').textContent=t('ticker');
+const LFLAG={en:'🇬🇧',uk:'🇺🇦',fr:'🇫🇷'},LCODE={en:'EN',uk:'UA',fr:'FR'};
+document.getElementById('langbtn').textContent=t('m_lang')+': '+LFLAG[LANG]+' '+LANGS[LANG];
+function setLang(l){ if(!LANGS[l]||l===LANG) return; try{localStorage.setItem('lang',l);}catch(e){} location.reload(); }
+document.getElementById('langbtn').onclick=()=>{const ks=Object.keys(LANGS); setLang(ks[(ks.indexOf(LANG)+1)%ks.length]);};
+document.getElementById('dlang').innerHTML=Object.entries(LANGS).map(([k,v])=>`<button type="button" class="tgl ${k===LANG?'on':''}" data-l="${k}" style="padding:4px 7px;font-size:11px">${LFLAG[k]} ${LCODE[k]}</button>`).join('');
+document.querySelectorAll('#dlang button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
+const CH=LANG==='uk'?{kyiv_airdef:'ППО Київ',kpszsu:'Повітряні сили',povitryanatrivogaaa:'Мапа тривог',war_monitor:'монітор',monitor_ukr:'монітор UA',kyivoda:'КОВА',KyivCityOfficial:'КМДА',demo:'демо',
+  UkraineAlarmSignal:'єТривога',cherkasy_alerts:'Черкаси тривоги',cherkasy_monitor:'Черкаси наживо',poltavskaODA:'Полтавська ОВА',zhytomyrskaODA:'Житомирська ОВА',chernihiv_alert:'Чернігів сирена',Zhytomyr_alert:'Житомир сирена',sumy_alert:'Суми сирена',sumy_alerts:'Суми наживо',eRadarrua:'єРадар',kyiv_times_official:'Kyiv Times'}
+ :LANG==='fr'?{kyiv_airdef:'DCA Kyiv',kpszsu:'Forces aériennes',povitryanatrivogaaa:'Carte des alertes',war_monitor:'monitor',monitor_ukr:'monitor UA',kyivoda:'Adm. oblast Kyiv',KyivCityOfficial:'Mairie de Kyiv',demo:'démo',
+  UkraineAlarmSignal:'єТривога',cherkasy_alerts:'Alertes Tcherkassy',cherkasy_monitor:'Tcherkassy direct',poltavskaODA:'Adm. Poltava',zhytomyrskaODA:'Adm. Jytomyr',chernihiv_alert:'Sirène Tchernihiv',Zhytomyr_alert:'Sirène Jytomyr',sumy_alert:'Sirène Soumy',sumy_alerts:'Soumy direct',eRadarrua:'єРадар',kyiv_times_official:'Kyiv Times'}
+ :{kyiv_airdef:'AirDef live',kpszsu:'Air Force',povitryanatrivogaaa:'Alert map',war_monitor:'monitor',monitor_ukr:'monitor UA',kyivoda:'Kyiv Oblast Admin',KyivCityOfficial:'City Admin',demo:'demo',
+  UkraineAlarmSignal:'єТривога',cherkasy_alerts:'Cherkasy alerts',cherkasy_monitor:'Cherkasy live',poltavskaODA:'Poltava Admin',zhytomyrskaODA:'Zhytomyr Admin',chernihiv_alert:'Chernihiv siren',Zhytomyr_alert:'Zhytomyr siren',sumy_alert:'Sumy siren',sumy_alerts:'Sumy live',eRadarrua:'єРадар',kyiv_times_official:'Kyiv Times'};
+const RAION=Object.fromEntries(Object.keys(RAION_N).map(r=>[r,raionName(r)]));
+const RAION_STEM=[['бровар','brovary'],['бориспіл','boryspil'],['бучан','bucha'],['вишгород','vyshhorod'],['обухів','obukhiv'],['білоцерків','bila-tserkva'],['фастів','fastiv']];
+const RAION_LBL={bucha:[-22,-8],vyshhorod:[-10,-48],brovary:[30,-18],boryspil:[52,14],obukhiv:[26,44],'bila-tserkva':[-30,70],fastiv:[-28,24]};
+const SPEED=m=>m.type==='drones'?(m.jet?6.5:2.7):(m.type==='cruise_missiles'||m.type==='unspecified_missiles')?12:0; // km/min
+const CAPMIN=m=>m.type==='drones'?45:8;
+const TZ='Europe/Kyiv'; const TOPBASE=86;   // header: 40 (bar) + 28 (band) + 18 (ticker) — the threat strip adds its own height
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmtT=iso=>iso?new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ}):'';
+const dur=(a,b)=>{const ms=(b?new Date(b):new Date())-new Date(a);if(isNaN(ms)||ms<0)return'—';const m=Math.floor(ms/60000),h=Math.floor(m/60);return h?`${h}${t('d_h')} ${String(m%60).padStart(2,'0')}m`:`${m} ${t('d_min')}`;};
+const agoMin=iso=>(Date.now()-new Date(iso))/60000;
+const DIRS=t('dirs').split(',');
+const dirName=d=>DIRS[Math.round(d/45)%8];
+
+let HOME=null; try{HOME=JSON.parse(localStorage.getItem('home')||'null');}catch(e){}
+let SHOW_UA=false; try{SHOW_UA=localStorage.getItem('ua')==='1';}catch(e){}
+let ESTIMATE=false; try{ESTIMATE=localStorage.getItem('est')==='1';}catch(e){}
+let MAP=null,S=null,MK=[],ttl=45,hist=[],soundOn=true,vibOn=false,seen=new Set(),firstFeed=true,seenMk=new Set();
+try{soundOn=localStorage.getItem('snd')!=='0';vibOn=localStorage.getItem('vib')==='1';}catch(e){}
+$('snd').classList.toggle('on',soundOn);$('vib').classList.toggle('on',vibOn);$('lang').classList.toggle('on',SHOW_UA);
+const showUA=()=>SHOW_UA||LANG==='uk'; const ptxt=p=>showUA()?p.text:(p.text_en||p.text); if(LANG==='uk')$('lang').hidden=true;
+$('lang').onclick=()=>{SHOW_UA=!SHOW_UA;$('lang').classList.toggle('on',SHOW_UA);try{localStorage.setItem('ua',SHOW_UA?'1':'0')}catch(e){};renderFeed(lastPosts,false);};
+$('snd').onclick=()=>{soundOn=!soundOn;$('snd').classList.toggle('on',soundOn);try{localStorage.setItem('snd',soundOn?'1':'0')}catch(e){}};
+// ---- Web Push: works with the page closed (Android Chrome; iPhone: add to home screen first) ----
+let PUSH_SUB=null;
+async function pushInit(){ if(!('serviceWorker' in navigator)||!('PushManager' in window)){$('pushbtn').textContent=t('m_push_ns');return;}
+  try{ const reg=await navigator.serviceWorker.register('/sw.js'); PUSH_SUB=await reg.pushManager.getSubscription(); }catch(e){}
+  pushLabel(); }
+function pushLabel(){ const b=$('pushbtn'); b.classList.toggle('on',!!PUSH_SUB); b.textContent=PUSH_SUB?t('m_push_on'):t('m_push'); }
+function homeRaion(){ if(!HOME||!MAP) return null; const [hx,hy]=proj(HOME.lon,HOME.lat); let best=null; for(const f of MAP.features){ if(!f.raion) continue; const d=Math.hypot(f.cx-hx,f.cy-hy); if(!best||d<best.d) best={d,r:f.raion}; } return best?best.r:null; }
+$('pushbtn').onclick=async()=>{ $('menu').hidden=true;
+  try{ const info=await(await fetch('/api/push/key')).json(); if(!info.enabled){notify(t('n_push_na'),t('n_push_na_b'),'threat');return;}
+    const reg=await navigator.serviceWorker.ready;
+    if(PUSH_SUB){ await fetch('/api/push/unsubscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:PUSH_SUB.endpoint})}); await PUSH_SUB.unsubscribe(); PUSH_SUB=null; pushLabel(); notify(t('n_push_off'),'','end'); return; }
+    const perm=await Notification.requestPermission(); if(perm!=='granted'){notify(t('n_blocked'),t('n_blocked_b'),'threat');return;}
+    const raw=atob(info.key.replace(/-/g,'+').replace(/_/g,'/')); const key=new Uint8Array([...raw].map(c=>c.charCodeAt(0)));
+    PUSH_SUB=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:key});
+    await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:PUSH_SUB.toJSON(),home:HOME?{name:HOME.name,raion:homeRaion()}:{}})});
+    await fetch('/api/push/test',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({endpoint:PUSH_SUB.endpoint})});
+    pushLabel(); notify(t('n_push_on'),t('n_push_on_b',HOME?t('n_push_raion',HOME.name):''),'end');
+  }catch(e){ notify(t('n_push_fail'),String(e).slice(0,120),'threat'); } };
+pushInit();
+// disclaimer: shown on first open (and every 30 days), always available from the menu
+(()=>{$('disc').hidden=false;   // shown on every open, on purpose
+  $('discok').onclick=()=>{$('disc').hidden=true;try{localStorage.setItem('disc_ack',String(Date.now()));}catch(e){}};
+  $('aboutbtn').onclick=()=>{$('menu').hidden=true;$('disc').hidden=false;};
+  $('discobl').onchange=e=>setMyOblast(e.target.value);
+  $('dischome').onclick=async()=>{$('disc').hidden=true;await $('homebtn').onclick();};})();
+// the entry screen offers the two "watch" settings straight away: my oblast (status band, alerts) + an optional precise place
+function discHomeLabel(){ const b=$('dischome'); if(b) b.textContent=HOME?`${t('d_home_set')}: ${homeName()} ✓`:t('d_home_btn'); }
+function fillDiscOblasts(){ const sel=$('discobl'); if(!sel||!MAP) return; const list=(MAP.oblasts||[]).filter(o=>o.uid!=='31'&&o.uid!=='30').sort((a,b)=>oblName(a.uid).localeCompare(oblName(b.uid),LOCALE()));
+  sel.innerHTML=list.map(o=>`<option value="${o.uid}" ${o.uid===MYOBL.uid?'selected':''}>${esc(oblFull(o.uid))}</option>`).join(''); discHomeLabel(); }
+$('oblbtn').onclick=()=>{$('menu').hidden=true;pickOblast();};
+$('vib').onclick=()=>{vibOn=!vibOn;$('vib').classList.toggle('on',vibOn);try{localStorage.setItem('vib',vibOn?'1':'0')}catch(e){};if(vibOn&&navigator.vibrate)navigator.vibrate(80);};
+
+// ---- projection (km around Kyiv centre) ----
+let KX=70.7,KY=111,C=[30.52,50.45];
+const proj=(lon,lat)=>[(lon-C[0])*KX,-(lat-C[1])*KY];
+const unproj=(x,y)=>[C[0]+x/KX, C[1]-y/KY];
+
+// ---- audio / notify ----
+let actx;
+function beep(kind){ if(!soundOn) return; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); const seq=kind==='end'?[[660,.12],[880,.2]]:kind==='threat'?[[520,.1],[520,.1],[520,.1]]:[[880,.15],[660,.15],[880,.15],[660,.3]]; let t=actx.currentTime; for(const [f,d] of seq){const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);t+=d+.05;} }catch(e){} }
+function notify(title,body,kind){ const el=$('toast'); el.style.borderLeftColor=kind==='end'?'var(--green)':kind==='threat'?'var(--yellow)':'var(--red)'; el.innerHTML=`<b>${esc(title)}</b><div style="color:var(--muted);font-size:12.5px;margin-top:3px">${esc(body||'')}</div>`; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),7000); beep(kind); if(vibOn&&navigator.vibrate) navigator.vibrate(kind==='end'?[80]:[200,100,200]); }
+
+// ---- map base ----
+const TOWNS=[['Kyiv',30.52,50.45,1],['Brovary',30.79,50.51],['Boryspil',30.95,50.35],['Bucha',30.22,50.55],['Irpin',30.25,50.52],['Vyshhorod',30.49,50.58],['Obukhiv',30.62,50.11],['Vasylkiv',30.31,50.18],['Fastiv',29.92,50.08],['Bila Tserkva',30.11,49.80],['Pereiaslav',31.45,50.07],['Yahotyn',31.77,50.28],['Ivankiv',29.90,50.94],['Makariv',29.81,50.46],['Borodianka',29.92,50.64],['Kaharlyk',30.81,49.86],['Rzhyshchiv',31.05,49.97],['Uzyn',30.42,49.82],['Skvyra',29.67,49.73],['Tarashcha',30.50,49.55],['Bohuslav',30.87,49.55],['Baryshivka',31.31,50.36],['Zghurivka',31.78,50.49],['Dymer',30.30,50.80],['Slavutych',30.73,51.52],['Chornobyl',30.22,51.27],['Kozelets',31.12,50.91],['Nizhyn',31.89,51.05],['Chernihiv',31.29,51.50],['Zhytomyr',28.66,50.25],['Cherkasy',32.06,49.44],['Kaniv',31.47,49.75],['Uman',30.22,48.75],['Malyn',29.24,50.77],['Korostyshiv',29.06,50.32],['Pryluky',32.39,50.59],
+  ['Sumy',34.80,50.91,2],['Konotop',33.20,51.24,2],['Shostka',33.48,51.87,2],['Okhtyrka',34.90,50.31,2],['Romny',33.48,50.75,2],['Hlukhiv',33.91,51.68,2],
+  ['Poltava',34.55,49.59,2],['Kremenchuk',33.42,49.07,2],['Lubny',32.99,50.02,2],['Myrhorod',33.61,49.97,2],['Horishni Plavni',33.65,49.01,2],
+  ['Uman',30.22,48.75,2],['Zolotonosha',32.04,49.67,2],['Smila',31.87,49.22,2],['Zvenyhorodka',30.97,49.08,2],['Shpola',31.39,49.01,2],
+  ['Vinnytsia',28.47,49.23,2],['Haisyn',29.39,48.81,2],['Zhmerynka',28.11,49.04,2],['Tulchyn',28.85,48.68,2],['Khmilnyk',27.96,49.56,2],['Mohyliv-Podilskyi',27.80,48.45,2],
+  ['Berdychiv',28.58,49.90,2],['Korosten',28.64,50.95,2],['Zviahel',27.62,50.59,2],['Ovruch',28.81,51.32,2],
+  ['Novhorod-Siverskyi',33.26,52.01,2],['Koriukivka',32.25,51.77,2],['Bakhmach',32.83,51.18,2],['Mena',32.22,51.52,2],['Ichnia',32.39,50.86,2],
+  ['Kharkiv',36.23,49.99,3],['Odesa',30.73,46.48,3],['Dnipro',35.05,48.46,3],['Lviv',24.03,49.84,3],['Zaporizhzhia',35.14,47.84,3],['Mykolaiv',32.00,46.97,3],['Kherson',32.62,46.64,3],
+  ['Kryvyi Rih',33.39,47.91,3],['Kropyvnytskyi',32.26,48.51,3],['Rivne',26.25,50.62,3],['Lutsk',25.34,50.75,3],['Ternopil',25.59,49.55,3],['Khmelnytskyi',26.98,49.42,3],['Ivano-Frankivsk',24.71,48.92,3],
+  ['Chernivtsi',25.94,48.29,3],['Uzhhorod',22.30,48.62,3],['Mukachevo',22.72,48.44,3],['Donetsk',37.80,48.00,3],['Luhansk',39.31,48.57,3],['Mariupol',37.55,47.10,3],['Melitopol',35.37,46.85,3],
+  ['Berdiansk',36.79,46.76,3],['Sievierodonetsk',38.49,48.95,3],['Kramatorsk',37.58,48.72,3],['Sloviansk',37.62,48.85,3],['Pokrovsk',37.18,48.28,3],['Bakhmut',38.00,48.59,3],['Izium',37.26,49.21,3],
+  ['Kupiansk',37.62,49.71,3],['Lozova',36.31,48.89,3],['Pavlohrad',35.87,48.53,3],['Kamianske',34.61,48.51,3],['Nikopol',34.40,47.57,3],['Enerhodar',34.65,47.50,3],['Oleksandriia',33.12,48.67,3],
+  ['Bila Tserkva',30.11,49.80,3],['Vinnytsia',28.47,49.23,3],['Zhytomyr',28.66,50.25,3],['Cherkasy',32.06,49.44,3],['Poltava',34.55,49.59,3],['Sumy',34.80,50.91,3],['Chernihiv',31.29,51.50,3],
+  ['Kremenchuk',33.42,49.07,3],['Uman',30.22,48.75,3],['Izmail',28.84,45.35,3],['Bilhorod-Dnistrovskyi',30.35,46.19,3],['Chornomorsk',30.65,46.30,3],['Yuzhne',31.10,46.62,3],['Ochakiv',31.55,46.62,3],
+  ['Drohobych',23.51,49.35,3],['Stryi',23.86,49.26,3],['Chervonohrad',24.23,50.39,3],['Kovel',24.71,51.22,3],['Sarny',26.60,51.34,3],['Kamianets-Podilskyi',26.59,48.68,3],['Shepetivka',27.06,50.18,3],
+  ['Konotop',33.20,51.24,3],['Shostka',33.48,51.87,3],['Nizhyn',31.89,51.05,3],['Simferopol',34.10,44.95,3],['Sevastopol',33.52,44.60,3],['Kerch',36.47,45.36,3],['Yevpatoriia',33.37,45.20,3],['Feodosiia',35.38,45.03,3],['Dzhankoi',34.39,45.71,3]];
+async function loadMap(){
+  MAP=await (await fetch('/static/kyiv-map.json')).json(); KX=MAP.kx;KY=MAP.ky;C=MAP.center;
+  $('oblastsg').innerHTML=`<defs><pattern id="occ" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#141a22"/><rect width="2" height="6" fill="#2a2f3a"/></pattern></defs>`
+    +(MAP.oblasts||[]).map(o=>`<path class="ob ${o.region?'region':'far'}${o.occupied?' occ':''}" data-o="${o.uid}" d="${o.path}"/>`).join('')
+    +cossack();
+  $('obllbl').innerHTML=(MAP.oblasts||[]).filter(o=>o.uid!=='14'&&o.uid!=='31'&&o.uid!=='30'&&o.uid!=='29').map(o=>`<text class="oblbl${o.region?'':' faro'}" x="${o.cx}" y="${o.cy-8}" text-anchor="middle">${oblName(o.uid)}</text>`).join('');
+  $('neighbors').innerHTML=MAP.features.filter(f=>!f.raion).map(f=>`<path class="nb${f.obl==='29'||f.obl==='30'?' occ':''}" data-o="${f.obl}" data-key="${f.key||''}" data-stem="${f.stem||''}" d="${f.path}"/>`).join('')
+;
+  $('raionsg').innerHTML=MAP.features.filter(f=>f.raion).map(f=>`<path class="rn ${f.raion==='kyiv-city'?'city':''}" data-r="${f.raion}" d="${f.path}"/>`).join('')
+    +Object.entries(RAION_LBL).map(([r,[x,y]])=>`<text class="rnlbl" x="${x}" y="${y}" text-anchor="middle">${RAION[r]}</text>`).join('');
+  // rivers (coarse): Dnipro incl. Kyiv & Kaniv reservoirs, Desna, Irpin, Teteriv, Ros, Trubizh
+  const RIV=[['wide',[[30.55,51.60],[30.35,51.42],[30.20,51.28],[30.35,51.10],[30.42,50.95],[30.48,50.78],[30.52,50.62]],'Kyiv Reservoir',[30.15,50.9]],
+    ['mid',[[30.52,50.62],[30.52,50.50],[30.57,50.44],[30.58,50.36],[30.66,50.28],[30.75,50.18],[30.85,50.09],[30.97,50.02],[31.08,49.93],[31.25,49.85],[31.42,49.77],[31.60,49.66],[31.80,49.55],[32.02,49.45]],'Dnipro',[30.78,50.02]],
+    ['thin',[[31.29,51.50],[31.10,51.28],[30.95,51.12],[30.85,50.95],[30.75,50.78],[30.62,50.62],[30.55,50.53]],'Desna',[30.9,51.0]],
+    ['thin',[[29.98,50.05],[30.10,50.25],[30.20,50.42],[30.25,50.52],[30.38,50.60],[30.48,50.64]],'Irpin',[30.1,50.3]],
+    ['thin',[[29.05,50.42],[29.30,50.55],[29.60,50.62],[29.90,50.72],[30.15,50.85],[30.32,50.95]],'Teteriv',[29.5,50.6]],
+    ['thin',[[29.55,49.60],[29.90,49.75],[30.11,49.80],[30.45,49.70],[30.80,49.60],[31.10,49.55],[31.35,49.62],[31.45,49.75]],'Ros',[30.6,49.66]],
+    ['thin',[[31.05,50.70],[31.10,50.50],[31.25,50.30],[31.45,50.10],[31.60,49.95]],'Trubizh',[31.3,50.28]]];
+  $('rings').innerHTML=RIV.map(([w,pts,name,lp])=>`<polyline class="river ${w}" points="${pts.map(p=>proj(p[0],p[1]).map(v=>v.toFixed(1)).join(',')).join(' ')}"/>`+(name?`<text class="rvlbl" x="${proj(lp[0],lp[1])[0].toFixed(1)}" y="${proj(lp[0],lp[1])[1].toFixed(1)}">${riverName(name)}</text>`:'')).join('')+[15,30,50].map(r=>`<circle class="ring" cx="0" cy="0" r="${r}"/><text class="ringlbl" x="${r*0.72}" y="${-r*0.72}">${r} km</text>`).join('');
+  const majorNames=new Set(TOWNS.map(t=>t[0].toLowerCase()));
+  let minor=[]; try{ const pl=(await (await fetch('/api/places?oblast=all')).json()).places; minor=pl.filter(p=>!majorNames.has(translit(p.name).toLowerCase())&&!/громада|масив|берег|столиця|водосховище|море|АЕС|ГЕС/i.test(p.name)); }catch(e){}
+  // infrastructure: main highways, Kyiv ring road, Dnipro bridges, airports/airfields, power plants
+  const ROADS=[['M-01 Chernihiv',[[30.58,50.49],[30.79,50.51],[30.93,50.60],[30.97,50.71],[31.12,50.91],[31.20,51.20],[31.29,51.50]]],
+    ['M-03 Poltava',[[30.62,50.43],[30.80,50.38],[30.95,50.35],[31.15,50.32],[31.31,50.31],[31.55,50.29],[31.77,50.28],[32.10,50.24],[32.51,50.24]]],
+    ['M-05 Odesa',[[30.45,50.38],[30.36,50.30],[30.31,50.18],[30.26,50.05],[30.22,49.95],[30.11,49.80],[30.15,49.55],[30.22,49.20],[30.22,48.75]]],
+    ['M-06 Zhytomyr',[[30.35,50.45],[30.10,50.45],[29.81,50.46],[29.50,50.40],[29.06,50.32],[28.66,50.25]]],
+    ['M-07 Kovel',[[30.40,50.52],[30.26,50.58],[30.08,50.60],[29.92,50.64],[29.60,50.72],[29.24,50.77],[28.90,50.90]]],
+    ['P-02 Ovruch',[[30.49,50.58],[30.40,50.68],[30.30,50.80],[30.10,50.88],[29.90,50.94],[29.75,51.08],[29.55,51.20]]],
+    ['H-01 Obukhiv',[[30.55,50.36],[30.60,50.25],[30.62,50.11],[30.70,49.95],[30.81,49.86],[30.98,49.66]]],
+    ['P-04 Fastiv',[[30.35,50.40],[30.22,50.30],[30.10,50.18],[29.92,50.08],[29.80,49.95]]],
+    ['P-01 Vasylkiv–Bila Tserkva',[[30.31,50.18],[30.28,50.05],[30.20,49.92],[30.11,49.80]]],
+    ['E-95 Chernihiv',[[30.58,50.49],[30.62,50.60],[30.72,50.80],[30.88,50.95],[31.0,51.15],[31.29,51.50]]],
+    ['T-1019 Kaniv',[[30.95,50.35],[31.10,50.20],[31.30,50.10],[31.45,50.07],[31.47,49.75]]]];
+  const RING=[[30.45,50.56],[30.38,50.53],[30.34,50.48],[30.33,50.43],[30.36,50.37],[30.42,50.34],[30.50,50.33],[30.57,50.34],[30.60,50.36]];
+  const BRIDGES=[['Pivnichnyi br.',30.53,50.53],['Podilsko-Vosk. br.',30.55,50.48],['Metro br.',30.57,50.44],['Paton br.',30.59,50.42],['Darnytskyi br.',30.60,50.40],['Pivdennyi br.',30.60,50.38]];
+  const POIS=[['✈','Boryspil airport',30.89,50.34],['✈','Zhuliany airport',30.45,50.40],['✈','Hostomel airfield',30.19,50.60],['✈','Vasylkiv airbase',30.30,50.23],['✈','Bila Tserkva airfield',30.16,49.79],['✈','Ozerne airbase',28.74,50.16],
+    ['⚡','Trypillia TPP',30.77,50.13],['⚡','Kyiv HPP dam',30.52,50.60],['⚡','Kyiv CHP-5',30.55,50.38],['⚡','Kyiv CHP-6',30.60,50.52],['⚡','Darnytsia TPP',30.63,50.43],['☢','Chornobyl NPP',30.10,51.39],['⚡','Zmiiv? no',0,0]].filter(p=>p[2]);
+  const rp=pts=>pts.map(p=>proj(p[0],p[1]).map(v=>v.toFixed(1)).join(',')).join(' ');
+  $('infra').innerHTML=ROADS.map(([n,pts])=>{const mid=pts[Math.floor(pts.length/2)];const [lx,ly]=proj(mid[0],mid[1]);return `<polyline class="road" points="${rp(pts)}"/><text class="roadlbl minor" x="${(lx+1).toFixed(1)}" y="${(ly-1).toFixed(1)}">${n}</text>`;}).join('')
+    +`<polyline class="road ring2" points="${rp(RING)}"/>`
+    +BRIDGES.map(([n,lo,la])=>{const [x,y]=proj(lo,la);return `<rect class="bridge district" x="${(x-1.2).toFixed(1)}" y="${(y-.4).toFixed(1)}" width="2.4" height=".8"/><text class="poilbl district" x="${(x+1.6).toFixed(1)}" y="${(y+.5).toFixed(1)}">${bridgeName(n)}</text>`;}).join('')
+    +POIS.map(([ic,n,lo,la])=>{const [x,y]=proj(lo,la);return `<text class="poi ${ic==='✈'?'air':'pow'}" x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle">${ic}</text><text class="poilbl minor" x="${(x+2).toFixed(1)}" y="${(y+1.2).toFixed(1)}">${poiName(n)}</text>`;}).join('');
+  $('towns').innerHTML=TOWNS.map(([n,lo,la,big])=>{const [x,y]=proj(lo,la);const rg=big===2,ua=big===3;return `<circle class="towndot${rg?' rg':''}${ua?' uac':''}" data-n="${n}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${big===1?1.6:.9}" style="r:calc(var(--k,1)*${big===1?4:2.5}px)"/><text class="town ${big===1?'big':''}${rg?' rg':''}${ua?' uac':''}" data-n="${n}" x="${(x+2).toFixed(1)}" y="${(y+1.5).toFixed(1)}">${townName(n)}</text>`;}).join('')
+    +minor.map(p=>{const [x,y]=proj(p.lon,p.lat);const d=p.oblast_uid==='31'?' district':'';return `<circle class="towndot minor${d}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r=".7" style="r:calc(var(--k,1)*2px)"/><text class="town minor${d}" x="${(x+1.5).toFixed(1)}" y="${(y+1.2).toFixed(1)}">${esc(pn(p.name))}</text>`;}).join('');
+}
+const TR={а:'a',б:'b',в:'v',г:'h',ґ:'g',д:'d',е:'e',є:'ie',ж:'zh',з:'z',и:'y',і:'i',ї:'i',й:'i',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ь:'',ю:'iu',я:'ia',"'":'',"ʼ":''};
+function translit(s){let out='';for(let i=0;i<s.length;i++){const c=s[i],l=c.toLowerCase();let t;if(l==='є'&&i===0)t='ye';else if(l==='ї'&&i===0)t='yi';else if(l==='й'&&i===0)t='y';else if(l==='ю'&&i===0)t='yu';else if(l==='я'&&i===0)t='ya';else t=TR[l]??c;if(c!==l&&t)t=t[0].toUpperCase()+t.slice(1);out+=t;}return out;}
+// pan/zoom
+const svg=$('map'); const VB={x:-75,y:-100,w:150,h:200};
+const ASPECT=()=>{const r=svg.getBoundingClientRect();return r.width?r.height/r.width:1.33;};
+let KPX=1;
+function applyVB(){svg.setAttribute('viewBox',`${VB.x} ${VB.y} ${VB.w} ${VB.h}`);if(typeof drawHome==='function'&&HOME)setTimeout(drawHome,0);const r=svg.getBoundingClientRect();KPX=r.width?VB.w/r.width:1;svg.style.setProperty('--k',KPX);svg.classList.toggle('far',VB.w>90);svg.classList.toggle('close',VB.w<40);svg.classList.toggle('vclose',VB.w<22);svg.classList.toggle('veryfar',VB.w>230);svg.classList.toggle('ua',VB.w>900);if(typeof applySelOblast==='function'&&(VB.w<=300)!==applyVB._zin){applyVB._zin=VB.w<=300;applySelOblast();}{const kz=document.querySelector('.kozak'); if(kz){kz.querySelector('.kz').setAttribute('transform',`scale(${(2.2*KPX).toFixed(3)})`); const ts=kz.querySelectorAll('text'); ts[0].setAttribute('y',(14*KPX).toFixed(2)); ts[1].setAttribute('y',(25*KPX).toFixed(2));}}clearTimeout(applyVB._t);applyVB._t=setTimeout(()=>{applyVB._t=null;if(typeof IMP_H!=='undefined'&&IMP_H)drawImpacts();if(typeof updateTiles==='function'){updateTiles();layoutTownLabels();}},120);}
+function setView(cx,cy,w){VB.w=Math.max(8,Math.min(1500,w));VB.h=VB.w*ASPECT();VB.x=cx-VB.w/2;VB.y=cy-VB.h/2;applyVB();}
+function zoomAt(f,cx,cy){const nw=Math.max(8,Math.min(1500,VB.w/f)),nh=nw*ASPECT();VB.x=cx-(cx-VB.x)*(nw/VB.w);VB.y=cy-(cy-VB.y)*(nh/VB.h);VB.w=nw;VB.h=nh;applyVB();}
+function toSvg(px,py){const r=svg.getBoundingClientRect();return [VB.x+(px-r.left)/r.width*VB.w, VB.y+(py-r.top)/r.height*VB.h];}
+$('zin').onclick=()=>zoomAt(1.5,VB.x+VB.w/2,VB.y+VB.h/2); $('zout').onclick=()=>zoomAt(1/1.5,VB.x+VB.w/2,VB.y+VB.h/2);
+const LAYERS={tiles:true,himp:true,hdown:true,trails:false,cones:true,rivers:false,roads:true,infra:true,rings:true,minor:false};
+try{Object.assign(LAYERS,JSON.parse(localStorage.getItem('layers')||'{}')); if(!localStorage.getItem('layers_v2')){LAYERS.minor=false;localStorage.setItem('layers_v2','1');localStorage.setItem('layers',JSON.stringify(LAYERS));}}catch(e){}
+function applyLayers(){for(const [l,on] of Object.entries(LAYERS)){svg.classList.toggle('no-'+l,!on);const cb=document.querySelector(`#layerbox input[data-l="${l}"]`);if(cb)cb.checked=on;}if(typeof updateTiles==='function')updateTiles();}
+document.querySelectorAll('#layerbox input').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.l]=cb.checked;try{localStorage.setItem('layers',JSON.stringify(LAYERS))}catch(e){};applyLayers();});
+applyLayers();
+$('zkyiv').onclick=()=>{if(CITY)toggleCity(false);const o=(MAP.oblasts||[]).find(x=>x.uid===MYOBL.uid); if(o&&MYOBL.uid!=='14') setView(o.cx,o.cy,260); else setView(0,0,110);};
+// Kyiv city map: a separate, simplified map — the 10 districts (OSM boundaries), the city outline, targets, nothing else
+let CITY=false,KD=null,prevVB=null;
+async function loadDistricts(){ try{KD=(await(await fetch('/static/kyiv-districts.json')).json()).districts;}catch(e){KD=[];}
+  $('kdistg').innerHTML=KD.map(d=>`<path class="kd" data-n="${d.name}" d="${d.path}"/>`).join('')+KD.map(d=>`<text class="kdist" x="${d.cx}" y="${d.cy}" text-anchor="middle">${(LANG==='uk'?(d.uk||d.name).replace(' район',''):d.name).toUpperCase()}</text>`).join(''); paintDistricts(); }
+function paintDistricts(){ if(!KD||!KD.length||!S) return; const lvl=x=>x==='yellow'?'Y':'R'; const kc=S.active.find(a=>a.oblast_uid==='31'&&(a.location_type==='oblast'||a.location_type==='city')); const cityL=kc?lvl(kc.alert_level):(S.oblasts['31'].status==='A'?lvl(S.oblasts['31'].level):'');
+  const paths=[...document.querySelectorAll('#kdistg .kd')]; const live=MK.filter(m=>!m.status&&!m.endedBy&&!m.stale); const pt=svg.createSVGPoint();
+  paths.forEach(p=>{ let hot=false; for(const m of live){const [x,y]=proj(m.lon,m.lat); pt.x=x;pt.y=y; try{ if(p.isPointInFill(pt)){hot=true;break;} }catch(e){} } p.setAttribute('class',`kd ${cityL} ${hot?'hot':''}`); }); }
+function toggleCity(on){ CITY=on; svg.classList.toggle('city',CITY);  if(CITY){prevVB={...VB}; setView(3,2,24); paintDistricts();} else if(prevVB){VB.x=prevVB.x;VB.y=prevVB.y;VB.w=prevVB.w;VB.h=prevVB.h;applyVB();} }
+ $('est').onclick=()=>{ESTIMATE=!ESTIMATE;$('est').classList.toggle('on',ESTIMATE);try{localStorage.setItem('est',ESTIMATE?'1':'0')}catch(e){}}; $('est').classList.toggle('on',ESTIMATE); $('zobl').onclick=()=>setView(10,10,260); $('zcity2').onclick=()=>{$('menu').hidden=true;toggleCity(!CITY);}; $('zreg').onclick=()=>setView(60,0,620); $('zua').onclick=()=>setView(120,110,1400);
+let touches={},lastDist=null,lastMid=null,moved=false; const wrap=$('mapwrap');
+let downMk=null,downXY=null,downOb=null;
+wrap.addEventListener('pointerdown',e=>{if(!e.target.closest('svg#map')) return; /* buttons / chips on top of the map keep their own clicks (pointer capture would swallow them) */ touches[e.pointerId]=[e.clientX,e.clientY];moved=false;downMk=e.target.closest?e.target.closest('g.mk,g.imp'):null;downOb=e.target.closest?(e.target.closest('path.ob,path.nb')||{}).dataset?.o:null;downXY=[e.clientX,e.clientY];wrap.setPointerCapture(e.pointerId);});
+wrap.addEventListener('pointermove',e=>{ if(!(e.pointerId in touches)) return; const pts=Object.values(touches); const prev=touches[e.pointerId]; touches[e.pointerId]=[e.clientX,e.clientY]; const r=svg.getBoundingClientRect(); const k=VB.w/r.width;
+  if(pts.length===1){ const dx=(e.clientX-prev[0])*k, dy=(e.clientY-prev[1])*k; if(Math.abs(dx)+Math.abs(dy)>0.2)moved=true; VB.x-=dx;VB.y-=dy;applyVB(); }
+  else{ const [a,b]=Object.values(touches); const d=Math.hypot(a[0]-b[0],a[1]-b[1]); const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2]; if(lastDist){const [cx,cy]=toSvg(mid[0],mid[1]); zoomAt(d/lastDist,cx,cy); if(lastMid){VB.x-=(mid[0]-lastMid[0])*k;VB.y-=(mid[1]-lastMid[1])*k;applyVB();}} lastDist=d;lastMid=mid;moved=true; }});
+const endT=e=>{delete touches[e.pointerId]; if(Object.keys(touches).length<2){lastDist=null;lastMid=null;}};
+// tap on a marker: pointer capture sends pointerup to the wrapper, so hit-test here (≤10 px screen movement counts as a tap)
+wrap.addEventListener('pointerup',e=>{const mk=downMk,xy=downXY,ob=downOb;downMk=null;downXY=null;downOb=null;endT(e);
+  const tap=xy&&Math.hypot(e.clientX-xy[0],e.clientY-xy[1])<=10&&Object.keys(touches).length===0;
+  if(mk&&tap){$('tip').hidden=true;if(mk.classList.contains('imp'))openImpact(mk.dataset.id);else openSheet(mk.dataset.id);}
+  else if(ob&&tap&&VB.w>150) selectOblast(ob);});wrap.addEventListener('pointercancel',endT);
+wrap.addEventListener('wheel',e=>{e.preventDefault();const [cx,cy]=toSvg(e.clientX,e.clientY);zoomAt(e.deltaY<0?1.2:1/1.2,cx,cy);},{passive:false});
+window.addEventListener('resize',()=>setView(VB.x+VB.w/2,VB.y+VB.h/2,VB.w));
+
+// ---- marker kinematics ----
+// Positions are shown WHERE THEY WERE REPORTED. Dead-reckoning along the reported heading is an explicit
+// opt-in (Est. button) because a drone that turned after the report would otherwise be drawn in the wrong place.
+function posOf(m,now){ // km coords: [x,y,x0,y0]
+  const [x0,y0]=proj(m.lon,m.lat); const v=SPEED(m); if(!ESTIMATE||!v||m.heading==null||m.status||m.endedBy) return [x0,y0,x0,y0];
+  const age=Math.min((now-new Date(m.ts))/60000,CAPMIN(m)); const d=age*v; const a=m.heading*Math.PI/180;
+  return [x0+d*Math.sin(a), y0-d*Math.cos(a), x0, y0];
+}
+function homeInfo(m,x,y){ // reported heading pointing at the priority location?
+  if(!HOME) return {near:false,inbound:false,dist:null};
+  const [hx,hy]=proj(HOME.lon,HOME.lat); const dist=Math.hypot(x-hx,y-hy); const v=SPEED(m);
+  if(m.status||m.endedBy||!v||m.heading==null) return {near:dist<10,inbound:false,dist};
+  const bTo=(Math.atan2(hx-x,-(hy-y))*180/Math.PI+360)%360; const diff=Math.abs(((m.heading-bTo)+540)%360-180);
+  const inbound=diff<25&&dist<80; return {near:dist<10,inbound,dist,eta:inbound?dist/v:null};
+}
+function drawHome(){ if(!MAP) return; if(!HOME){$('homeg').innerHTML='';return;} const [x,y]=proj(HOME.lon,HOME.lat);
+  $('homeg').innerHTML=`<g class="homemk"><circle class="ring" cx="${x}" cy="${y}" r="5" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><circle class="ring" cx="${x}" cy="${y}" r="10" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><text class="ico" x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle">🏠</text><text class="hl" x="${x}" y="${(y-8*KPX).toFixed(1)}" text-anchor="middle">${esc(homeName())}</text></g>`; }
+let PLACES_ALL=[];
+const homeName=()=>HOME?(LANG==='uk'&&HOME.uk?HOME.uk:townName(HOME.name)):'';
+async function loadPlacesList(){try{const pl=(await (await fetch('/api/places?oblast=14,31,10,25,20,19,24,4')).json()).places;PLACES_ALL=pl.filter(p=>!/громада|берег|столиця|водосховище|море|АЕС|ГЕС|траса|шосе|проспект/i.test(p.name)).map(p=>({name:translit(p.name),uk:p.name,lon:p.lon,lat:p.lat,kind:OBL_N[p.oblast_uid]?oblFull(p.oblast_uid):t('kd_region')}));
+  for(const [r,n] of Object.entries(RAION)) if(r!=='kyiv-city'){const c=RAION_LBL[r];PLACES_ALL.push({name:RAION_N[r][0]+' raion',uk:RAION_N[r][1]+' район',lon:C[0]+c[0]/KX,lat:C[1]-c[1]/KY,kind:t('kd_raion')});}
+  PLACES_ALL.sort((a,b)=>a.name.localeCompare(b.name));}catch(e){}}
+function renderHomeList(q){const s=(q||'').toLowerCase();const rows=PLACES_ALL.filter(p=>!s||p.name.toLowerCase().includes(s)||p.uk.toLowerCase().includes(s)).slice(0,60);
+  $('homelist').innerHTML=rows.map((p,i)=>`<div class="hitem" data-i="${PLACES_ALL.indexOf(p)}"><div>${esc(LANG==='uk'?p.uk:p.name)} <span>${esc(LANG==='uk'?p.name:p.uk)}</span></div><span>${esc(p.kind)}</span></div>`).join('')||`<div class="empty">${t('hl_nomatch')}</div>`;
+  $('homelist').querySelectorAll('.hitem').forEach(el=>el.onclick=()=>{const p=PLACES_ALL[+el.dataset.i];HOME={name:p.name,uk:p.uk,lon:p.lon,lat:p.lat};try{localStorage.setItem('home',JSON.stringify(HOME));}catch(e){};$('homesheet').classList.remove('show');drawHome();render();if(PUSH_SUB)fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({subscription:PUSH_SUB.toJSON(),home:{name:HOME.name,raion:homeRaion()}})}).catch(()=>{});notify(t('n_home',homeName()),t('n_home_b'),'end');discHomeLabel();});}
+$('menubtn').onclick=e=>{e.stopPropagation();$('menu').hidden=!$('menu').hidden;};
+document.addEventListener('pointerdown',e=>{if(!$('menu').hidden&&!$('menu').contains(e.target)&&e.target!==$('menubtn'))$('menu').hidden=true;});
+$('homebtn').onclick=async()=>{$('menu').hidden=true;if(!PLACES_ALL.length)await loadPlacesList();renderHomeList('');$('homeq').value='';$('homesheet').classList.add('show');setTimeout(()=>$('homeq').focus(),100);};
+$('homeq').addEventListener('input',e=>renderHomeList(e.target.value));
+$('homeclear').onclick=()=>{HOME=null;try{localStorage.removeItem('home');}catch(e){};$('homesheet').classList.remove('show');drawHome();render();discHomeLabel();};
+document.addEventListener('pointerdown',e=>{if($('homesheet').classList.contains('show')&&!$('homesheet').contains(e.target)&&e.target!==$('homebtn'))$('homesheet').classList.remove('show');});
+function inboundInfo(m,x,y){ // reported heading pointing at Kyiv centre (0,0)?
+  const v=SPEED(m); const dist=Math.hypot(x,y); if(m.status||m.endedBy||!v||m.heading==null) return {inbound:false,dist};
+  const bTo=(Math.atan2(-x,y)*180/Math.PI+360)%360;
+  let diff=Math.abs(((m.heading-bTo)+540)%360-180);
+  const inbound=diff<32 && dist<140; return {inbound,dist,eta:inbound?dist/v:null};
+}
+// Link "down / lost / impact / clear" reports to the track they most plausibly close:
+// same family, reported after the track, within 40 min, within 60 km of the reported position and
+// (when a heading is known) roughly ahead of it. Nothing is invented: both ends come from posts.
+function linkStatus(){
+  const st=MK.filter(m=>m.status); const tr=MK.filter(m=>!m.status);
+  for(const t of tr) t.endedBy=null;
+  for(const s of st){
+    const [sx,sy]=proj(s.lon,s.lat); let best=null;
+    for(const t of tr){
+      if(t.endedBy) continue; const dt=(new Date(s.ts)-new Date(t.ts))/60000; if(dt<-2||dt>40) continue;
+      const fam=(t.type==='drones')===(s.type==='drones'); if(!fam) continue;
+      const [tx,ty]=proj(t.lon,t.lat); const d=Math.hypot(sx-tx,sy-ty); if(d>60) continue;
+      if(t.heading!=null&&d>8){ const b=(Math.atan2(sx-tx,-(sy-ty))*180/Math.PI+360)%360; const diff=Math.abs(((t.heading-b)+540)%360-180); if(diff>55) continue; }
+      if(s.status==='clear' && d>25) continue;
+      const score=d+dt*0.5; if(!best||score<best.score) best={t,score};
+    }
+    if(best){best.t.endedBy=s; s.closes=best.t.id;}
+  }
+}
+const STATUS_EN={down:t('st_down'),impact:t('st_impact'),lost:t('st_lost'),clear:t('st_clear')}; const STATUS_W={down:t('sw_down'),impact:t('sw_impact'),lost:t('sw_lost'),clear:t('sw_clear')};
+const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4.5 6.5 L-8.5 6.5 Z"/><path class="glyph" d="M0-9 L0 6" style="fill:none;stroke:#080b10;stroke-width:1.2px"/><g class="jetfx"><path class="flame" d="M-2.5 9 L0 15 L2.5 9 Z"/><path class="flame2" d="M-1.2 9 L0 12.5 L1.2 9 Z"/></g>',
+  missile:'<path class="glyph" d="M0-10 L2.5-5 L2.5 4 L5 8 L5 10 L1.5 7.5 L-1.5 7.5 L-5 10 L-5 8 L-2.5 4 L-2.5-5 Z"/>',
+  bomb:'<circle class="glyph" cx="0" cy="3" r="6"/><path class="glyph" d="M-2-3 L2-3 L2-7 L-2-7 Z"/>',
+  down:'<path class="glyph x" d="M-7-7 L7 7 M7-7 L-7 7"/><circle class="glyph ring" cx="0" cy="0" r="9"/>',
+  impact:'<path class="glyph x" d="M0-10 L2-3 L9-6 L4 0 L10 4 L3 3 L2 10 L-1 4 L-8 7 L-4 0 L-10-3 L-3-2 Z"/>',
+  lost:'<circle class="glyph ring" cx="0" cy="0" r="8"/><text class="glyph q" x="0" y="3.5" text-anchor="middle">?</text>',
+  clear:'<circle class="glyph ring" cx="0" cy="0" r="8"/><path class="glyph x" d="M-4 0 L-1 3 L5-4"/>'};
+let built=new Map(); const homeAlerted=new Set();
+function buildMarker(m){
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g'); g.setAttribute('class',`mk ${m.type} ${m.jet?'jet':''} ${m.status?'st st-'+m.status:''}`); g.dataset.id=m.id;
+  const glyph=m.status?G[m.status]:(m.type==='drones'?G.drone:(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?G.bomb:G.missile);
+  const isNew=!seenMk.has(m.id); seenMk.add(m.id);
+  g.innerHTML=`<line class="ahead" x1="0" y1="0" x2="0" y2="0"/><polygon class="cone" points="0,0 0,0 0,0"/><circle class="halo" cx="0" cy="0" r="6"/>${isNew?`<circle class="spawn" cx="0" cy="0" r="${(10*KPX).toFixed(1)}"/>`:''}
+    ${m.type==='drones'&&!m.status?`<g class="orbit"><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="7s" repeatCount="indefinite"/><g class="body"><g class="rot">${glyph}</g></g></g><circle class="loiter" cx="0" cy="0" r="1"/>`:`<g class="body"><g class="rot">${glyph}</g></g>`}
+    <polygon class="hdg" points="0,-4.5 4.5,3 0,1 -4.5,3" style="display:none"/><text class="qm" x="0" y="0">?</text><g class="cnt" style="display:none"><circle r="6.5"/><text y="3.2">2</text></g><text class="lbl" x="5" y="-4"></text><text class="lbl2" x="5" y="0"></text><circle class="hit" cx="0" cy="0" r="8"/>`;
+  g.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;showTip(m,e);}); g.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;moveTip(e);}); g.addEventListener('pointerleave',()=>{$('tip').hidden=true;});
+  const trail=document.createElementNS('http://www.w3.org/2000/svg','line'); trail.setAttribute('class','trail');
+  const hist=document.createElementNS('http://www.w3.org/2000/svg','polyline'); hist.setAttribute('class','trail hist');
+  return {g,trail,hist};
+}
+function tick(){
+  if(!MAP){setTimeout(tick,300);return;}
+  const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?25:ttl));
+  // outcome markers at the same place within 20 min collapse into one (✸ Impact ×3) — one glyph, not a pile
+  {const groups={}; for(const m of live){ if(!m.status) continue; const k=m.status+'|'+String(m.place); (groups[k]=groups[k]||[]).push(m);} const drop=new Set();
+    for(const arr of Object.values(groups)){ arr.sort((a,b)=>a.ts<b.ts?1:-1); const head=arr[0]; head.cluster=1; for(const o of arr.slice(1)){ if(agoMin(o.ts)-agoMin(head.ts)<=20){drop.add(o.id);head.cluster++;} } }
+    live=live.filter(m=>!drop.has(m.id));}
+  // live targets reported at the same place (≤ 3 km, same family) merge into one glyph with a count badge
+  {const act=live.filter(m=>!m.status&&!m.endedBy).sort((a,b)=>a.ts<b.ts?1:-1); const drop=new Set(); const fam=m=>m.type==='drones'?(m.jet?'jet':'shahed'):m.type;
+    for(const m of act){ m.csum=null; }
+    for(let i=0;i<act.length;i++){ const h=act[i]; if(drop.has(h.id)) continue; let sum=h.count||1, ids=[]; const [hx,hy]=proj(h.lon,h.lat);
+      for(let j=i+1;j<act.length;j++){ const o=act[j]; if(drop.has(o.id)||fam(o)!==fam(h)||!!o.stale!==!!h.stale) continue; const [ox,oy]=proj(o.lon,o.lat); if(Math.hypot(ox-hx,oy-hy)<=3){drop.add(o.id);sum+=o.count||1;ids.push(o.id);} }
+      if(ids.length){h.csum=sum;h.cids=ids;} }
+    live=live.filter(m=>!drop.has(m.id));}
+  const ids=new Set(live.map(m=>m.id));
+  for(const [id,b] of built){ if(!ids.has(id)){b.g.remove();b.trail.remove();b.hist.remove();built.delete(id);} }
+  const edges=[],lblPos=[]; let totShahed=0,totJet=0,totMsl=0,totStale=0,inboundCount=0, nearest=null, tracked=0, downed=0, homeThreats=0, homeNearest=null;
+  for(const m of live){
+    let b=built.get(m.id); if(!b){b=buildMarker(m);built.set(m.id,b);$('markers').appendChild(b.g);$('trails').appendChild(b.hist);$('trails').appendChild(b.trail);}
+    if(m.history&&m.history.length){const [hx,hy]=posOf(m,now); b.hist.setAttribute('points',m.history.map(h=>proj(h.lon,h.lat).map(v=>v.toFixed(1)).join(',')).join(' ')+` ${hx.toFixed(1)},${hy.toFixed(1)}`);}else b.hist.setAttribute('points','');
+    const [x,y,x0,y0]=posOf(m,now); const info=inboundInfo(m,x,y); const hi=homeInfo(m,x,y); const age=agoMin(m.ts);
+    b.g.classList.toggle('tohome',hi.inbound||(hi.near&&!m.status&&!m.endedBy)); if(hi.inbound||hi.near){ if(!m.status&&!m.endedBy){ homeThreats++; if(hi.inbound&&(!homeNearest||hi.dist<homeNearest.dist)) homeNearest={...hi,m}; if(!homeAlerted.has(m.id)){homeAlerted.add(m.id); notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start');} } }
+    const gs=(m.status?1.05:m.type==='drones'?1.05:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
+    b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);
+    const orbit=b.g.querySelector('.orbit');
+    if(orbit&&!m.endedBy&&!m.stale){ // Shahed: drawn loitering around the reported point (their real path is erratic); the chevron shows the reported heading
+      const R=9*KPX; b.g.querySelector('.body').setAttribute('transform',`translate(${R.toFixed(2)} 0)`); b.g.querySelector('.rot').setAttribute('transform',`rotate(180) scale(${(gs*0.85).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r',R.toFixed(2));
+    }else if(orbit){ const at=orbit.querySelector('animateTransform'); if(at) at.remove(); orbit.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${m.heading??0}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
+    else b.g.querySelector('.rot').setAttribute('transform',`rotate(${m.status?0:(m.heading??0)}) scale(${gs.toFixed(2)})`);
+    const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.25*KPX).toFixed(2)})`);}else hdg.style.display='none';
+    b.g.classList.toggle('inbound',info.inbound&&!m.stale); b.g.classList.toggle('old',age>ttl*0.65); b.g.classList.toggle('ended',!!m.endedBy); b.g.classList.toggle('stale',!!m.stale&&!m.endedBy&&!m.status); b.g.classList.toggle('s2',!!m.stale&&m.stale>=8); b.g.classList.toggle('s3',!!m.stale&&m.stale>=11); b.g.querySelector('.qm').setAttribute('y',(-12*KPX).toFixed(2));
+    const v=SPEED(m); const ah=b.g.querySelector('.ahead'); const cone=b.g.querySelector('.cone');
+    if(!m.status&&!m.endedBy&&v&&m.heading!=null){ // reported heading: 12-min ray + ±20° uncertainty cone
+      const L=Math.min(v*6,20);const a=m.heading*Math.PI/180;ah.setAttribute('x2',(L*Math.sin(a)).toFixed(1));ah.setAttribute('y2',(-L*Math.cos(a)).toFixed(1));ah.style.display='';
+      const a1=a-15*Math.PI/180,a2=a+15*Math.PI/180; cone.setAttribute('points',`0,0 ${(L*Math.sin(a1)).toFixed(1)},${(-L*Math.cos(a1)).toFixed(1)} ${(L*Math.sin(a2)).toFixed(1)},${(-L*Math.cos(a2)).toFixed(1)}`); cone.style.display='';
+    }else{ah.style.display='none';cone.style.display='none';}
+    // trail: extrapolated path (Est. mode) or, for a closed track, the reported position → the down/lost point
+    if(m.endedBy){const [ex,ey]=proj(m.endedBy.lon,m.endedBy.lat); b.trail.setAttribute('x1',x0.toFixed(2));b.trail.setAttribute('y1',y0.toFixed(2));b.trail.setAttribute('x2',ex.toFixed(2));b.trail.setAttribute('y2',ey.toFixed(2));b.trail.setAttribute('class','trail ended');}
+    else{b.trail.setAttribute('x1',x0.toFixed(2));b.trail.setAttribute('y1',y0.toFixed(2));b.trail.setAttribute('x2',x.toFixed(2));b.trail.setAttribute('y2',y.toFixed(2));b.trail.setAttribute('class','trail'+(info.inbound?' inbound':''));}
+    b.g.querySelector('.halo').setAttribute('r',(13*KPX).toFixed(2)); b.g.querySelector('.hit').setAttribute('r',(18*KPX).toFixed(2));
+    b.g.querySelector('.lbl').setAttribute('x',(14*KPX).toFixed(2)); b.g.querySelector('.lbl').setAttribute('y',(-6*KPX).toFixed(2)); b.g.querySelector('.lbl2').setAttribute('x',(14*KPX).toFixed(2)); b.g.querySelector('.lbl2').setAttribute('y',(6*KPX).toFixed(2));
+    const kind=(m.type==='drones'?(m.jet?t('k_jet'):t('k_shahed')):THREAT[m.type]?.[1]||m.type);
+    const name=m.status?({down:t('mk_down'),impact:t('mk_impact'),lost:t('mk_lost'),clear:t('mk_clear')}[m.status]+((m.cluster||1)>1?` ×${m.cluster}`:m.count>1?` ×${m.count}`:'')):kind+((m.csum||m.count||1)>1?` ×${m.csum||m.count}`:'');
+    b.g.querySelector('.lbl').textContent=name;
+    const placeEn=m.place==='область'?'':pn(m.place);
+    b.g.querySelector('.lbl2').textContent=m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||m.endedBy.status,pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`));
+    if(m.status){ if(m.status!=='clear') downed++; } else if(!m.endedBy){ tracked++; const c=m.csum||m.count||1; if(m.stale) totStale+=c; else if(m.type==='drones'){ if(m.jet) totJet+=c; else totShahed+=c; } else totMsl+=c; if(info.inbound&&!m.stale){inboundCount++; if(!nearest||info.dist<nearest.dist) nearest={...info,m};} }
+    if(!m.status&&!m.endedBy&&(x<VB.x||x>VB.x+VB.w||y<VB.y||y>VB.y+VB.h)) edges.push({m,x,y,info,name});
+    lblPos.push({b,m,sx:x/KPX,sy:y/KPX});
+  }
+  // label de-collision (screen px): each marker's visible label block is a box right of the glyph; a box that
+  // would overlap an already placed one is pushed down (or, if that fails, flipped to the left side)
+  {const far=svg.classList.contains('far'),vfar=svg.classList.contains('veryfar'),close=svg.classList.contains('close'),mob=window.innerWidth<1000;
+   for(const p of lblPos){const m=p.m,g=p.b.g; const inb=g.classList.contains('inbound')||g.classList.contains('tohome');
+     p.v1=!vfar&&!m.endedBy&&!(m.status&&(far||(mob&&!close))); p.v2=m.endedBy?false:inb?true:m.status?close:m.stale?!far:false; if(far&&!inb)p.v2=false;
+     const t1=p.v1?g.querySelector('.lbl').textContent:'',t2=p.v2?g.querySelector('.lbl2').textContent:'';
+     p.w=Math.max(t1.length*6.6,t2.length*5.8); p.h=(p.v1&&p.v2)?26:(p.v1||p.v2)?14:0;}
+   lblPos.sort((a,c)=>a.sy-c.sy||a.sx-c.sx); const placed=[]; const hit=(x,y,w,h)=>placed.some(q=>x<q.x+q.w&&q.x<x+w&&y<q.y+q.h&&q.y<y+h);
+   for(const p of lblPos){ const g=p.b.g,l1=g.querySelector('.lbl'),l2=g.querySelector('.lbl2'); if(!p.h){continue;}
+     let dy=0,side=1; const y0=p.sy-12;
+     for(let tries=0;tries<8;tries++){ if(!hit(p.sx+14,y0+dy,p.w,p.h)) break; dy+=14; }
+     if(dy>=14*4&&!hit(p.sx-14-p.w,y0,p.w,p.h)){side=-1;dy=0;}   // too far down → put it on the left instead
+     placed.push({x:side>0?p.sx+14:p.sx-14-p.w,y:y0+dy,w:p.w,h:p.h});
+     const x=(side*14*KPX).toFixed(2); l1.setAttribute('x',x);l2.setAttribute('x',x); l1.setAttribute('text-anchor',side>0?'start':'end');l2.setAttribute('text-anchor',side>0?'start':'end');
+     const y1=p.v2?-6:4; l1.setAttribute('y',((y1+dy)*KPX).toFixed(2)); l2.setAttribute('y',((6+dy)*KPX).toFixed(2)); }}
+  // edge indicators — prioritised (inbound first, then nearest), max 6, spread along each edge
+  const cx=VB.x+VB.w/2, cy=VB.y+VB.h/2, pad=14*KPX;
+  edges.sort((a,b)=>(b.info.inbound-a.info.inbound)||(a.info.dist-b.info.dist));
+  const shown=edges.slice(0,3).map(e=>{const dx=e.x-cx,dy=e.y-cy;const sx=(VB.w/2-pad)/Math.abs(dx||1e-6),sy=(VB.h/2-(dy>0?40*KPX:pad))/Math.abs(dy||1e-6);const sc=Math.min(sx,sy);
+    const ex=cx+dx*sc,ey=cy+dy*sc;const side=sx<sy?(dx>0?'R':'L'):(dy>0?'B':'T');return {...e,ex,ey,side,ang:Math.atan2(dy,dx)*180/Math.PI};});
+  const gap=26*KPX;
+  for(const side of ['L','R','T','B']){const arr=shown.filter(e=>e.side===side);const key=(side==='L'||side==='R')?'ey':'ex';arr.sort((a,b)=>a[key]-b[key]);
+    for(let i=1;i<arr.length;i++) if(arr[i][key]-arr[i-1][key]<gap) arr[i][key]=arr[i-1][key]+gap;
+    const lim=(side==='L'||side==='R')?VB.y+VB.h-pad:VB.x+VB.w-pad; for(let i=arr.length-1;i>=0;i--){ if(arr[i][key]>lim) arr[i][key]=lim-(arr.length-1-i)*gap; }}
+  $('edges').innerHTML=shown.map(({m,info,name,ex,ey,side,ang,x,y})=>{
+    const dkm=Math.round(info.dist);
+    const short=name.replace(t('th_kab'),t('e_kab')).replace(t('th_cruise'),t('e_cruise')).replace(t('th_bal'),t('e_bal')); const txt=info.inbound?`${short} ${t('lb_tokyiv')} ${dkm}km`:`${short} ${dkm}km ${dirName((Math.atan2(x,-y)*180/Math.PI+360)%360)}`;
+    const anchor=side==='R'?'end':(side==='L'?'start':'middle'); const o=12*KPX; const tx=side==='R'?ex-o:side==='L'?ex+o:ex; const ty=side==='T'?ey+o+4*KPX:side==='B'?ey-o:ey+4*KPX;
+    return `<g class="edge ${info.inbound?'inbound':''}"><polygon class="arrow" points="0,-3 6,0 0,3" transform="translate(${ex.toFixed(1)} ${ey.toFixed(1)}) rotate(${ang.toFixed(0)}) scale(${(1.6*KPX).toFixed(2)})"/><text class="etxt" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(txt)}</text></g>`;
+  }).join('');
+  const parts=[]; if(tracked){ const tot=[totShahed?`<b>${totShahed}</b> ${t('lb_shahed')}`:'',totJet?`<b>${totJet}</b> ${t('lb_jet')}`:'',totMsl?`<b>${totMsl}</b> ${t('lb_msl')}`:'',totStale?`<b>${totStale}</b> ?`:''].filter(Boolean).join(' · '); parts.push(tot||`<b>${tracked}</b> ${t('lb_targets')}`); } if(inboundCount) parts.push(`<b style="color:#ffd9d6">${inboundCount} ${t('lb_tokyiv')}</b>`); if(HOME&&homeThreats) parts.push(`<b style="color:#ffb3c5">${homeThreats} → ${esc(homeName())}</b>`); if(ESTIMATE) parts.push('EST'); 
+  $('livebar').innerHTML=(parts.length?`<span class="chip ${inboundCount||homeThreats?'red':'orange'}">${parts.join(' · ')}</span>`:'')+(typeof IMP_H!=='undefined'&&IMP_H?(()=>{const ni=IMP.filter(m=>m.status!=='down').length,nd=IMP.length-ni;return `<span class="chip red">✸ ${tn('lb_expl',ni)}</span><span class="chip green">✕ ${t('lb_down',nd)}</span><span class="chip">${IMP_H} h</span>`;})():'');
+  scheduleTick();
+}
+function scheduleTick(){ if(document.hidden){setTimeout(scheduleTick,1000);return;} if(ESTIMATE) requestAnimationFrame(tick); else setTimeout(tick,250); }
+function corroboration(m){ // other reports of the same family within 25 km and ±15 min, from any channel
+  const [x,y]=proj(m.lon,m.lat); const t0=new Date(m.ts);
+  return MK.filter(o=>o.id!==m.id&&!o.status&&(o.type==='drones')===(m.type==='drones')&&Math.abs(new Date(o.ts)-t0)<15*60000&&Math.hypot(...(([a,b])=>[a-x,b-y])(proj(o.lon,o.lat)))<25)
+    .sort((a,b)=>new Date(b.ts)-new Date(a.ts));
+}
+const CONF={high:['green',t('conf_high')],medium:['yellow',t('conf_medium')],low:['red',t('conf_low')],none:['','—']}; const cf=c=>CONF[c]?CONF[c][1]:'—';
+function evRow(label,e,fallback){ if(!e) return `<span>${label}</span><b style="color:var(--muted);font-weight:500">${fallback||'—'}</b>`;
+  const c=CONF[e.confidence]||['','']; const q=e.matched?`“${esc(SHOW_UA?e.matched:(e.matched_en||e.matched))}”`:`<i>${t('ev_nomatch')}</i>`;
+  return `<span>${label}</span><b style="font-weight:500">${q}<div style="color:var(--muted);font-size:12px">${esc(e.method||'')}${e.confidence?` · <span class="chip ${c[0]}" style="padding:0 6px;font-size:10.5px">${c[1]} ${t('tp_conf')}</span>`:''}</div></b>`; }
+function showTip(m,e){
+  const cur=MK.find(x=>x.id===m.id)||m; const [x,y]=posOf(cur,Date.now()); const info=inboundInfo(cur,x,y);
+  const th=THREAT[cur.type]||THREAT.unknown;
+  const title=cur.status?`${{down:'✕',impact:'✸',lost:'?',clear:'✓'}[cur.status]} ${STATUS_EN[cur.status]}`:`${th[0]} ${cur.type==='drones'&&cur.jet?t('k_jet'):th[1]}${cur.count>1?' ×'+cur.count:''}`;
+  const where=cur.place==='область'?t('oblcentre'):pn(cur.place);
+  const ev=cur.evidence||{};
+  $('tip').innerHTML=`<b>${title}</b><div class="m">${cur.status?t('tp_reported'):t('tp_spotted')} ${t('tp_near')} <b style="display:inline">${esc(where)}</b> · ${fmtT(cur.ts)} (${t('tp_ago',Math.round(agoMin(cur.ts)))}) · ${esc(CH[cur.channel]||cur.channel)}</div>
+    ${cur.status?'':`<div class="m">${t('tp_heading')} ${cur.heading==null?t('tp_nr'):dirName(cur.heading)+' ('+cur.heading+'°)'}${cur.target?' → '+esc(cur.target==='область'?t('tp_nextobl'):pn(cur.target)):''}${info.inbound?` · <span style="color:#ffb3b5">${t('tp_tokyiv')}</span>`:''}</div>`}
+    ${cur.endedBy?`<div class="m" style="color:#a8f0cf">${STATUS_EN[cur.endedBy.status]} ${t('tp_near')} ${esc(pn(cur.endedBy.place))} ${t('tp_at')} ${fmtT(cur.endedBy.ts)}</div>`:''}
+    ${cur.history&&cur.history.length?`<div class="m">${t('tp_reports',cur.history.length+1)}: ${cur.history.map(h=>pn(h.place||'?')+' '+fmtT(h.ts)).join(' → ')} → ${esc(where)}</div>`:''}
+    ${ev.position?`<div class="m">${t('tp_pos')}: ${esc(ev.position.method)} · ${cf(ev.position.confidence)} ${t('tp_conf')}</div>`:''}
+    <div class="q">${esc(ptxt(cur).slice(0,260))}</div><div class="m" style="margin-top:4px">${t('tp_click')}</div>`;
+  $('tip').hidden=false; moveTip(e);
+}
+function moveTip(e){const w=$('mapwrap').getBoundingClientRect(); const tip=$('tip'); let x=e.clientX-w.left+14, y=e.clientY-w.top+14; if(x+tip.offsetWidth>w.width-8)x=e.clientX-w.left-tip.offsetWidth-14; if(y+tip.offsetHeight>w.height-8)y=e.clientY-w.top-tip.offsetHeight-14; tip.style.left=x+'px'; tip.style.top=Math.max(4,y)+'px';}
+function openSheet(id){
+  const m=MK.find(x=>x.id===id); if(!m) return; const [x,y,x0,y0]=posOf(m,Date.now()); const info=inboundInfo(m,x,y);
+  const th=THREAT[m.type]||THREAT.unknown; const placeEn=m.place==='область'?t('oblcentre'):pn(m.place);
+  const kind=m.status?`${{down:'✕',impact:'✸',lost:'?',clear:'✓'}[m.status]} ${STATUS_EN[m.status]}`:`${m.type==='drones'&&m.jet?t('k_jet'):m.type==='drones'?t('k_shahed'):th[1]}`;
+  const ev=m.evidence||{}; const cor=corroboration(m); const closer=m.endedBy; const closed=m.closes?MK.find(o=>o.id===m.closes):null;
+  const overall=ev.position?.confidence==='high'&&(m.status||ev.heading?.confidence==='high'||ev.heading?.confidence==='medium')?'high':ev.position?.confidence==='high'?'medium':'low';
+  const src=`${esc(CH[m.channel]||'@'+m.channel)} · ${fmtT(m.ts)} (${t('tp_ago',Math.round(agoMin(m.ts)))})`;
+  // one-line situation
+  const where=[esc(placeEn), m.status?'':(m.heading==null?t('sh_hnr'):`→ ${dirName(m.heading)}${m.target?' '+t('sh_towards')+' '+esc(m.target==='область'?t('tp_nextobl'):pn(m.target)):''}`), `${t('sh_fromkyiv',Math.round(info.dist))}${info.inbound&&!m.stale&&!closer?` · <b style="color:#ffb3b5">${t('tp_tokyiv')}</b>`:''}`].filter(Boolean).join(' · ');
+  const state=closer?`<div class="kv1 green">✕ ${STATUS_EN[closer.status]} ${t('tp_near')} ${esc(pn(closer.place))} ${t('tp_at')} ${fmtT(closer.ts)} (${esc(CH[closer.channel]||closer.channel)})</div>`
+    :m.stale&&!m.status?`<div class="kv1 yellow">${t('sh_stale',m.stale,esc(placeEn),fmtT(m.ts))}</div>`
+    :closed?`<div class="kv1 green">${t('sh_closes',closed.type==='drones'?(closed.jet?t('k_jet_l'):t('k_shahed')):THREAT[closed.type]?.[1],esc(pn(closed.place)),fmtT(closed.ts))}</div>`:'';
+  const merged=m.cids&&m.cids.length?`<div class="kv1 muted">${t('sh_merged',m.cids.length+1,m.csum)}</div>`:''; const track=m.history&&m.history.length?`<div class="kv1">${t('sh_track',m.history.length+1)}: ${m.history.length>3?'… → ':''}${m.history.slice(-3).map(h=>`${esc(pn(h.place||'?'))} ${fmtT(h.ts)}`).join(' → ')} → <b>${esc(placeEn)} ${fmtT(m.ts)}</b></div>`:'';
+  const conf=`${t('sh_conf',cf(ev.position?.confidence))}${m.status?'':` · ${t('sh_hconf',cf(ev.heading?.confidence))}`}${ev.count?' · '+t('sh_cnttext'):''}${cor.length?` · ${tn('sh_others',cor.length)}`:''}`;
+  $('sheetbody').innerHTML=`<div class="type">${kind}${m.count?` <span class="chip">×${m.count}</span>`:''}${info.inbound&&!m.stale&&!closer?` <span class="chip red">${t('lb_tokyiv')}</span>`:''}<span class="chip ${CONF[overall][0]}" style="margin-left:auto">${cf(overall)}</span></div>
+    <div class="kv1 muted">${src} · <a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">${t('sh_post')}</a></div>
+    <div class="kv1">${where}</div>${state}${merged}${track}
+    <div class="txt" style="border-left-color:var(--orange);margin-top:8px">${esc(showUA()?(ev.segment||m.text):(ev.segment_en||ev.segment||m.text_en||m.text))}</div>
+    <div class="kv1 muted" style="font-size:11.5px">${conf}</div>
+    <details style="margin-top:6px"><summary style="font:12px var(--mono);color:var(--muted);cursor:pointer">${t('sh_details')}</summary>
+      ${(ev.segment&&ev.segment.trim().length<(m.text||'').trim().length-8)?`<div class="txt" style="margin-top:6px">${esc(ptxt(m))}</div>`:''}
+      <div class="kv" style="margin-top:6px">${evRow(t('ev_type'),ev.type)}${evRow(t('ev_pos'),ev.position)}${m.status?'':evRow(t('ev_hdg'),ev.heading,t('tp_nr'))}${evRow(t('ev_count'),ev.count,t('ev_count_fb'))}
+      ${cor.length?`<span>${t('ev_others')}</span><b style="font-weight:500">${cor.map(o=>`${esc(CH[o.channel]||o.channel)} ${fmtT(o.ts)}`).join(', ')} ${t('ev_within')}</b>`:''}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">${t('sh_note',STALE)}</div>
+    </details>
+    <div style="margin-top:8px;text-align:right"><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
+  $('sheet').classList.add('show');
+}
+function closeSheet(){$('sheet').classList.remove('show');}
+// ---- oblast selection: tap an oblast to show its cities (and zoom to it from the whole-Ukraine view) ----
+let SEL_OBL=null;
+// ---- my oblast: the status band follows the oblast the user chose (default Kyiv) ----
+let MYOBL={uid:'14',name:'Kyiv'}; try{const v=JSON.parse(localStorage.getItem('myobl')||'null'); if(v&&v.uid) MYOBL=v;}catch(e){}
+function setMyOblast(uid){ MYOBL={uid,name:oblName(uid)}; try{localStorage.setItem('myobl',JSON.stringify(MYOBL));}catch(e){} render(); const o=(MAP&&MAP.oblasts||[]).find(x=>x.uid===uid); if(o&&uid!=='14')setView(o.cx,o.cy,260); else if(uid==='14') setView(0,0,110); const sel=$('discobl'); if(sel&&sel.value!==uid) sel.value=uid; }
+function pickOblast(){ const list=(MAP.oblasts||[]).filter(o=>o.uid!=='31'&&o.uid!=='30').sort((a,b)=>oblName(a.uid).localeCompare(oblName(b.uid),LOCALE()));
+  $('sheetbody').innerHTML=`<div class="type">${t('po_title')}</div><div class="kv1 muted">${t('po_desc')}</div><div class="hlist" style="margin-top:8px">${list.map(o=>`<div class="hitem ${o.uid===MYOBL.uid?'on':''}" data-u="${o.uid}">${esc(oblName(o.uid))}${o.uid===MYOBL.uid?' ✓':''}</div>`).join('')}</div>`;
+  $('sheetbody').querySelectorAll('.hitem').forEach(el=>el.onclick=()=>{setMyOblast(el.dataset.u);closeSheet();});
+  $('sheet').classList.add('show'); }
+function assignTownOblasts(){ const obs=[...document.querySelectorAll('#oblastsg .ob')]; document.querySelectorAll('.uac').forEach(el=>{ const x=+(el.getAttribute('cx')||el.getAttribute('x'))-(el.tagName==='text'?2:0), y=+(el.getAttribute('cy')||el.getAttribute('y'))-(el.tagName==='text'?1.5:0); const pt=svg.createSVGPoint(); pt.x=x; pt.y=y; const o=obs.find(p=>{try{return p.isPointInFill(pt);}catch(e){return false;}}); if(o) el.dataset.o=o.dataset.o; }); }
+function applySelOblast(){ const zoomedIn=VB.w<=300; document.querySelectorAll('.uac').forEach(el=>el.classList.toggle('show',zoomedIn||(SEL_OBL&&el.dataset.o===SEL_OBL))); const o=(MAP.oblasts||[]).find(x=>x.uid===SEL_OBL); $('selg').innerHTML=o?`<path class="selo" d="${o.path}"/>`:''; }
+function selectOblast(uid){ if(!uid||uid==='31'||uid==='14') return; if(SEL_OBL===uid){SEL_OBL=null;applySelOblast();return;} SEL_OBL=uid; applySelOblast(); const o=(MAP.oblasts||[]).find(x=>x.uid===uid); if(o&&VB.w>500) setView(o.cx,o.cy,Math.max(220,Math.min(420,VB.w/3))); }
+// ---- Crimea: temporarily occupied — a pixel-art Cossack keeps watch (bobbing, sabre up) ----
+function cossack(){
+  const o=(MAP.oblasts||[]).find(x=>x.uid==='29'); if(!o) return '';
+  // 12×18 pixel grid, blue & yellow only: . empty, k skin, o oseledets/moustache, b blue zhupan, y yellow sash & sharovary, s boots, w sabre, g hilt
+  const rows=['....ooo.....','...ooooo....','...kkkkk....','...kokok....','...kkkkk....','....ooo.....','..bbbbbbb...','.bbbbbbbbbw.','.bbbbbbbbbw.','..yyyyyyy.w.','..bbbbbbb.g.','..yyyyyyy...','.yyyyyyyyy..','.yyyy.yyyy..','.yyy...yyy..','.sss...sss..','.sss...sss..','............'];
+  const col={k:'#f1c9a5',o:'#1b1b1b',b:'#0057b7',y:'#ffd700',s:'#3b2a1a',w:'#e8e8e8',g:'#c9a227'};
+  let px=''; rows.forEach((row,y)=>[...row].forEach((c,x)=>{ if(c!=='.') px+=`<rect x="${x-6}" y="${y-18}" width="1.02" height="1.02" fill="${col[c]}"/>`; }));
+  // waving flag on a pole to his right (path morph = wind)
+  const wave=(y0,h)=>[0,1,2].map(ph=>{const a=[0,-.6,0,.6].map(v=>v*Math.cos(ph*2)); return `M9 ${y0} Q11.5 ${y0-.7+a[1]} 14 ${y0+a[2]} T19 ${y0+a[3]} L19 ${y0+h+a[3]} Q16.5 ${y0+h+.7+a[2]} 14 ${y0+h+a[2]} T9 ${y0+h} Z`;});
+  const wv=(y0,h)=>{const f=wave(y0,h);return `<path fill="${y0<-20?'#0057b7':'#ffd700'}" d="${f[0]}"><animate attributeName="d" values="${f[0]};${f[1]};${f[2]};${f[0]}" dur="1.6s" repeatCount="indefinite"/></path>`;};
+  const flag=`<rect x="8.4" y="-22" width=".8" height="22" fill="#cfd6e0"/>`+wv(-21.5,3)+wv(-18.5,3);
+  return `<g class="kozak" transform="translate(${o.cx} ${o.cy})"><g class="kz" transform="scale(${(2.2*KPX).toFixed(3)})"><g><animateTransform attributeName="transform" type="translate" values="0 0;0 -1.2;0 0" dur="1.1s" repeatCount="indefinite"/>${px}</g>${flag}</g>
+    <text class="sub" y="${(14*KPX).toFixed(2)}">${t('cz_1')}</text><text y="${(25*KPX).toFixed(2)}">${t('cz_2')}</text></g>`;
+}
+// ---- street tiles (CARTO dark, no labels — OSM data) under the map when zoomed in ≤ 150 km wide ----
+// Each 256-px Mercator tile is placed by its own lon/lat corners in the km projection, so it lines up exactly
+// with the raions and markers (the residual inside one tile is metres).
+const TILE_URL=(z,x,y)=>`https://tile.openstreetmap.org/${z}/${x}/${y}.png`;   // OSM standard tiles, darkened with a CSS filter
+function updateTiles(){
+  const g=$('tiles'); const on=LAYERS.tiles&&VB.w<=150&&MAP&&!CITY; svg.classList.toggle('tiled',!!on); $('attrib').hidden=!on;
+  if(!on){g.innerHTML='';return;}
+  const r=svg.getBoundingClientRect(); const kmpx=VB.w/Math.max(1,r.width);            // km per screen px
+  let z=Math.round(Math.log2(99.7/kmpx*(0.637/Math.cos(C[1]*Math.PI/180))))+(devicePixelRatio>1.5?1:0); z=Math.max(8,Math.min(18,z));
+  const n=2**z; const lon2x=lon=>(lon+180)/360*n; const lat2y=lat=>{const f=lat*Math.PI/180;return (1-Math.log(Math.tan(f)+1/Math.cos(f))/Math.PI)/2*n;};
+  const y2lat=y=>Math.atan(Math.sinh(Math.PI*(1-2*y/n)))*180/Math.PI; const x2lon=x=>x/n*360-180;
+  const [lonA,latA]=unproj(VB.x,VB.y),[lonB,latB]=unproj(VB.x+VB.w,VB.y+VB.h);
+  const x0=Math.floor(lon2x(lonA)),x1=Math.floor(lon2x(lonB)),y0=Math.floor(lat2y(latA)),y1=Math.floor(lat2y(latB));
+  if((x1-x0+1)*(y1-y0+1)>120){g.innerHTML='';return;}
+  const want=new Set(); const have={}; g.querySelectorAll('image').forEach(im=>have[im.dataset.k]=im);
+  for(let x=x0;x<=x1;x++)for(let y=y0;y<=y1;y++){ const k=`${z}/${x}/${y}`; want.add(k); if(have[k]) continue;
+    const [px,py]=proj(x2lon(x),y2lat(y)),[qx,qy]=proj(x2lon(x+1),y2lat(y+1));
+    const im=document.createElementNS('http://www.w3.org/2000/svg','image'); im.dataset.k=k; im.setAttribute('href',TILE_URL(z,x,y));
+    im.setAttribute('x',px.toFixed(3));im.setAttribute('y',py.toFixed(3));im.setAttribute('width',(qx-px).toFixed(3));im.setAttribute('height',(qy-py).toFixed(3));im.setAttribute('preserveAspectRatio','none'); g.appendChild(im);}
+  for(const [k,im] of Object.entries(have)) if(!want.has(k)) im.remove();
+}
+// ---- place-label collision pass: bigger places win, an overlapping smaller label is hidden until you zoom in ----
+function layoutTownLabels(){
+  const r=svg.getBoundingClientRect(); if(!r.width) return; const k=VB.w/r.width; const els=[...svg.querySelectorAll('text.town')];
+  els.forEach(e=>e.removeAttribute('data-hid'));
+  const items=[]; for(const e of els){ if(getComputedStyle(e).display==='none') continue; const pr=e.classList.contains('big')?0:e.classList.contains('rg')?2:e.classList.contains('district')?4:e.classList.contains('minor')?3:1;
+    const fs=pr===0?14:pr===3||pr===4?10:11; const x=(+e.getAttribute('x')-VB.x)/k,y=(+e.getAttribute('y')-VB.y)/k; if(x<-200||y<-50||x>r.width+50||y>r.height+50) continue;
+    items.push({e,pr,x,y:y-fs,w:e.textContent.length*fs*0.58+4,h:fs+2}); }
+  items.sort((a,b)=>a.pr-b.pr); const placed=[];
+  for(const it of items){ if(placed.some(q=>it.x<q.x+q.w&&q.x<it.x+it.w&&it.y<q.y+q.h&&q.y<it.y+it.h)){it.e.setAttribute('data-hid','1');continue;} placed.push(it); }
+}
+// ---- impact history layer (off / 24 h / 48 h / 72 h) — past "impact / explosion" reports only ----
+const IMP_STEPS=[0,24,48,72]; let IMP_H=0,IMP=[],impTimer=null;
+try{IMP_H=+localStorage.getItem('imph')||0;}catch(e){}
+function drawImpacts(){
+  const g=$('impactsg'); if(!IMP_H){g.innerHTML='';return;}
+  const now=Date.now();
+  g.innerHTML=IMP.map(m=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const cls=h>48?'d2':h>24?'d1':''; const s=(1.1*KPX).toFixed(2); const dn=m.status==='down';
+    const glyph=dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
+    return `<g class="imp ${cls} ${dn?'dn':'im'}" data-id="${esc(m.id)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${(9*KPX).toFixed(2)}"/><g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))} ${fmtD(m.ts)}</text></g>`;}).join('');
+  $('imph').textContent=IMP_H?IMP_H+'h':''; $('impbtn').classList.toggle('on',!!IMP_H);
+}
+function fmtD(ts){const d=new Date(ts);const tm=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ});const today=new Date().toLocaleDateString('en-GB',{timeZone:TZ})===d.toLocaleDateString('en-GB',{timeZone:TZ});return today?tm:d.toLocaleDateString(LOCALE(),{day:'2-digit',month:'short',timeZone:TZ})+' '+tm;}
+async function loadImpacts(){ if(!IMP_H){IMP=[];drawImpacts();return;} try{const d=await(await fetch('/api/impacts?hours='+IMP_H)).json();IMP=d.impacts||[];}catch(e){IMP=[];} drawImpacts(); }
+$('impbtn').onclick=()=>{IMP_H=IMP_STEPS[(IMP_STEPS.indexOf(IMP_H)+1)%IMP_STEPS.length];try{localStorage.setItem('imph',String(IMP_H));}catch(e){};loadImpacts();};
+function openImpact(id){ const m=IMP.find(x=>x.id===id); if(!m) return; const [x,y]=proj(m.lon,m.lat); const dist=Math.hypot(x,y);
+  const dn=m.status==='down';
+  $('sheetbody').innerHTML=`<div class="type">${dn?t('im_down'):t('im_expl')} <span class="chip">${esc(fmtD(m.ts))}</span></div>
+    <div class="kv"><span>${t('im_src')}</span><b>${esc(CH[m.channel]||'@'+m.channel)} · ${t('im_ago',Math.round(agoMin(m.ts)/60))} · <a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">${t('im_open')}</a></b>
+    <span>${t('im_pos')}</span><b>${esc(m.place==='область'?t('oblcentre'):pn(m.place))}${m.count>1?` · ×${m.count}`:''}</b>
+    <span>${t('im_kyiv')}</span><b>${t('im_fromc',Math.round(dist))}</b></div>
+    <div class="txt">${esc(ptxt(m))}</div>
+    <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;color:var(--muted)">${t('im_note',IMP_H,dn?t('im_note_down'):t('im_note_expl'))}</span><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
+  $('sheet').classList.add('show'); }
+setInterval(()=>{if(IMP_H&&!document.hidden)loadImpacts();},120000);
+document.addEventListener('pointerdown',e=>{if($('sheet').classList.contains('show')&&!$('sheet').contains(e.target))closeSheet();});
+
+// ---- state ----
+function raionKey(title){const t=(title||'').toLowerCase();for(const [st,k] of RAION_STEM) if(t.includes(st)) return k;return null;}
+// preventive threat strip: MiG-31K airborne / ballistic / cruise-missile threats are shown BEFORE any launch is seen
+function threatStrip(){
+  if(!S) return; const now=Date.now(); const thr=[];
+  // warnings end as soon as a later post says so (відбій / посадка / загроза минула about MiG or ballistic), and never outlive 20 min without a new report
+  const recent=lastPosts.filter(p=>(now-Date.parse(p.ts))/60000<=25);
+  const cancelledAfter=(ts,kind)=>recent.some(p=>p.ts>ts&&(p.tags||[]).includes('clear')&&((p.tags||[]).includes(kind)||/міг|mig|баліст|ballistic|посадк|landing/i.test(p.text+' '+(p.text_en||''))));
+  for(const a of S.active) for(const th of (a.threats||[])){ const ty=th.threat_type; const kyiv=a.oblast_uid==='31'||a.oblast_uid==='14'; const ts=th.started_at||a.started_at; if((now-Date.parse(ts))/60000>20) continue;
+    if((ty==='mig31k_departure'||(kyiv&&(ty==='ballistic_missiles'||ty==='cruise_missiles'||ty==='strategic_aircraft_activity')))&&!cancelledAfter(ts,ty)) thr.push({ty,ts,src:a.notes||a.source,where:a.location_title_en||a.location_title}); }
+  // a nightly assessment ("оцінка загроз на ніч", "#обстановка", "може відбутись") is a forecast, never a live threat
+  const FORECAST=/оцінка загроз|загальна оцінка|#обстановка|прогноз|може відбутись|впродовж ночі|forecast|assessment/i;
+  for(const p of recent){ const tg=p.tags||[]; if(tg.includes('clear')||tg.includes('forecast')||FORECAST.test(p.text||'')) continue;
+    if(tg.includes('mig31k_departure')){ if(!cancelledAfter(p.ts,'mig31k_departure')) thr.push({ty:'mig31k_departure',ts:p.ts,src:CH[p.channel]||p.channel,where:''}); }
+    else if(tg.includes('ballistic_missiles')&&(/(?:^|[^а-яіїє])пуск|запуск[а-яіїє]*\s+(?:баліст|іскандер|кинджал|кінжал)|швидкісн[а-яіїє]*\s+ціл|балістик[а-яіїє]*\s+(?:на|по)\s+ки[їєе]в|загроза\s+(?:застосування\s+)?баліст[а-яіїє]*\s+(?:для|по|на)?\s*ки[їєе]в|ballistic.*kyiv|launch/i.test(p.text+' '+(p.text_en||''))||(tg.includes('kyiv')&&tg.includes('official')))){ if(!cancelledAfter(p.ts,'ballistic_missiles')) thr.push({ty:'ballistic_missiles',ts:p.ts,src:CH[p.channel]||p.channel,where:''}); } }
+  const el=$('tstrip'); if(!thr.length){el.hidden=true;document.documentElement.style.setProperty('--top',TOPBASE+'px');return;}
+  const pri={mig31k_departure:0,ballistic_missiles:1,strategic_aircraft_activity:2,cruise_missiles:3}; thr.sort((a,b)=>(pri[a.ty]-pri[b.ty])||(a.ts<b.ts?1:-1)); const tt=thr[0];
+  const label={mig31k_departure:t('ts_mig'),ballistic_missiles:t('ts_bal'),strategic_aircraft_activity:t('ts_strat'),cruise_missiles:t('ts_cruise')}[tt.ty];
+  el.className='tstrip '+(tt.ty==='mig31k_departure'?'mig':tt.ty==='cruise_missiles'?'':'bal'); el.hidden=false; el.innerHTML=`${esc(label)} <small>· ${fmtT(tt.ts)}${tt.src?' · '+esc(tt.src):''}</small>`; document.documentElement.style.setProperty('--top',(TOPBASE+el.offsetHeight)+'px');
+}
+function render(){
+  if(!S) return; const ob=S.oblasts; threatStrip();
+  {const all=Object.entries(S.sources),ok=all.filter(([k,v])=>v.ok).length; $('srcs').innerHTML=`<i class="${ok===all.length?'ok':ok?'warn':'bad'}"></i><span class="sn">${ok}/${all.length}</span>`; $('srcs').title=all.map(([k,v])=>`${v.ok?'●':'○'} ${k}`).join('\n');}
+  const MYU=MYOBL.uid, MYN=MYOBL.name, isK=MYU==='14';
+  const k=ob['31'], ko=ob[MYU]||{status:'N',threats:[]};
+  const cityAlerts=isK?S.active.filter(a=>a.oblast_uid==='31'):[]; const oblAlerts=S.active.filter(a=>a.oblast_uid===MYU);
+  const raionAlerts=oblAlerts.filter(a=>a.location_type==='raion'||a.location_type==='hromada'||a.location_type==='city');
+  const lvl=x=>x==='yellow'?'Y':'R';                 // no level reported (mirror) = full red alert
+  // oblast-wide alert = an active alert of type 'oblast' (mirror / API / official channel); a mirror gives no level → full red.
+  // Raion-level alerts can only ADD to it (a red raion on a yellow oblast), never reduce it — the government app shows the oblast under alert.
+  const oblWide=S.active.find(a=>a.oblast_uid===MYU&&a.location_type==='oblast'); const cityWide=isK?S.active.find(a=>a.oblast_uid==='31'&&(a.location_type==='oblast'||a.location_type==='city')):null;
+  const cityL=isK?(cityWide?lvl(cityWide.alert_level):(k.status==='A'?lvl(k.level):null)):null, oblL=oblWide?lvl(oblWide.alert_level):null;
+  const maxL=(a,b)=>(a==='R'||b==='R')?'R':(a||b||'');
+  const kW=S.active.find(a=>a.oblast_uid==='14'&&a.location_type==='oblast'); const kFill=kW?lvl(kW.alert_level):null; const kc=S.active.find(a=>a.oblast_uid==='31'&&(a.location_type==='oblast'||a.location_type==='city')); const kCity=kc?lvl(kc.alert_level):(k.status==='A'?lvl(k.level):null);
+  const krst={}; for(const a of S.active.filter(a=>a.oblast_uid==='14'&&a.location_type!=='oblast')){const rk=raionKey(a.location_title); if(rk) krst[rk]=(krst[rk]==='R'||lvl(a.alert_level)==='R')?'R':'Y';}
+  const rname=r=>RAION[r]||r;
+  const rst={}; for(const a of raionAlerts){const rk=isK?raionKey(a.location_title):pn(String(a.location_title||'').replace(/\s*район\s*$/i,'')); if(rk) rst[rk]=(rst[rk]==='R'||lvl(a.alert_level)==='R')?'R':'Y';}
+  const anyR=cityL==='R'||oblL==='R'||Object.values(rst).includes('R'), anyY=cityL==='Y'||oblL==='Y'||Object.values(rst).includes('Y');
+  const hasRaions=Object.keys(rst).length>0; const oblFill=oblL;
+  const st=cityL?cityL:(oblL?maxL(oblL,anyR?'R':''):(hasRaions?(anyR?'R':'Y'):((isK&&k.status==='P')||ko.status==='P'?'P':'N')));
+  const since=(isK?k.since:null)||ko.since||(raionAlerts[0]&&raionAlerts[0].started_at);
+  const thr=[...new Set([...(isK?k.threats:[]),...(ko.threats||[])].map(t=>`${THREAT[t.threat_type]?.[0]||''} ${THREAT[t.threat_type]?.[1]||t.threat_type}`))];
+  const el=$('kyiv'); el.className='band '+st;
+  const nR=Object.values(rst).filter(l=>l==='R').length,nY=Object.values(rst).filter(l=>l==='Y').length;
+  const ON=oblFull(MYU); const KY=t('b_kyiv');
+  const big=cityL==='R'?`${KY} · ${t('b_air')}`:cityL==='Y'?`${KY} · ${t('b_yellow')}`:oblL?`${ON} · ${oblL==='R'?t('b_air'):t('b_yellow')}${nR?' · '+tn('raion_red',nR):''}`:hasRaions?`${ON} · ${nR?tn('raion_red',nR):''}${nR&&nY?', ':''}${nY?tn('raion_yel',nY):''}`:st==='P'?`${ON} · ${t('b_partial')}`:`${isK?KY:ON} · ${t('b_clear')}`;
+  const raionList=Object.entries(rst).map(([r,l])=>`${rname(r)} ${l==='R'?t('b_red'):t('b_yel')}`).join(', ');
+  el.innerHTML=`<div class="dot ${st==='N'?'N':st==='P'?'P':st==='Y'?'Y':'A'}"></div><div><div class="big">${big}</div>
+    <div class="small">${cityL?`${t('b_city')} ${cityL==='R'?t('b_red'):t('b_yel')}${oblL?' · '+t('b_oblwide')+' '+(oblL==='R'?t('b_red'):t('b_yel')):hasRaions?' · '+raionList:' · '+t('b_oblclear')}`:oblL?`${isK?t('b_cityclear')+' · ':''}${t('b_oblwide')} ${oblL==='R'?t('b_red'):t('b_yel')}${hasRaions?' · '+raionList:''}`:hasRaions?raionList:(st==='P'?raionAlerts.map(a=>LANG==='uk'?a.location_title:(a.location_title_en||a.location_title)).join(', '):t('b_noalert',isK?t('b_kyivorobl'):ON))}${since&&st!=='N'?' · '+t('b_since')+' '+fmtT(since):''}${thr.length?' · '+thr.join(', '):''}</div></div>
+    ${st!=='N'&&since?`<div class="dur">${dur(since)}</div>`:''}`;
+  document.title=(st==='R'||st==='A'?'🔴 ':st==='Y'||st==='P'?'🟡 ':'')+'Clear Sky';
+  // priority location row
+  const hr=$('homerow'); if(HOME){ const hraion=(()=>{const [hx,hy]=proj(HOME.lon,HOME.lat); let best=null; for(const f of (MAP?MAP.features:[])){ if(!f.raion) continue; const d=Math.hypot(f.cx-hx,f.cy-hy); if(!best||d<best.d) best={d,r:f.raion}; } return best?best.r:null;})();
+    const hl=hraion==='kyiv-city'?kCity:(maxL(kFill,krst[hraion])||null);
+    const live=MK.filter(m=>!m.status&&!m.endedBy).map(m=>{const [x,y]=posOf(m,Date.now());return {m,hi:homeInfo(m,x,y)};}).filter(o=>o.hi.dist!=null).sort((a,b)=>a.hi.dist-b.hi.dist);
+    const nearest0=live[0]; const inb=live.filter(o=>o.hi.inbound);
+    const relevant=inb.length>0; hr.hidden=!relevant; hr.className='homerow'+((inb.length||(nearest0&&nearest0.hi.dist<10)||hl==='R')?' danger':'');
+    hr.innerHTML=`<b>${esc(homeName())}</b> ${hl==='R'?'🔴':hl==='Y'?'🟡':'🟢'}${inb.length?` · <b style="color:#ffb3c5">${t('hr_heading',inb.length,Math.round(inb[0].hi.dist))}</b>`:nearest0?` · ${t('hr_nearest',Math.round(nearest0.hi.dist),nearest0.m.type==='drones'?t('k_shahed'):THREAT[nearest0.m.type]?.[1],esc(pn(nearest0.m.place)))}`:' · '+t('hr_none')}`;
+  } else { hr.hidden=false; hr.className='homerow'; hr.hidden=true; }
+  // raion chips + fills (red = red level / full alert, yellow = yellow level)
+  document.querySelectorAll('#raionsg .rn').forEach(p=>{const r=p.dataset.r; if(r==='kyiv-city'){p.setAttribute('class',`rn city ${kCity||''}`);return;} const l=maxL(kFill,krst[r]); p.setAttribute('class',`rn ${l}`);});
+  // surrounding oblasts: per-raion colours when raion alerts are reported (єТривога / oblast channels / keyed API),
+  // otherwise the oblast-wide on/off from the mirror is painted on the oblast outline only
+  const REG=['10','25','20','19','24','4']; const regTags=[]; const rkey=t=>translit(String(t||'').trim().split(/\s+/)[0]).toLowerCase().replace(/[^a-z]/g,'');
+  for(const o0 of (MAP?MAP.oblasts:[])){ const uid=o0.uid; if(uid==='14'||uid==='31') continue; const o=ob[uid]; const isReg=REG.includes(uid); const occ=o0.occupied;
+    const ra=S.active.filter(a=>a.oblast_uid===uid&&(a.location_type==='raion'||a.location_type==='hromada'||a.location_type==='city')).map(a=>({a,k:rkey(a.location_title),L:lvl(a.alert_level)}));
+    const rl={}; document.querySelectorAll(`#neighbors .nb[data-o="${uid}"]`).forEach(pth=>{const st=pth.dataset.stem,key=pth.dataset.key; let l='';
+      for(const r of ra){ if((key&&r.k&&(r.k===key||key.startsWith(r.k.replace(/skyi$|ska$/,''))))||(st&&new RegExp(st,'i').test((r.a.location_title||'').toLowerCase()))){ l=(l==='R'||r.L==='R')?'R':'Y'; } }
+      if(l) rl[key||st]=l; pth.setAttribute('class','nb '+(occ?'occ ':'')+l);});
+    const ow=S.active.find(a=>a.oblast_uid===uid&&a.location_type==='oblast'); const oL=ow?lvl(ow.alert_level):''; const op=document.querySelector(`#oblastsg .ob[data-o="${uid}"]`); if(op) op.setAttribute('class',`ob ${isReg?'region':'far'} ${occ?'occ':''} ${oL}`);
+    if(oL) document.querySelectorAll(`#neighbors .nb[data-o="${uid}"]`).forEach(pth=>{const cur=pth.getAttribute('class'); if(!/\b[RY]$/.test(cur)) pth.setAttribute('class','nb '+(occ?'occ ':'')+'o'+oL);});
+    if(!isReg||!o) continue;
+    const nR=Object.values(rl).filter(x=>x==='R').length,nY=Object.values(rl).filter(x=>x==='Y').length;
+    const er=S.eradar&&agoMin(S.eradar.ts)<=25?S.eradar.counts[uid]:null; const ers=er?[er.drones?`${er.drones} ${t('rg_uav')}`:'',er.jet?`${er.jet} ${t('rg_jet')}`:'',er.missiles?`${er.missiles} ${t('rg_msl')}`:''].filter(Boolean).join(' · '):'';
+    const nm=oblName(uid), sfx=ers?` <i>${ers}</i>`:'';
+    if(oL) regTags.push(`<span class="rt ${oL} rg">${nm}${sfx}</span>`); else if(nR||nY) regTags.push(`<span class="rt ${nR?'R':'Y'} rg">${nm} ${nR?nR+'🔴':''}${nY?nY+'🟡':''}${sfx}</span>`); else if(ers) regTags.push(`<span class="rt rg">${nm}${sfx}</span>`); }
+  // Kyiv oblast group counts from єРадар (no positions — a count, not a place)
+  {const er=S.eradar&&agoMin(S.eradar.ts)<=25?S.eradar.counts['14']:null; if(er&&(er.drones||er.jet||er.missiles)) regTags.unshift(`<span class="rt rg" style="border-left-color:var(--orange)">${t('rg_kyivobl')} <i>${[er.drones?`${er.drones} ${t('rg_uav')}`:'',er.jet?`${er.jet} ${t('rg_jet')}`:'',er.missiles?`${er.missiles} ${t('rg_msl')}`:''].filter(Boolean).join(' · ')}</i></span>`);}
+  $('raions').innerHTML=(cityL?`<span class="rt ${cityL}">${t('b_kyiv')}</span>`:'')+Object.entries(RAION).filter(([r])=>r!=='kyiv-city').map(([r,n])=>{const l=maxL(oblFill,rst[r]);return l?`<span class="rt ${l}">${n}</span>`:'';}).join('')+regTags.join('');
+  // alerts tab
+  const act=[...S.active].sort((a,b)=>((b.oblast_uid==='31'||b.oblast_uid==='14')-(a.oblast_uid==='31'||a.oblast_uid==='14'))||(a.started_at<b.started_at?1:-1));
+  $('alerts').innerHTML=act.length?act.map(a=>`<div class="card plain ${a.alert_level||''} ${(a.oblast_uid==='31'||a.oblast_uid==='14')?'kyiv':''}"><div class="title">${esc(LANG==='uk'?a.location_title:(a.location_title_en||a.location_title))} ${LANG==='uk'?'':`<span style="color:var(--muted);font-weight:400">· ${esc(a.location_title)}</span>`}</div>
+     <div class="meta">${ATYPE[a.alert_type]||a.alert_type} · ${LT(a.location_type)} · ${t('al_since')} ${fmtT(a.started_at)} (${dur(a.started_at)})${a.notes?' · '+esc(a.notes):''}${(a.threats||[]).length?' · '+a.threats.map(x=>THREAT[x.threat_type]?.[0]||'').join(''):''}</div></div>`).join('')
+     :`<div class="empty">${t('al_none')}</div>`;
+}
+let feedFilter='kyiv',lastPosts=[];
+document.querySelectorAll('#feedwrap .chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('#feedwrap .chip').forEach(x=>x.classList.remove('on'));c.classList.add('on');feedFilter=c.dataset.f;renderFeed(lastPosts,false);});
+function renderFeed(posts,flash){
+  lastPosts=posts; try{threatStrip();}catch(e){}
+  const rel=p=>{const t=p.tags||[]; if(feedFilter==='everything')return true; if(feedFilter==='kyiv')return t.includes('kyiv')||(t.includes('official')&&!t.includes('region')&&!t.includes('ua'));if(feedFilter==='region')return t.includes('region')||t.includes('kyiv'); if(feedFilter==='official')return t.includes('official'); return t.some(x=>x!=='air_defense'&&x!=='geo')||t.includes('official');};
+  const shown=posts.filter(rel);
+  $('feed').innerHTML=shown.length?shown.map(p=>{const tags=(p.tags||[]).filter(t=>t!=='geo'&&t!=='official');const isNew=flash&&!seen.has(p.post_id);seen.add(p.post_id);
+    return `<div class="card ${tags.includes('kyiv')?'kyiv':''} ${isNew?'new':''}"><div class="when">${fmtT(p.ts)}<b>${esc(CH[p.channel]||'@'+p.channel)}</b></div><div class="bd"><div class="txt">${esc(ptxt(p))}</div>${tags.length?`<div class="tags">${tags.map(x=>`<span class="${x==='kyiv'?'kyiv':''}">${THREAT[x]?.[1]||x}</span>`).join('')}</div>`:''}</div></div>`;}).join('')
+    :`<div class="empty">${t('fd_empty')}</div>`;
+}
+function renderHist(){
+  const now=Date.now(),start=now-24*3600e3,W=now-start; const keep=$('stats')?$('stats').innerHTML:'';
+  $('hist').innerHTML='<div id="stats"></div>'+['31','14'].map(u=>{const rows=hist.filter(a=>a.oblast_uid===u&&a.location_type==='oblast');const within=rows.filter(a=>(a.finished_at?new Date(a.finished_at):now)>=start);
+    const mins=within.reduce((s,a)=>s+Math.max(0,((a.finished_at?new Date(a.finished_at):now)-Math.max(start,new Date(a.started_at)))/60000),0);
+    const bars=within.map(a=>{const s=Math.max(start,new Date(a.started_at)),e=a.finished_at?new Date(a.finished_at):now;return `<div class="bar" style="left:${(s-start)/W*100}%;width:${Math.max(.2,(e-s)/W*100)}%"></div>`;}).join('');
+    return `<div class="card plain"><div class="title">${esc(oblFull(u))} · ${t('hs_last24')}</div><div class="stats" style="margin-top:6px"><div class="stat"><div class="v">${within.length}</div><div class="l">${t('hs_alerts24')}</div></div><div class="stat"><div class="v">${Math.floor(mins/60)}h${String(Math.round(mins%60)).padStart(2,'0')}</div><div class="l">${t('hs_under',(mins/1440*100).toFixed(0))}</div></div></div><div class="track">${bars}</div><div class="ticks"><span>${fmtT(new Date(start))}</span><span>${fmtT(new Date(start+W/2))}</span><span>${t('hs_now')}</span></div></div>`;}).join('');
+  if($('stats')&&keep) $('stats').innerHTML=keep;
+}
+async function loadState(){try{S=await(await fetch('/api/state')).json();render();if(CITY)paintDistricts();}catch(e){}}
+let STALE=5;
+async function loadMarkers(){try{const d=await(await fetch('/api/markers')).json();MK=d.markers;ttl=d.ttl_minutes||45;STALE=d.stale_minutes||5;linkStatus();if(CITY)paintDistricts();}catch(e){}}
+async function loadFeed(flash){try{const posts=(await(await fetch('/api/feed?limit=150')).json()).feed;renderFeed(posts,flash&&!firstFeed);firstFeed=false;}catch(e){}}
+async function loadHist(){try{hist=(await(await fetch('/api/history?hours=24&oblast=31,14')).json()).alerts;renderHist();}catch(e){} loadStats();}
+// ---- statistics of past attacks (server-aggregated, Kyiv time) ----
+let STATS=null,STAT_DAYS=14;
+async function loadStats(){try{STATS=await(await fetch('/api/stats?days='+STAT_DAYS)).json();renderStats();}catch(e){}}
+function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; const d=STATS; const ser=d.series; const mx=k=>Math.max(1,...ser.map(x=>x[k]||0));
+  const bars=(k,color,cap)=>`<div class="sbars">${ser.map(x=>{const v=cap?Math.min(x[k]||0,cap):(x[k]||0);return `<div class="sb" title="${x.day}: ${Math.round(x[k]||0)}" style="height:${Math.max(2,v/Math.min(mx(k),cap||1e9)*100)}%;background:${color}"></div>`;}).join('')}</div>`;
+  // two series side by side in one strip (drones + missiles), missiles scaled so both stay readable
+  const bars2=(k1,c1,k2,c2,scale2)=>{const m=Math.max(1,mx(k1),mx(k2)*scale2);return `<div class="sbars">${ser.map(x=>`<div class="sb2" title="${x.day}: ${x[k1]||0} / ${x[k2]||0}"><i style="height:${Math.max(1,(x[k1]||0)/m*100)}%;background:${c1}"></i><i style="height:${Math.max(1,(x[k2]||0)*scale2/m*100)}%;background:${c2}"></i></div>`).join('')}</div>`;};
+  const dayl=`<div class="sdays">${ser.map((x,i)=>`<span>${(i===0||i===ser.length-1||i%Math.ceil(ser.length/5)===0)?x.day.slice(5):''}</span>`).join('')}</div>`;
+  const hmx=Math.max(1,...d.hours); const hours=`<div class="sbars h24">${d.hours.map((v,h)=>`<div class="sb" title="${h}:00 — ${v}" style="height:${Math.max(2,v/hmx*100)}%;background:${h>=22||h<6?'#ff8a3d':'#5b7fbf'}"></div>`).join('')}</div><div class="sdays"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>`;
+  const lg=d.longest?`${Math.floor(d.longest[0]/60)}h${String(Math.round(d.longest[0]%60)).padStart(2,'0')} (${fmtT(d.longest[1])})`:'—';
+  const obl=Object.entries(d.by_oblast||{}).sort((a,b)=>(b[1].impacts+b[1].down)-(a[1].impacts+a[1].down)).slice(0,8).map(([u,v])=>`<div class="srow"><span>${esc(OBL_N[u]?oblFull(u):(S?.oblasts?.[u]?.en||u))}</span><b style="color:#ffb3ad">✸ ${v.impacts}</b><b style="color:#a8f0cf">✕ ${v.down}</b></div>`).join('');
+  const W=d.windows||{}; const wrow=(k,color)=>`<div class="srow"><span></span>${['1','7','30'].map(w=>`<b style="color:${color};min-width:52px">${(W[w]||{})[k]??'—'}</b>`).join('')}</div>`;
+  const whead=`<div class="srow" style="border-bottom:0"><span></span>${[t('s_w1'),t('s_w7'),t('s_w30')].map(x=>`<b style="min-width:52px;color:var(--muted);font:600 10px var(--mono);text-transform:uppercase">${x}</b>`).join('')}</div>`;
+  const wtab=(rows)=>`<div class="wtab">${whead}${rows}</div>`;
+  const launched=wtab(wrow('launched_drones','#ffb15c').replace('<span></span>',`<span>🛸 ${t('s_ldr')}</span>`)+wrow('launched_missiles','#ff8a8a').replace('<span></span>',`<span>🚀 ${t('s_lms')}</span>`));
+  const reports=wtab(wrow('drone_reports','#ffb15c').replace('<span></span>',`<span>🛸 ${t('s_rdr')}</span>`)+wrow('missile_reports','#ff8a8a').replace('<span></span>',`<span>🚀 ${t('s_rms')}</span>`));
+  const noSum=!((W['30']||{}).summaries);
+  el.innerHTML=`<div class="card plain"><div class="title">${t('s_title',d.days)}</div>
+    <div class="stats" style="margin-top:6px"><div class="stat"><div class="v">${d.kyiv_alerts}</div><div class="l">${t('s_kalerts')}</div></div><div class="stat"><div class="v">${lg}</div><div class="l">${t('s_longest')}</div></div></div>
+    <div class="stats" style="margin-top:6px"><div class="stat"><div class="v" style="color:#ffb3ad">${d.impacts_total}</div><div class="l">${t('s_expl',d.impact_window_h)}</div></div><div class="stat"><div class="v" style="color:#a8f0cf">${d.down_total}</div><div class="l">${t('s_down',d.impact_window_h)}</div></div></div>
+    <div class="slbl">${t('s_launch')}</div>${noSum?`<div class="sfoot" style="margin-top:4px">${t('s_nosum')}</div>`:launched}
+    <div class="slbl">${t('s_reports')}</div>${reports}
+    ${noSum?'':`<div class="slbl">${t('s_lperday')}</div>${bars2('launched_drones','#ffb15c','launched_missiles','#ff8a8a',10)}${dayl}`}
+    <div class="slbl">${t('s_rperday')}</div>${bars2('drone_reports','#ffb15c','missile_reports','#ff8a8a',1)}${dayl}
+    <div class="slbl">${t('s_perday')}</div>${bars('alerts','#e5484d')}${dayl}
+    <div class="slbl">${t('s_dkyiv')}</div>${bars('drone_posts','#ff8a3d')}${dayl}
+    <div class="slbl">${t('s_mkyiv')}</div>${bars('missile_posts','#ff5a5a')}${dayl}
+    <div class="slbl">${t('s_tod')}</div>${hours}
+    ${obl?`<div class="slbl">${t('s_byobl',d.impact_window_h)}</div>${obl}`:''}
+    <div class="sfoot">${t('s_foot')} <span class="chip" style="cursor:pointer" onclick="STAT_DAYS=STAT_DAYS===14?30:STAT_DAYS===30?7:14;loadStats()">${t('s_show',STAT_DAYS===14?'30':STAT_DAYS===30?'7':'14')}</span></div></div>`;
+}
+let es; function connect(){ es=new EventSource('/api/stream');
+  const onA=kind=>ev=>{const d=JSON.parse(ev.data),a=d.alert,fav=a.oblast_uid==='31'||a.oblast_uid==='14'; loadState(); if(kind!=='update')loadHist(); if(!fav)return;
+    const lt=LANG==='uk'?a.location_title:(a.location_title_en||a.location_title);
+    if(kind==='start')notify(`🔴 ${ATYPE[a.alert_type]||t('n_alert')} — ${lt}`,`${LT(a.location_type)} · ${fmtT(a.started_at)}${a.notes?' · '+a.notes:''}`,'start');
+    else if(kind==='end')notify(`🟢 ${t('n_allclear')} — ${lt}`,t('n_lasted',dur(a.started_at,a.finished_at)),'end');
+    else if(kind==='threat'){const th=d.threat||{};notify(`⚠️ ${THREAT[th.threat_type]?.[1]||th.threat_type} — ${lt}`,th.source_message||'','threat');}};
+  ['start','end','threat','update'].forEach(k=>es.addEventListener(k,onA(k)));
+  es.addEventListener('eradar',()=>loadState());
+  es.addEventListener('feed',ev=>{const d=JSON.parse(ev.data);loadFeed(true);loadMarkers();if(!HOME&&(d.post.tags||[]).includes('kyiv')&&!(d.post.tags||[]).includes('official'))notify(t('n_kyivarea')+' — '+(CH[d.post.channel]||d.post.channel),ptxt(d.post).slice(0,160),'threat');});
+  es.onerror=()=>{es.close();setTimeout(connect,3000);};
+}
+document.querySelectorAll('#tabs button').forEach(b=>b.onclick=e=>{e.stopPropagation();document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');['feedwrap','alerts','hist','layers'].forEach(x=>$(x).hidden=x!==b.dataset.tab);if(window.innerWidth<1000)$('drawer').classList.add('open');});
+$('handle').onclick=()=>{if(window.innerWidth<1000)$('drawer').classList.toggle('open');};
+(()=>{let y0=null;$('handle').addEventListener('pointerdown',e=>{y0=e.clientY;});$('handle').addEventListener('pointerup',e=>{if(y0==null)return;const dy=e.clientY-y0;y0=null;if(dy<-20)$('drawer').classList.add('open');else if(dy>20)$('drawer').classList.remove('open');});})();
+setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ})+' '+t('c_kyiv');},1000);
+let lastV=null, lastFull=0;
+async function refreshAll(){await Promise.all([loadState(),loadMarkers(),loadFeed(false)]);lastFull=Date.now();lastUpd=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:TZ});}
+// every 15 s: a ~60-byte version ping; full reload only when the server says something changed (or every 60 s for staleness)
+// 15 s pulse normally; 5 s while a ballistic / cruise-missile threat is open (server decides: /api/version.missile)
+let MISSILE=false,pulseTimer=null,pulseBusy=false;
+async function pulse(){ if(document.hidden||pulseBusy) return; pulseBusy=true; try{const v=await(await fetch('/api/version')).json(); if(v.missile!==MISSILE){MISSILE=!!v.missile;document.body.classList.toggle('missile',MISSILE);schedulePulse();} if(v.v!==lastV||Date.now()-lastFull>60000){lastV=v.v;await refreshAll();} else {lastUpd=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:TZ});} }catch(e){} pulseBusy=false; }
+let nextPulse=Date.now()+15000,lastUpd=null;
+function schedulePulse(){ clearInterval(pulseTimer); const iv=MISSILE?5000:15000; nextPulse=Date.now()+iv; pulseTimer=setInterval(()=>{nextPulse=Date.now()+iv;pulse();},iv); }
+setInterval(()=>{ if(pulseBusy){$('upd').textContent=t('u_updating');return;} const left=Math.max(0,Math.ceil((nextPulse-Date.now())/1000)); $('upd').innerHTML=`${lastUpd?t('u_upd')+' '+lastUpd+' · ':''}<span class="cd">${left}s</span>`; },1000);
+schedulePulse();setInterval(()=>{if(!document.hidden)render();},30000);setInterval(()=>{if(!document.hidden)loadHist();},180000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshAll();}});
+(async()=>{await loadMap();fillDiscOblasts();loadDistricts();drawHome();assignTownOblasts();setView(0,0,110);updateTiles();layoutTownLabels();applySelOblast();await refreshAll();$('imph').textContent=IMP_H?IMP_H+'h':'';loadImpacts();await loadHist();connect();scheduleTick();})();
+</script>
+</body>
+</html>

@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>UA Alerts</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='40' fill='%23e5484d'/></svg>">
+<style>
+:root{
+  --bg:#0c0f14;--panel:#141922;--panel2:#1b2230;--line:#232c3b;--text:#e6e9ef;--muted:#8a94a6;
+  --red:#e5484d;--red-soft:rgba(229,72,77,.16);--yellow:#f5b940;--yellow-soft:rgba(245,185,64,.16);
+  --green:#3ecf8e;--green-soft:rgba(62,207,142,.14);--blue:#5b9cff;--orange:#ff8a3d;--purple:#b07cff;
+  --radius:12px;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{padding:14px 18px 40px}
+a{color:var(--blue);text-decoration:none}
+h1{font-size:18px;margin:0;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 10px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:14px}
+.top .right{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.clock{font-family:var(--mono);font-size:15px;color:var(--text)}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;font-size:11.5px;border:1px solid var(--line);background:var(--panel);color:var(--muted);white-space:nowrap}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--muted)}
+.badge.ok .dot{background:var(--green)}.badge.bad .dot{background:var(--red)}
+button{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 11px;font:inherit;font-size:12.5px;cursor:pointer}
+button:hover{border-color:#3a475c}button.on{border-color:var(--green);color:var(--green)}
+.grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:14px}
+@media (max-width:1100px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;min-width:0}
+.favs{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-bottom:14px}
+.fav{position:relative;overflow:hidden;border-width:1px}
+.fav.A{background:linear-gradient(160deg,rgba(229,72,77,.22),var(--panel) 60%);border-color:rgba(229,72,77,.6)}
+.fav.P{background:linear-gradient(160deg,rgba(245,185,64,.2),var(--panel) 60%);border-color:rgba(245,185,64,.5)}
+.fav.N{background:linear-gradient(160deg,rgba(62,207,142,.14),var(--panel) 60%);border-color:rgba(62,207,142,.35)}
+.fav .name{font-size:13px;color:var(--muted)}
+.fav .status{font-size:26px;font-weight:700;margin:4px 0 2px;display:flex;align-items:center;gap:10px}
+.fav .since{font-family:var(--mono);color:var(--muted);font-size:12.5px}
+.fav .dur{font-family:var(--mono);font-size:22px;font-weight:600}
+.pulse{width:12px;height:12px;border-radius:50%;background:var(--red);box-shadow:0 0 0 0 rgba(229,72,77,.6);animation:pulse 1.6s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 rgba(229,72,77,.55)}70%{box-shadow:0 0 0 12px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:7px;font-size:12px;background:var(--panel2);border:1px solid var(--line)}
+.chip.red{background:var(--red-soft);border-color:rgba(229,72,77,.5);color:#ffb3b5}
+.chip.yellow{background:var(--yellow-soft);border-color:rgba(245,185,64,.5);color:#ffd88a}
+.chip.kyiv{background:rgba(91,156,255,.16);border-color:rgba(91,156,255,.5);color:#bcd5ff}
+.chip.clear{background:var(--green-soft);border-color:rgba(62,207,142,.4);color:#a8f0cf}
+.sub{margin-top:8px;font-size:12.5px;color:var(--muted)}
+.sub b{color:var(--text);font-weight:600}
+/* map */
+.map{display:grid;grid-template-columns:repeat(9,1fr);grid-auto-rows:64px;gap:5px}
+.tile{border-radius:9px;border:1px solid var(--line);background:var(--panel2);padding:6px 7px;display:flex;flex-direction:column;justify-content:space-between;font-size:11.5px;overflow:hidden;cursor:default;transition:background .3s,border-color .3s}
+.tile .n{font-weight:600;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .t{font-family:var(--mono);font-size:10.5px;color:var(--muted);display:flex;justify-content:space-between;gap:4px}
+.tile.A{background:rgba(229,72,77,.28);border-color:rgba(229,72,77,.75)}
+.tile.A.red{background:rgba(229,72,77,.45);border-color:var(--red)}
+.tile.P{background:rgba(245,185,64,.2);border-color:rgba(245,185,64,.6)}
+.tile.N{color:#b6bdc9}
+.tile.fav{outline:2px solid rgba(91,156,255,.55);outline-offset:-2px}
+.tile.occ{opacity:.55;border-style:dashed}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+/* lists */
+.list{display:flex;flex-direction:column;gap:6px;max-height:420px;overflow:auto;padding-right:4px}
+.row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:start;padding:8px 10px;border-radius:9px;background:var(--panel2);border:1px solid var(--line)}
+.row .ico{font-size:16px;width:22px;text-align:center}
+.row .title{font-weight:600}
+.row .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.row .dur{font-family:var(--mono);font-size:12.5px;color:var(--muted);white-space:nowrap}
+.row.red{border-color:rgba(229,72,77,.5)}.row.yellow{border-color:rgba(245,185,64,.45)}
+.row.fav{background:rgba(91,156,255,.08)}
+.empty{color:var(--muted);font-size:13px;padding:10px 4px}
+/* feed */
+.feed{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow:auto;padding-right:4px}
+.post{padding:8px 10px;border-radius:9px;background:var(--panel2);border:1px solid var(--line);font-size:13px}
+.post.kyiv{border-color:rgba(91,156,255,.55);background:rgba(91,156,255,.08)}
+.post .h{display:flex;justify-content:space-between;gap:8px;font-size:11.5px;color:var(--muted);font-family:var(--mono);margin-bottom:3px}
+.post .h a{color:var(--muted)}
+.post .txt{white-space:pre-wrap;word-break:break-word}
+.post.new{animation:flash 2.4s ease-out}
+@keyframes flash{0%{background:rgba(245,185,64,.3)}100%{background:var(--panel2)}}
+/* timeline */
+.tl{display:flex;flex-direction:column;gap:6px}
+.tlrow{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:center;font-size:12px}
+.tlrow .lab{color:var(--muted);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.track{position:relative;height:22px;background:var(--panel2);border-radius:5px;border:1px solid var(--line);overflow:hidden}
+.bar{position:absolute;top:2px;bottom:2px;background:var(--red);opacity:.85;border-radius:3px;min-width:2px}
+.bar.open{background:linear-gradient(90deg,var(--red),#ff7b7f)}
+.axis{display:grid;grid-template-columns:110px 1fr;gap:10px;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.axis .ticks{display:flex;justify-content:space-between}
+.nowline{position:absolute;top:0;bottom:0;width:1px;background:var(--blue)}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:10px}
+.stat{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 10px}
+.stat .v{font-family:var(--mono);font-size:18px;font-weight:600}
+.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.tabs{display:flex;gap:4px}
+.tabs button{padding:3px 9px;font-size:11.5px}
+.foot{margin-top:14px;font-size:11.5px;color:var(--muted)}
+.toast{position:fixed;right:18px;bottom:18px;max-width:360px;background:#1d2533;border:1px solid var(--line);border-left:4px solid var(--red);border-radius:10px;padding:10px 12px;box-shadow:0 12px 30px rgba(0,0,0,.5);z-index:9;display:none}
+.toast.show{display:block}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <h1><span class="pulse" id="pulse" style="display:none"></span>UA Alerts <span class="badge" id="mode"></span></h1>
+  <div class="right">
+    <span class="clock" id="clock">--:--:--</span>
+    <span id="sources"></span>
+    <button id="btnNotif">🔔 Notifications</button>
+    <button id="btnSound" class="on">🔊 Sound</button>
+    <button id="btnTest" title="Send a test notification">Test</button>
+  </div>
+</div>
+
+<div class="favs" id="favs"></div>
+
+<div class="grid">
+  <div class="panel">
+    <h2>Ukraine — oblast status <span id="mapcount"></span></h2>
+    <div class="map" id="map"></div>
+    <div class="legend">
+      <span><i style="background:rgba(229,72,77,.75)"></i>Air raid (oblast)</span>
+      <span><i style="background:var(--red)"></i>Red level threat</span>
+      <span><i style="background:rgba(245,185,64,.6)"></i>Partial (raion / hromada only)</span>
+      <span><i style="background:var(--panel2);border:1px solid var(--line)"></i>Clear</span>
+      <span><i style="outline:2px solid rgba(91,156,255,.7);outline-offset:-2px;background:transparent"></i>Watched</span>
+    </div>
+    <h2 style="margin-top:18px">Active threats (all regions) <span id="thrcount"></span></h2>
+    <div class="list" id="threats"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Active alerts — all levels <span id="actcount"></span></h2>
+    <div class="list" id="active" style="max-height:1000px"></div>
+  </div>
+
+  <div class="panel">
+    <h2><span>Air Force / channels feed</span><span id="feedcount"></span></h2>
+    <div class="feed" id="feed"></div>
+  </div>
+
+  <div class="panel">
+    <h2><span>History — watched regions</span>
+      <span class="tabs"><button data-h="24" class="on">24h</button><button data-h="72">3d</button><button data-h="168">7d</button></span></h2>
+    <div class="tl" id="timeline"></div>
+    <div class="axis"><span></span><div class="ticks" id="ticks"></div></div>
+    <div class="stats" id="stats"></div>
+    <h2 style="margin-top:18px">Recent events</h2>
+    <div class="list" id="events" style="max-height:260px"></div>
+  </div>
+</div>
+
+<div class="foot">Sources: alerts.in.ua API · ukrainealarm.com API · ubilling mirror (keyless fallback) · Telegram public previews. Times shown in Kyiv time (Europe/Kyiv). Not for life-safety decisions — keep the official app's siren on.</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- constants ----------
+const THREAT = {
+  drones:{ico:'🛸',en:'Strike drones (Shahed)'},
+  ballistic_missiles:{ico:'🚀',en:'Ballistic missiles'},
+  cruise_missiles:{ico:'🎯',en:'Cruise missiles'},
+  unspecified_missiles:{ico:'🎯',en:'Missiles'},
+  mig31k_departure:{ico:'✈️',en:'MiG-31K airborne (Kinzhal)'},
+  strategic_aircraft_activity:{ico:'🛩️',en:'Strategic aviation (Tu-95/160)'},
+  tactic_aircraft_activity:{ico:'🛩️',en:'Tactical aviation / KAB'},
+  guided_aerial_bombs:{ico:'💣',en:'Guided bombs (KAB)'},
+  air_defense:{ico:'🛡️',en:'Air defence active'},
+  kyiv:{ico:'📍',en:'Kyiv'},
+  clear:{ico:'✅',en:'Clear'},
+  unknown:{ico:'❔',en:'Unknown'},
+};
+const ATYPE = {air_raid:['🚨','Air raid'],artillery_shelling:['💥','Artillery shelling'],urban_fights:['⚔️','Urban fights'],chemical:['☣️','Chemical'],nuclear:['☢️','Nuclear'],info:['ℹ️','Info']};
+// cartogram: uid -> [col,row,(colspan),(rowspan)]
+const POS = {
+ '8':[2,1],'5':[3,1],'10':[4,1],'14':[5,1],'25':[6,1],'20':[7,1],
+ '27':[1,2],'21':[2,2],'3':[3,2],'4':[4,2],'31':[5,2],'24':[6,2],'19':[7,2],'22':[8,2],'16':[9,2],
+ '11':[1,3],'13':[2,3],'26':[3,3],'18':[4,3,1,2],'15':[5,3],'9':[6,3,2,1],'28':[8,3],
+ '17':[5,4],'23':[6,4],'12':[7,4],
+ '30':[6,5],'29':[7,5],
+};
+const OCCUPIED = new Set(['29','30']);
+const KYIV_TZ = 'Europe/Kyiv';
+
+// ---------- state ----------
+let S = null, hist = [], histHours = 24, feedSeen = new Set(), notifOn = false, soundOn = true, es = null;
+const $ = id => document.getElementById(id);
+const fmtT = iso => iso ? new Date(iso).toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit',timeZone:KYIV_TZ}) : '';
+const fmtDT = iso => iso ? new Date(iso).toLocaleString('uk-UA',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',timeZone:KYIV_TZ}) : '';
+const dur = (a,b) => { const ms=(b?new Date(b):new Date())-new Date(a); if(isNaN(ms)||ms<0) return '—'; const m=Math.floor(ms/60000),h=Math.floor(m/60); return h? `${h}h ${String(m%60).padStart(2,'0')}m` : `${m}m`; };
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const enName = a => a.location_title_en || a.location_title;
+
+// ---------- audio ----------
+let actx;
+function beep(kind){
+  if(!soundOn) return;
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    const seq = kind==='end' ? [[660,.12],[880,.18]] : kind==='threat' ? [[520,.1],[520,.1],[520,.1]] : [[880,.15],[660,.15],[880,.15],[660,.3]];
+    let t = actx.currentTime;
+    for(const [f,d] of seq){ const o=actx.createOscillator(), g=actx.createGain(); o.type='square'; o.frequency.value=f; g.gain.value=.06; o.connect(g); g.connect(actx.destination); o.start(t); o.stop(t+d); t+=d+.05; }
+  }catch(e){}
+}
+function toast(title, body, kind){
+  const el=$('toast'); el.style.borderLeftColor = kind==='end'?'var(--green)':kind==='threat'?'var(--yellow)':'var(--red)';
+  el.innerHTML=`<b>${esc(title)}</b><div style="color:var(--muted);font-size:12.5px;margin-top:3px">${esc(body||'')}</div>`;
+  el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),8000);
+}
+function notify(title, body, kind){
+  toast(title, body, kind); beep(kind);
+  if(notifOn && Notification.permission==='granted'){ try{ new Notification(title,{body, tag:title+kind, silent:true}); }catch(e){} }
+}
+
+// ---------- rendering ----------
+function render(){
+  if(!S) return;
+  const favs = S.favourites, ob = S.oblasts;
+  const anyFav = favs.some(u=>ob[u]&&ob[u].status!=='N');
+  $('pulse').style.display = anyFav?'inline-block':'none';
+  document.title = (anyFav?'🔴 ':'') + 'UA Alerts' + (favs.map(u=>ob[u]).filter(o=>o&&o.status!=='N').map(o=>' · '+o.en).join(''));
+  $('mode').textContent = S.config.demo ? 'DEMO' : (S.config.has_token ? 'live' : 'keyless mode');
+  $('mode').className = 'badge ' + (S.config.demo?'':'ok');
+
+  // sources
+  $('sources').innerHTML = Object.entries(S.sources).map(([k,v])=>`<span class="badge ${v.ok?'ok':'bad'}" title="${esc(v.error||v.note||'')} · ${fmtT(v.last)}"><span class="dot"></span>${esc(k)}${v.count!=null?' '+v.count:''}</span>`).join(' ');
+
+  // favourites
+  $('favs').innerHTML = favs.map(u=>{
+    const o=ob[u]; if(!o) return '';
+    const subs = S.active.filter(a=>a.oblast_uid===u && a.location_type!=='oblast');
+    const main = S.active.find(a=>a.oblast_uid===u && a.location_type==='oblast');
+    const st = o.status==='A'?'🔴 AIR RAID ALERT':o.status==='P'?'🟠 PARTIAL ALERT':'🟢 No alert';
+    const types = o.types.filter(t=>t!=='air_raid').map(t=>`<span class="chip red">${ATYPE[t]?.[0]||''} ${ATYPE[t]?.[1]||t}</span>`).join('');
+    const thr = o.threats.map(t=>`<span class="chip ${t.level||''}" title="${esc(t.source_message||'')} · ${fmtT(t.started_at)}">${THREAT[t.threat_type]?.ico||'❔'} ${THREAT[t.threat_type]?.en||t.threat_type}</span>`).join('');
+    return `<div class="panel fav ${o.status}">
+      <div class="name">${esc(o.uk)} · ${esc(o.en)}</div>
+      <div class="status">${st}</div>
+      ${o.status!=='N' ? `<div class="dur">${dur(o.since || (subs[0]&&subs[0].started_at))}</div><div class="since">since ${fmtDT(o.since || (subs[0]&&subs[0].started_at))}${main&&main.notes?' · '+esc(main.notes):''}</div>`:''}
+      <div class="chips">${types}${thr}</div>
+      ${subs.length?`<div class="sub"><b>${subs.length}</b> sub-region alert(s): ${subs.map(a=>esc(enName(a))+' ('+dur(a.started_at)+')').join(', ')}</div>`:''}
+    </div>`;
+  }).join('');
+
+  // map
+  const tiles=[];
+  for(const [uid,o] of Object.entries(ob)){
+    const p=POS[uid]; if(!p) continue;
+    const short = o.en.replace(' oblast',' obl.');
+    const lvl = o.level==='red'?'red':'';
+    tiles.push(`<div class="tile ${o.status} ${lvl} ${favs.includes(uid)?'fav':''} ${OCCUPIED.has(uid)?'occ':''}" style="grid-column:${p[0]}${p[2]?'/span '+p[2]:''};grid-row:${p[1]}${p[3]?'/span '+p[3]:''}" title="${esc(o.uk)}${o.since?' — since '+fmtT(o.since):''}${o.threats.length?'\n'+o.threats.map(t=>(THREAT[t.threat_type]?.en||t.threat_type)+(t.source_message?': '+t.source_message:'')).join('\n'):''}">
+      <div class="n">${esc(short)}</div>
+      <div class="t"><span>${o.status==='A'?dur(o.since):o.status==='P'?'partial':''}</span><span>${o.threats.slice(0,3).map(t=>THREAT[t.threat_type]?.ico||'').join('')}</span></div></div>`);
+  }
+  $('map').innerHTML = tiles.join('');
+  const nA=Object.values(ob).filter(o=>o.status==='A').length, nP=Object.values(ob).filter(o=>o.status==='P').length;
+  $('mapcount').textContent = `${nA} oblast${nA===1?'':'s'} under alert · ${nP} partial`;
+
+  // threats grouped
+  const groups={};
+  for(const a of S.active) for(const t of (a.threats||[])){
+    const g=groups[t.threat_type] ||= {type:t.threat_type,level:'yellow',regions:new Map(),msgs:new Set(),first:t.started_at};
+    if(t.level==='red') g.level='red';
+    g.regions.set(a.oblast_uid, ob[a.oblast_uid]?.en||a.location_title);
+    if(t.source_message) g.msgs.add(t.source_message);
+    if(t.started_at<g.first) g.first=t.started_at;
+  }
+  const gl=Object.values(groups).sort((a,b)=>(a.level==='red'?0:1)-(b.level==='red'?0:1));
+  $('thrcount').textContent = gl.length?`${gl.length} type(s)`:'';
+  $('threats').innerHTML = gl.length ? gl.map(g=>`<div class="row ${g.level}">
+      <div class="ico">${THREAT[g.type]?.ico||'❔'}</div>
+      <div><div class="title">${THREAT[g.type]?.en||g.type} <span class="chip ${g.level}" style="padding:1px 6px;font-size:11px">${g.level}</span></div>
+        <div class="meta">${[...g.regions.values()].sort().join(', ')}</div>
+        ${g.msgs.size?`<div class="meta" style="color:var(--text);opacity:.85">${[...g.msgs].map(esc).join(' · ')}</div>`:''}</div>
+      <div class="dur">${dur(g.first)}</div></div>`).join('')
+    : `<div class="empty">${S.config.has_token||S.config.demo?'No threat details reported right now.':'Threat details need an alerts.in.ua token (see config.json).'}</div>`;
+
+  // active list
+  const act=[...S.active].sort((a,b)=>(favs.includes(b.oblast_uid)-favs.includes(a.oblast_uid))||(a.location_type==='oblast'?-1:1)-(b.location_type==='oblast'?-1:1)||(a.started_at<b.started_at?1:-1));
+  $('actcount').textContent = act.length?`${act.length}`:'';
+  $('active').innerHTML = act.length ? act.map(a=>`<div class="row ${a.alert_level||''} ${favs.includes(a.oblast_uid)?'fav':''}">
+      <div class="ico">${ATYPE[a.alert_type]?.[0]||'🚨'}</div>
+      <div><div class="title">${esc(enName(a))} <span style="color:var(--muted);font-weight:400">· ${esc(a.location_title)}</span></div>
+        <div class="meta">${a.location_type}${a.location_type!=='oblast'?' in '+esc(ob[a.oblast_uid]?.en||''):''} · ${ATYPE[a.alert_type]?.[1]||a.alert_type} · since ${fmtT(a.started_at)}${a.notes?' · '+esc(a.notes):''}${(a.threats||[]).length?' · '+a.threats.map(t=>THREAT[t.threat_type]?.ico||'').join(''):''}</div></div>
+      <div class="dur">${dur(a.started_at)}</div></div>`).join('') : '<div class="empty">No active alerts anywhere. 🟢</div>';
+
+  renderTimeline();
+}
+
+function renderTimeline(){
+  const favs=S?S.favourites:[]; const ob=S?S.oblasts:{};
+  const now=Date.now(), start=now-histHours*3600e3, W=now-start;
+  $('timeline').innerHTML = favs.map(u=>{
+    const rows = hist.filter(a=>a.oblast_uid===u && a.location_type==='oblast');
+    const bars = rows.map(a=>{ const s=Math.max(start,new Date(a.started_at)), e=a.finished_at?new Date(a.finished_at):now; if(e<start) return ''; const l=(s-start)/W*100, w=Math.max(.15,(e-s)/W*100);
+      return `<div class="bar ${a.finished_at?'':'open'}" style="left:${l}%;width:${w}%" title="${fmtDT(a.started_at)} → ${a.finished_at?fmtDT(a.finished_at):'ongoing'} (${dur(a.started_at,a.finished_at)})${(a.threats||[]).length?'\n'+a.threats.map(t=>THREAT[t.threat_type]?.en||t.threat_type).join(', '):''}"></div>`; }).join('');
+    return `<div class="tlrow"><div class="lab">${esc(ob[u]?.en||u)}</div><div class="track">${bars}<div class="nowline" style="left:100%"></div></div></div>`;
+  }).join('');
+  const n= histHours<=24?6:histHours<=72?6:7;
+  $('ticks').innerHTML = Array.from({length:n+1},(_,i)=>{ const t=new Date(start+i*W/n); return `<span>${histHours<=24?fmtT(t):t.toLocaleDateString('uk-UA',{day:'2-digit',month:'2-digit',timeZone:KYIV_TZ})}</span>`; }).join('');
+  // stats per fav
+  $('stats').innerHTML = favs.map(u=>{
+    const rows=hist.filter(a=>a.oblast_uid===u && a.location_type==='oblast');
+    const within=rows.filter(a=>(a.finished_at?new Date(a.finished_at):now)>=start);
+    const mins=within.reduce((s,a)=>s+Math.max(0,((a.finished_at?new Date(a.finished_at):now)-Math.max(start,new Date(a.started_at)))/60000),0);
+    const longest=within.reduce((m,a)=>Math.max(m,((a.finished_at?new Date(a.finished_at):now)-new Date(a.started_at))/60000),0);
+    const pct=mins/(histHours*60)*100;
+    return `<div class="stat"><div class="l">${esc(ob[u]?.en||u)} · ${histHours}h</div><div class="v">${within.length} alerts</div><div class="l" style="text-transform:none;letter-spacing:0;margin-top:3px">${Math.round(mins/60)}h ${Math.round(mins%60)}m under alert (${pct.toFixed(0)}%) · longest ${Math.round(longest)}m</div></div>`;
+  }).join('');
+}
+
+function renderFeed(posts, {flash=false}={}){
+  const el=$('feed');
+  const html = posts.map(p=>{ const tags=p.tags||[]; const isNew=flash&&!feedSeen.has(p.post_id); feedSeen.add(p.post_id);
+    return `<div class="post ${tags.includes('kyiv')?'kyiv':''} ${isNew?'new':''}">
+      <div class="h"><span>${fmtDT(p.ts)}</span><span>${tags.map(t=>`<span class="chip ${t==='kyiv'?'kyiv':t==='clear'?'clear':''}" style="padding:0 6px;font-size:10.5px;margin-left:3px">${THREAT[t]?.ico||''} ${THREAT[t]?.en||t}</span>`).join('')} <a href="https://t.me/${esc(p.post_id)}" target="_blank" rel="noopener">@${esc(p.channel)}</a></span></div>
+      <div class="txt">${esc(p.text)}</div></div>`; }).join('');
+  el.innerHTML = html || '<div class="empty">No posts yet.</div>';
+  $('feedcount').textContent = posts.length?`${posts.length}`:'';
+}
+
+function renderEvents(evs){
+  $('events').innerHTML = evs.length? evs.map(e=>`<div class="row"><div class="ico">${e.kind==='start'?'🔴':e.kind==='end'?'🟢':e.kind==='threat'?'⚠️':'✏️'}</div>
+    <div><div class="title">${e.kind} — ${esc(e.location_title)}</div><div class="meta">${ATYPE[e.alert_type]?.[1]||e.alert_type}${e.detail&&e.detail.threat_type?' · '+(THREAT[e.detail.threat_type]?.en||e.detail.threat_type)+(e.detail.source_message?': '+esc(e.detail.source_message):''):''}</div></div>
+    <div class="dur">${fmtDT(e.ts)}</div></div>`).join('') : '<div class="empty">Nothing yet.</div>';
+}
+
+// ---------- data ----------
+async function loadState(){ try{ S = await (await fetch('/api/state')).json(); render(); }catch(e){ console.warn(e); } }
+async function loadHist(){ try{ const favs=S?S.favourites.join(','):''; hist = (await (await fetch(`/api/history?hours=${histHours}&oblast=${favs}`)).json()).alerts; renderTimeline(); }catch(e){} }
+async function loadFeed(flash){ try{ renderFeed((await (await fetch('/api/feed?limit=120')).json()).feed,{flash}); }catch(e){} }
+async function loadEvents(){ try{ renderEvents((await (await fetch('/api/events_log?limit=60')).json()).events); }catch(e){} }
+
+function connect(){
+  es = new EventSource('/api/stream');
+  const onAlert = kind => ev => {
+    const d=JSON.parse(ev.data), a=d.alert, fav=S&&S.favourites.includes(a.oblast_uid);
+    loadState(); loadEvents(); if(kind!=='update') loadHist();
+    if(!fav) return;
+    if(kind==='start') notify(`🔴 ${ATYPE[a.alert_type]?.[1]||'Alert'} — ${enName(a)}`, `${a.location_type} · ${fmtT(a.started_at)}${a.notes?' · '+a.notes:''}`, 'start');
+    else if(kind==='end') notify(`🟢 All clear — ${enName(a)}`, `lasted ${dur(a.started_at,a.finished_at)}`, 'end');
+    else if(kind==='threat'){ const t=d.threat||{}; notify(`⚠️ ${THREAT[t.threat_type]?.en||t.threat_type} — ${enName(a)}`, t.source_message||'', 'threat'); }
+  };
+  ['start','end','threat','update'].forEach(k=>es.addEventListener(k,onAlert(k)));
+  es.addEventListener('feed', ev=>{ const d=JSON.parse(ev.data); loadFeed(true); if((d.post.tags||[]).includes('kyiv')) notify('📍 Air Force — Kyiv mentioned', d.post.text.slice(0,180), 'threat'); });
+  es.onerror = ()=>{ es.close(); setTimeout(connect, 3000); };
+}
+
+// ---------- UI ----------
+$('btnNotif').onclick = async ()=>{ if(!('Notification' in window)) return alert('Notifications not supported'); const p = await Notification.requestPermission(); notifOn = p==='granted'; $('btnNotif').classList.toggle('on',notifOn); localStorage.setItem('notifOn',notifOn?'1':'0'); };
+$('btnSound').onclick = ()=>{ soundOn=!soundOn; $('btnSound').classList.toggle('on',soundOn); localStorage.setItem('soundOn',soundOn?'1':'0'); };
+$('btnTest').onclick = ()=> notify('🔴 Test — Kyiv city','This is how an alert looks.','start');
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{ document.querySelectorAll('.tabs button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); histHours=+b.dataset.h; loadHist(); });
+try{ notifOn = localStorage.getItem('notifOn')==='1' && Notification.permission==='granted'; soundOn = localStorage.getItem('soundOn')!=='0'; }catch(e){}
+$('btnNotif').classList.toggle('on',notifOn); $('btnSound').classList.toggle('on',soundOn);
+
+setInterval(()=>{ $('clock').textContent = new Date().toLocaleTimeString('uk-UA',{timeZone:KYIV_TZ}) + ' Kyiv'; }, 1000);
+setInterval(render, 30000);          // refresh durations
+setInterval(loadState, 20000);       // safety poll
+setInterval(loadHist, 120000);
+setInterval(()=>loadFeed(false), 90000);
+(async()=>{ await loadState(); await loadHist(); await loadFeed(false); await loadEvents(); connect(); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,36 @@
+# ---- runtime data (never commit: it holds the whole alert history) ----
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+alerts.sqlite*
+
+# ---- secrets and machine-specific state ----
+# config.json holds the API tokens; config.example.json is the template
+config.json
+# .flyapp is the Fly app name chosen on this machine
+.flyapp
+vapid.json
+.env
+*.pem
+
+# ---- python ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# ---- tools / editors ----
+.idea/
+.DS_Store
+Thumbs.db
+
+# ---- misc ----
+cloudflared.exe
+*.log
+
+# scratch: files moved aside for you to delete
+_to_delete/

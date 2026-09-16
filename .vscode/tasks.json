@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Clear Sky",
+      "type": "shell",
+      "command": "python app/server.py",
+      "problemMatcher": [],
+      "group": { "kind": "build", "isDefault": true },
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "Run Clear Sky (demo)",
+      "type": "shell",
+      "command": "python app/server.py --demo",
+      "problemMatcher": [],
+      "presentation": { "panel": "dedicated" }
+    },
+    {
+      "label": "Tests",
+      "type": "shell",
+      "command": "python -m pytest",
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "Lint (ruff)",
+      "type": "shell",
+      "command": "python -m ruff check app tests",
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy to Fly.io",
+      "type": "shell",
+      "command": "fly deploy",
+      "problemMatcher": []
+    }
+  ]
+}

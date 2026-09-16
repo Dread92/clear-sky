@@ -1,0 +1,19 @@
+# fly.io — `fly launch --copy-config --yes` then `fly secrets set ACCESS_KEY=yourkey`
+app = "kyiv-air-watch-gb"
+primary_region = "ams"
+[build]
+[env]
+  PORT = "8080"
+  DB_PATH = "/data/alerts.sqlite"
+[mounts]
+  source = "data"
+  destination = "/data"
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"

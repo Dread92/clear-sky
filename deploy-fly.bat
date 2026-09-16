@@ -1,0 +1,47 @@
+@echo off
+setlocal
+rem Cloud deployment on Fly.io (24/7, no PC needed). Safe to re-run.
+rem PREREQUISITE (once): add a payment method at https://fly.io/dashboard/personal/billing -- Fly refuses to create apps without it,
+rem even though this single shared-cpu-1x VM + 1 GB disk stays inside the free allowance.
+cd /d "%~dp0"
+set "PATH=%USERPROFILE%\.fly\bin;%PATH%"
+where fly >nul 2>&1 || (echo Installing flyctl... && powershell -Command "iwr https://fly.io/install.ps1 -useb | iex")
+set "PATH=%USERPROFILE%\.fly\bin;%PATH%"
+set APP=kyiv-air-watch-gb
+if exist .flyapp set /p APP=<.flyapp
+echo.
+echo === 1/5 Log in ===
+fly auth whoami >nul 2>&1 || fly auth login
+if errorlevel 1 goto fail
+echo.
+echo === 2/5 App "%APP%" (region Amsterdam) ===
+fly apps list 2>nul | findstr /i /c:"%APP%" >nul || fly apps create %APP% --org personal
+if errorlevel 1 goto fail
+echo %APP%>.flyapp
+echo.
+echo === 3/5 Persistent 1 GB disk for the history ===
+fly volumes list -a %APP% 2>nul | findstr /i "data" >nul || fly volumes create data --size 1 --region ams --yes -a %APP%
+if errorlevel 1 goto fail
+echo.
+echo === 4/5 Access key ===
+set KEY=
+set /p KEY=Choose an access key (12+ letters/digits, Enter to keep the existing one): 
+if not "%KEY%"=="" fly secrets set ACCESS_KEY=%KEY% -a %APP% --stage
+echo.
+echo === 5/5 Deploy ===
+fly deploy -a %APP% --ha=false --depot=false
+if errorlevel 1 goto fail
+echo.
+echo ======================================================
+echo  Online: https://%APP%.fly.dev/?key=YOUR_KEY
+echo  (open once per device; then just https://%APP%.fly.dev)
+echo  Update later: run this file again (or: fly deploy -a %APP%)
+echo ======================================================
+pause
+exit /b 0
+:fail
+echo.
+echo *** Stopped on an error (see above). Send the error text to Claude, or if it says "payment method required": add a card at
+echo *** https://fly.io/dashboard/personal/billing then run this file again.
+pause
+exit /b 1
