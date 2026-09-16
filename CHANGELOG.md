@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.4.0 — 2026-09-17
+## 1.5.0 — 2026-09-17
 
 ### Changed
 - **Missiles are no longer aged like drones.** Going grey after five minutes of silence is honest for a Shahed
@@ -15,7 +15,6 @@
   and uncertainty cone. The time you have is different for the two; the marker should say so without being read.
 - The threat sheet explains both, in all three languages: what the circle means, why a missile has no "last
   updated" state, and that nothing on the screen estimates where a missile *is*.
-
 - **One-second refresh while a ballistic threat is open.** The cadence is now a level the server decides
   (`/api/version.msl`): 15 s normally, 5 s for cruise missiles or a MiG-31K, **1 s for ballistic**. The server
   speeds its own sources up with it — Telegram and the alert APIs go to 5 s at that level — because a
@@ -25,6 +24,14 @@
   about half a kilometre of doubt per second; a circle that sat still between updates would read as a known
   position. Only missile markers are repainted on that tick — a phone on 2G does not re-lay out forty markers
   a second.
+- **Overlapping explosions are grouped instead of stacked.** Anything closer than one glyph-width on screen
+  becomes a single dot with the total (**×8**), anchored and labelled by its most recent member — never a
+  centroid, which would put a dot where nobody reported anything. Explosions and confirmed shoot-downs are
+  grouped apart from each other; they mean opposite things. It is a function of zoom, so zooming in pulls the
+  group back into its separate reports, and tapping one opens the full list — place, time, channel and post for
+  every report behind it, with a Zoom in button. The ticker and statistics are counted before grouping, so what
+  is drawn never changes a number. This replaces the old behaviour of fanning them onto a ring, which moved
+  each dot off the place it was reported.
 
 ### Added
 - A **Missiles are treated differently** section in *How Clear Sky works*, in all three languages.

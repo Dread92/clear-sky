@@ -154,6 +154,23 @@ Posts mix an all-clear and a warning in one breath: "Чисте небо Киї�
 Clear sentences are removed before parsing, so only Vasylkiv gets a marker. A false alarm over a city that was
 just declared clear is the fastest way to make people stop trusting the map — and then stop reading it at all.
 
+## Overlapping explosions are grouped, never stacked
+
+At a 300 km view two explosions 3 km apart are the same eleven pixels. Drawing both put two glyphs on top of
+each other and two labels in the same space; pushing them onto a ring, the earlier fix, moved each dot off the
+place it was actually reported. Both are worse than one dot saying **×8**.
+
+So at draw time anything closer than one glyph-width merges into a single marker carrying the total:
+
+- The group is **anchored and labelled by its most recent member**, never by a centroid. A centroid puts a dot
+  on a spot where nobody reported anything, which is exactly the kind of invented precision this map avoids.
+- **Explosions and confirmed shoot-downs are never merged into each other.** They mean opposite things, and are
+  grouped separately even when they sit on the same street.
+- It is purely a function of zoom. Zooming in pulls the group apart into its separate reports, and a tap lists
+  every one of them with its own place, time, channel and post — no single report ever stands in for the others.
+- The counts in the ticker and the statistics are computed before grouping, so what is on the screen never
+  changes a number.
+
 ## Every number is traceable
 
 Tap any marker and you see the sentence it came from, the channel, the time, and how position,

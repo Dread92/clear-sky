@@ -106,6 +106,16 @@ body.lite .imp .ig{fill:#fff;filter:none;animation:none}body.lite .imp.fresh .sw
 .imp .it{font:600 calc(var(--k,1)*9.5px) system-ui;fill:#ffb3ad;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}svg.far .imp .it{display:none}
 .imp.d1{opacity:.75}.imp.d2{opacity:.5}
 .imp .icnt circle{fill:#fff;stroke:#080b10;stroke-width:1}.imp .icnt text{font:800 9px var(--mono);fill:#080b10;text-anchor:middle}
+/* a grouped dot says so: a second ring around it, so ×3 is not mistaken for one big explosion */
+.imp.grp .ir{opacity:.85;stroke-dasharray:3 2.5}
+.imp.grp .icnt circle{stroke:#ff3b2f;stroke-width:1.4}.imp.grp.dn .icnt circle{stroke:#39d98a}
+.glist{display:flex;flex-direction:column;gap:3px;margin:8px 0;max-height:42vh;overflow:auto}
+.grow{display:grid;grid-template-columns:1fr auto;gap:0 10px;align-items:baseline;width:100%;text-align:left;background:#12151b;border:1px solid var(--line);border-left:3px solid #ff3b2f;color:var(--ink,#e8e6df);padding:5px 9px;cursor:pointer;font:inherit}
+.grow:hover{background:#181c24}
+.grow .gp{font:600 13px var(--sans)}
+.grow .gt{font:600 11.5px var(--mono);color:var(--muted);text-align:right}
+.grow .gc{grid-column:1/-1;font:500 10.5px var(--mono);color:var(--muted);margin-top:1px}
+.glist::-webkit-scrollbar{width:4px}.glist::-webkit-scrollbar-thumb{background:var(--line)}
 body.lite .imp .icnt circle{fill:#fff}
 .imp.dn .ig{fill:#39d98a}.imp.dn .ir{stroke:#39d98a}.imp.dn .it{fill:#b8f0d3}svg.no-himp .imp.im,svg.no-hdown .imp.dn{display:none}
 .mapfoot{display:none}
@@ -432,7 +442,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">v1.4</div>
+    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">v1.5</div>
     <button class="mi" id="est" data-t="m_est">Estimate motion along heading (EST)</button>
     <button class="mi" id="zcity2" data-t="m_city">Kyiv city map (10 districts) — toggle</button><button class="mi" id="zobl" data-t="m_zobl">Zoom out to whole oblast</button><button class="mi" id="zreg" data-t="m_zreg">Zoom out to surrounding oblasts</button><button class="mi" id="zua" data-t="m_zua">Zoom out to all of Ukraine</button>
   </div>
@@ -711,7 +721,10 @@ const endT=e=>{delete touches[e.pointerId]; if(Object.keys(touches).length<2){la
 // tap on a marker: pointer capture sends pointerup to the wrapper, so hit-test here (≤10 px screen movement counts as a tap)
 wrap.addEventListener('pointerup',e=>{const mk=downMk,xy=downXY,ob=downOb;downMk=null;downXY=null;downOb=null;endT(e);
   const tap=xy&&Math.hypot(e.clientX-xy[0],e.clientY-xy[1])<=10&&Object.keys(touches).length===0;
-  if(mk&&tap){$('tip').hidden=true;if(mk.classList.contains('imp'))openImpact(mk.dataset.id);else openSheet(mk.dataset.id);}
+  if(mk&&tap){$('tip').hidden=true;
+    if(mk.classList.contains('imp')){ const ids=(mk.dataset.ids||'').split('~').filter(Boolean);
+      if(ids.length>1) openImpactGroup(ids); else openImpact(mk.dataset.id); }
+    else openSheet(mk.dataset.id);}
   else if(ob&&tap&&VB.w>150) selectOblast(ob);});
 wrap.addEventListener('pointercancel',endT); wrap.addEventListener('pointerleave',endT); wrap.addEventListener('lostpointercapture',endT);
 wrap.addEventListener('wheel',e=>{e.preventDefault();const [cx,cy]=toSvg(e.clientX,e.clientY);zoomAt(e.deltaY<0?1.2:1/1.2,cx,cy);},{passive:false});
@@ -1103,17 +1116,60 @@ function clusterImpacts(list){
     else by.set(k,{m,n:1,ids:[m.id]}); }
   return [...by.values()];
 }
+// Same place, twice over: two explosions 3 km apart are two different events, but on a 300 km view they are
+// the same eleven pixels. Drawing both means two glyphs on top of each other and two labels fighting for the
+// same space — and the old answer, pushing them onto a ring, moved each one off the place it was reported.
+// So anything closer than one glyph-width becomes a single dot carrying the total. Explosions and confirmed
+// shoot-downs are never merged into each other: they mean opposite things, and are grouped apart even when
+// they sit on the same street. Nothing is lost — the grouping is a function of zoom, so zooming in pulls the
+// group back into its separate reports, and a tap lists every one of them with its own source.
+const IMP_GAP=26;                        // px between two impact glyphs before they read as one blob
+function packImpacts(cl){
+  const out=[];
+  for(const c of cl){
+    const dn=c.m.status==='down'; const [x,y]=proj(c.m.lon,c.m.lat);
+    let host=null;
+    for(const o of out){ if(o.dn!==dn) continue;
+      if(Math.hypot(o.x-x,o.y-y)<=IMP_GAP*KPX){ host=o; break; } }
+    if(!host){ out.push({x,y,dn,n:c.n,m:c.m,ids:c.ids.slice(),places:new Set([c.m.place])}); continue; }
+    host.n+=c.n; host.ids.push(...c.ids); host.places.add(c.m.place);
+    // anchored and labelled by its most recent member, never by a centroid — a centroid would put the dot
+    // on a spot where nobody reported anything
+    if(c.m.ts>host.m.ts){ host.m=c.m; const [hx,hy]=proj(c.m.lon,c.m.lat); host.x=hx; host.y=hy; }
+  }
+  return out;
+}
 function drawImpacts(){
   const g=$('impactsg'); if(!IMP_H){g.innerHTML='';return;}
   const now=Date.now();
-  g.innerHTML=clusterImpacts(IMP).map(({m,n})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const cls=h>48?'d2':h>24?'d1':''; const s=((dn?1.1:1.35)*KPX).toFixed(2);
+  g.innerHTML=packImpacts(clusterImpacts(IMP)).map(({m,n,ids,places})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const cls=h>48?'d2':h>24?'d1':''; const s=((dn?1.1:1.35)*KPX).toFixed(2); const more=places.size-1;
     const glyph=dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
-    return `<g class="imp ${cls} ${dn?'dn':'im'} ${(!dn&&h<1.5)?'fresh':''}" data-id="${esc(m.id)}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${(9*KPX).toFixed(2)}"/>${(!dn&&h<1.5)?`<circle class="sw" r="${(11*KPX).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
+    return `<g class="imp ${cls} ${dn?'dn':'im'} ${(!dn&&h<1.5)?'fresh':''}${n>1?' grp':''}" data-id="${esc(m.id)}" data-ids="${esc(ids.join('~'))}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${((n>1?11:9)*KPX).toFixed(2)}"/>${(!dn&&h<1.5)?`<circle class="sw" r="${(11*KPX).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${more>0?` +${more}`:``}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
   $('imph').textContent=IMP_H?IMP_H+'h':''; $('impbtn').classList.toggle('on',!!IMP_H);
 }
 function fmtD(ts){const d=new Date(ts);const tm=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ});const today=new Date().toLocaleDateString('en-GB',{timeZone:TZ})===d.toLocaleDateString('en-GB',{timeZone:TZ});return today?tm:d.toLocaleDateString(LOCALE(),{day:'2-digit',month:'short',timeZone:TZ})+' '+tm;}
 async function loadImpacts(){ if(!IMP_H){IMP=[];drawImpacts();return;} try{const d=await jget('/api/impacts?hours='+IMP_H,12000);IMP=d.impacts||[];}catch(e){IMP=[];} drawImpacts(); }
 $('impbtn').onclick=()=>{IMP_H=IMP_STEPS[(IMP_STEPS.indexOf(IMP_H)+1)%IMP_STEPS.length];try{localStorage.setItem('imph',String(IMP_H));}catch(e){};loadImpacts();};
+// A grouped dot opens the list behind it, never a single report standing in for the others: every source is
+// one tap away, and the sheet says plainly that the grouping is a zoom artefact, not a merged event.
+function openImpactGroup(ids){
+  const ms=ids.map(id=>IMP.find(x=>x.id===id)).filter(Boolean).sort((a,b)=>b.ts.localeCompare(a.ts));
+  if(!ms.length) return; if(ms.length===1) return openImpact(ms[0].id);
+  const dn=ms[0].status==='down';
+  const rows=ms.map(m=>`<button class="grow" data-gid="${esc(m.id)}">
+      <span class="gp">${esc(m.place==='\u043e\u0431\u043b\u0430\u0441\u0442\u044c'?t('oblcentre'):pn(m.place))}</span>
+      <span class="gt">${esc(fmtD(m.ts))}</span>
+      <span class="gc">${esc(CH[m.channel]||'@'+m.channel)}</span></button>`).join('');
+  $('tip').hidden=true;
+  $('sheetbody').innerHTML=`<div class="type">${dn?t('im_down'):t('im_expl')} <span class="chip">\u00d7${ms.length}</span></div>
+    <div class="kv1">${esc(t('im_grp',ms.length))} \u2014 ${esc(t('im_grp_note'))}</div>
+    <div class="glist">${rows}</div>
+    <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;color:var(--muted)">${t('im_note',IMP_H,dn?t('im_note_down'):t('im_note_expl'))}</span><span style="display:flex;gap:6px"><button class="tgl" id="gzoom">${t('im_grp_zoom')}</button><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></span></div>`;
+  setTimeout(()=>{
+    $('sheetbody').querySelectorAll('.grow').forEach(b=>b.onclick=()=>openImpact(b.dataset.gid));
+    const z=$('gzoom'); if(z) z.onclick=()=>{ const [x,y]=proj(ms[0].lon,ms[0].lat); closeSheet(); setView(x,y,Math.min(VB.w,18)); };
+  },0);
+  $('sheet').classList.add('show'); }
 function openImpact(id){ const m=IMP.find(x=>x.id===id); if(!m) return; $('tip').hidden=true; const [x,y]=proj(m.lon,m.lat); const dist=Math.hypot(x,y);
   const dn=m.status==='down';
   $('sheetbody').innerHTML=`<div class="type">${dn?t('im_down'):t('im_expl')} <span class="chip">${esc(fmtD(m.ts))}</span></div>
@@ -1288,7 +1344,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.4';
+const APP_VERSION='1.5';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
