@@ -1222,7 +1222,10 @@ setInterval(()=>{ if(pulseBusy){$('upd').textContent=t('u_updating');return;} co
 schedulePulse();setInterval(()=>{if(!document.hidden)render();},30000);setInterval(()=>{if(!document.hidden)loadHist();},180000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshAll();}});
 (async()=>{await loadMap();fillDiscOblasts();loadDistricts();drawHome();assignTownOblasts();setView(0,0,110);updateTiles();layoutTownLabels();applySelOblast();await refreshAll();
-  try{ checkBuild(await(await fetch('/api/version')).json()); }catch(e){}$('imph').textContent=IMP_H?IMP_H+'h':'';loadImpacts();await loadHist();connect();scheduleTick();})();
+  try{ checkBuild(await(await fetch('/api/version')).json()); }catch(e){}
+  {const q=new URLSearchParams(location.search);            // home-screen shortcuts from the manifest
+   if(q.get('city')==='1') toggleCity(true);
+   if(q.get('help')==='1') setTimeout(()=>{$('disc').hidden=true;helpSheet();},400);}$('imph').textContent=IMP_H?IMP_H+'h':'';loadImpacts();await loadHist();connect();scheduleTick();})();
 </script>
 </body>
 </html>

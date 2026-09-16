@@ -1,5 +1,7 @@
 // Clear Sky — service worker: push notifications + app shell (no caching of live data)
 self.addEventListener('install', e => { self.skipWaiting(); });
+// the page can ask the waiting worker to take over immediately (the "new version" bar does this)
+self.addEventListener('message', e => { if (e.data === 'skipWaiting') self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
 
 self.addEventListener('push', e => {
