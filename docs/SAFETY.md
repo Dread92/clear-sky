@@ -38,6 +38,58 @@ Silence is not safety, and it is not danger either — it is silence, and it mus
 A grey marker is a record of the last thing known, not a target's current position, and the sheet
 says so in those words.
 
+## A missile is not aged like a drone
+
+The table above is written for a Shahed: about 3 km a minute, so a five-minute-old dot is still worth
+something, and going grey is an honest way to say *this is the last thing anyone reported*. Applying the
+same rule to a missile would be a lie with a precise pin in it. A Kalibr or a Kh-101 covers roughly 13 km
+a minute and turns as it goes; a ballistic covers around 35 and is on its terminal leg before a second
+report could exist. Two minutes of silence already puts the marker tens of kilometres from the truth.
+
+So missiles are handled apart:
+
+- **They never get the grey `stale` flag.** There is no age at which "last seen here, not updated" is a
+  useful thing to say about something moving that fast.
+- **The pin becomes a circle.** For a short window after the report — 2.5 min for cruise, 1.5 for
+  ballistic — the position is still worth a point. Past that, the marker keeps the last reported position
+  as its origin and grows a ring at the speed of that missile family, labelled *could be anywhere within
+  N km · last seen <place> at HH:MM*. The ring is the claim; the point underneath it is only where the
+  post put it. The ring is capped at 260 km, because past that it covers half the country and stops
+  meaning anything.
+- **They are dropped at 12 minutes** (`MISSILE_TTL_MIN`), not 15. By then the last position tells you
+  nothing at all, even as an uncertainty circle.
+- **No course ray on a ballistic.** A cruise missile flying a reported heading can justify a capped ray
+  with a cone; a ballistic one on a lofted trajectory cannot, and the ray is hidden for that type.
+
+Ballistic and cruise are also drawn differently on purpose — a white-hot fast-blinking spike against the
+red cruise arrow — because the time you have is different and the marker should say so at a glance,
+without being read.
+
+Everything on the screen still comes from a post. Nothing here estimates where a missile *is*; the circle
+is an explicit statement of how little the last report now constrains it. It also keeps growing between
+server updates — at ballistic speed a circle that only moved when new data arrived would sit perfectly
+still exactly when it matters, and a still circle reads as a known position.
+
+### How often the app looks
+
+Refresh rate is a level, not a setting:
+
+| Level | When | Client | Telegram and the alert APIs |
+|---|---|---|---|
+| 0 | nothing missile-shaped | 15 s | 30 s / 15 s |
+| 1 | cruise missiles or a MiG-31K up | 5 s | 10 s |
+| 2 | a ballistic threat is open | **1 s** | 5 s |
+
+Both ends move together on purpose. A client polling every second in front of a server that last read its
+sources fifteen seconds ago is theatre: the app can only ever be as fresh as the slowest link, and that
+link is the source poll. Level 2 is rare and lasts minutes, which is the only reason a one-second cadence
+is affordable at all — and the ping counters are batched in memory rather than committed one by one, so
+counting usage can never be what stalls the alert path during an attack.
+
+At that cadence the countdown is replaced by **LIVE**, because a number flickering between 1 and 0 reads
+as a fault rather than as speed. It turns red the moment a round actually fails, which is the only thing
+there worth noticing.
+
 ## A warning is only raised when something was actually reported
 
 The preventive banner (MiG-31K airborne, ballistic threat) is the loudest thing in the app, so what

@@ -30,6 +30,10 @@ button{font:inherit;cursor:pointer}
 .ticker{height:18px;overflow:hidden;background:#0f1218;border-bottom:1px solid var(--line);font:600 10.5px/18px var(--mono);color:#b9c2d0;letter-spacing:.03em;white-space:nowrap}
 .ticker .tk{display:inline-block;animation:tkscroll 55s linear infinite}.ticker .tk span{padding-right:40px}@keyframes tkscroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .upd .cd{display:inline-block;min-width:26px;color:var(--ua-yellow);font-weight:700}
+/* ballistic: a second-by-second countdown would read as a stutter, so it says LIVE and pulses instead */
+.upd .cd.live{color:#ff5b52;letter-spacing:.08em;animation:livepulse 1s ease-in-out infinite}
+.upd .cd.live.bad{color:#ff8a3d;animation:none}
+@keyframes livepulse{0%,100%{opacity:1}50%{opacity:.35}}
 .upd .cd.bad{color:var(--red2)}
 .modal{position:fixed;inset:0;background:rgba(5,7,10,.78);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}.modal[hidden]{display:none}
 .mbox{background:#14171d;border:1px solid var(--line);border-top:3px solid var(--ua-yellow);max-width:480px;max-height:calc(100vh - 32px - var(--sat) - var(--sab));overflow:auto;padding:16px 18px;font:14px/1.45 var(--sans);color:var(--ink)}.mbox p{margin:8px 0}.mbox .type{font:700 20px var(--cond);text-transform:uppercase;letter-spacing:.03em}
@@ -251,6 +255,23 @@ svg.city .town.district{fill:#aeb8c8;font-weight:500}
 .mk .hdg{fill:#ff8a3d;stroke:#080b10;stroke-width:.6px;vector-effect:non-scaling-stroke}.mk.jet .hdg{fill:#ffb15c}.mk.inbound .hdg{fill:#ff4d57}.mk.tohome .hdg{fill:#ff2d55}.mk.ballistic_missiles .hdg,.mk.cruise_missiles .hdg{fill:#ff5a5a}.mk.guided_aerial_bombs .hdg{fill:#c78bff}
 /* Cruise and ballistic missiles: long range, minutes of warning, a much bigger warhead. They are the loudest
    thing on the map — brighter, larger, double pulse, and their label never hides at any zoom. */
+/* Cruise: a winged body on a route you can follow — red, with a marching course ray.
+   Ballistic: no route to draw, it arcs down from above. White-hot, faster pulse, a downward spike, no ray. */
+.mk.ballistic_missiles .glyph{fill:#fff!important;stroke:#ff1744;stroke-width:1.6px;filter:drop-shadow(0 0 calc(var(--k,1)*4px) rgba(255,23,68,1));animation:balblink .55s steps(2) infinite}
+.mk.ballistic_missiles .halo,.mk.ballistic_missiles .halo2{stroke:#fff;animation-duration:.7s}
+.mk.ballistic_missiles .ahead,.mk.ballistic_missiles .cone{display:none}
+.mk.ballistic_missiles .lbl{fill:#fff}.mk.ballistic_missiles .lbl2{fill:#ffc9d2}
+@keyframes balblink{0%,55%{fill:#fff}56%,100%{fill:#ff1744}}
+body.lite .mk.ballistic_missiles .glyph{fill:#fff!important;stroke:#000;animation:none;filter:none}
+/* the circle of where a fast target could now be — not a prediction, a reachable area */
+/* pointer-events:none matters: a 90 km circle would otherwise swallow every tap inside it */
+.mk .reach{fill:rgba(255,32,32,.07);stroke:#ff2020;stroke-width:1.6px;vector-effect:non-scaling-stroke;stroke-dasharray:7 6;pointer-events:none;animation:reachspin 24s linear infinite}
+.mk.ballistic_missiles .reach{fill:rgba(255,255,255,.07);stroke:#fff}
+@keyframes reachspin{to{stroke-dashoffset:-260}}
+.mk.uncert .glyph{opacity:.55}.mk.uncert .halo,.mk.uncert .halo2,.mk.uncert .ahead,.mk.uncert .cone{display:none}
+.mk.uncert .lbl2{fill:#ffb3b5}
+svg:not(.close) .mk.uncert .lbl,svg.far .mk.uncert .lbl2{display:block}
+body.lite .mk .reach{stroke:#fff;fill:rgba(255,255,255,.06)}
 .mk.msl .glyph{fill:#ff2020;stroke:#fff;stroke-width:1.4px;filter:drop-shadow(0 0 calc(var(--k,1)*3px) rgba(255,40,40,.9))}
 .mk.msl .halo{stroke:#ff2020;stroke-width:2.4px;animation-duration:1s;opacity:.85}
 .mk.msl .halo2{fill:none;stroke:#ff6b6b;stroke-width:1.6px;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center;animation:halo 1s ease-out .5s infinite}
@@ -411,7 +432,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">v1.2</div>
+    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">v1.4</div>
     <button class="mi" id="est" data-t="m_est">Estimate motion along heading (EST)</button>
     <button class="mi" id="zcity2" data-t="m_city">Kyiv city map (10 districts) — toggle</button><button class="mi" id="zobl" data-t="m_zobl">Zoom out to whole oblast</button><button class="mi" id="zreg" data-t="m_zreg">Zoom out to surrounding oblasts</button><button class="mi" id="zua" data-t="m_zua">Zoom out to all of Ukraine</button>
   </div>
@@ -511,6 +532,14 @@ const RAION=Object.fromEntries(Object.keys(RAION_N).map(r=>[r,raionName(r)]));
 const RAION_STEM=[['бровар','brovary'],['бориспіл','boryspil'],['бучан','bucha'],['вишгород','vyshhorod'],['обухів','obukhiv'],['білоцерків','bila-tserkva'],['фастів','fastiv']];
 const RAION_LBL={bucha:[-22,-8],vyshhorod:[-10,-48],brovary:[30,-18],boryspil:[52,14],obukhiv:[26,44],'bila-tserkva':[-30,70],fastiv:[-28,24]};
 const SPEED=m=>m.type==='drones'?(m.jet?6.5:2.7):(m.type==='cruise_missiles'||m.type==='unspecified_missiles')?12:0; // km/min — 0 for an unspecified threat: nothing to extrapolate
+// A missile position is only worth a pin for as long as the missile cannot have gone far. After that the honest
+// statement is not "it is here" and not "it is gone" — it is "it was there at HH:MM, and at this speed it could
+// now be anywhere within N km". These numbers are what the app is willing to assume, and nothing more:
+//   cruise  ~13 km/min (Kalibr, Kh-101): flies a route, can turn, can be tracked and re-reported
+//   ballistic ~35 km/min (Iskander, Kinzhal): arcs above everything, minutes from launch to impact
+const MSL={cruise_missiles:{v:13,valid:2.5},unspecified_missiles:{v:13,valid:2.5},ballistic_missiles:{v:35,valid:1.5}};
+const mslKind=m=>MSL[m.type];
+const REACH_CAP=260;                       // beyond this the circle covers half the country and says nothing
 const CAPMIN=m=>m.type==='drones'?45:8;
 const TZ='Europe/Kyiv'; const TOPBASE=86;   // header: 40 (bar) + 28 (band) + 18 (ticker) — the threat strip adds its own height
 const $=id=>document.getElementById(id);
@@ -747,6 +776,7 @@ function linkStatus(){
 const STATUS_EN={down:t('st_down'),impact:t('st_impact'),lost:t('st_lost'),clear:t('st_clear')}; const STATUS_W={down:t('sw_down'),impact:t('sw_impact'),lost:t('sw_lost'),clear:t('sw_clear')};
 const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4.5 6.5 L-8.5 6.5 Z"/><path class="glyph" d="M0-9 L0 6" style="fill:none;stroke:#080b10;stroke-width:1.2px"/><g class="jetfx"><path class="flame" d="M-2.5 9 L0 15 L2.5 9 Z"/><path class="flame2" d="M-1.2 9 L0 12.5 L1.2 9 Z"/></g>',
   missile:'<path class="glyph" d="M0-10 L2.5-5 L2.5 4 L5 8 L5 10 L1.5 7.5 L-1.5 7.5 L-5 10 L-5 8 L-2.5 4 L-2.5-5 Z"/>',
+  ballistic:'<path class="glyph" d="M0 11 L-5.5-2 L-2-2 L-2-11 L2-11 L2-2 L5.5-2 Z"/>',
   bomb:'<circle class="glyph" cx="0" cy="3" r="6"/><path class="glyph" d="M-2-3 L2-3 L2-7 L-2-7 Z"/>',
   unknown:'<path class="glyph tri" d="M0-9 L9 7 L-9 7 Z"/><path d="M0-4 L0 1" stroke="#080b10" stroke-width="2" stroke-linecap="round"/><circle cx="0" cy="4" r="1.2" fill="#080b10"/>',
   down:'<path class="glyph x" d="M-7-7 L7 7 M7-7 L-7 7"/><circle class="glyph ring" cx="0" cy="0" r="9"/>',
@@ -754,12 +784,29 @@ const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4
   lost:'<circle class="glyph ring" cx="0" cy="0" r="8"/><text class="glyph q" x="0" y="3.5" text-anchor="middle">?</text>',
   clear:'<circle class="glyph ring" cx="0" cy="0" r="8"/><path class="glyph x" d="M-4 0 L-1 3 L5-4"/>'};
 let built=new Map(); const homeAlerted=new Set();
+// The uncertainty ring has to keep growing between server updates. A ballistic missile adds half a kilometre
+// of doubt every second, so a circle that only moved when new data arrived would sit perfectly still exactly
+// when it matters most — and a still circle reads as a known position, which is the one thing it is not.
+function reachOf(m){ const mk=(!m.status&&!m.endedBy)?mslKind(m):null; if(!mk) return 0;
+  const over=(Date.now()-new Date(m.ts).getTime())/60000-mk.valid;
+  return over>0?Math.min(over*mk.v,REACH_CAP):0; }
+function paintReach(b,m){ const reach=reachOf(m); m._reach=reach;
+  const rc=b.g.querySelector('.reach'); b.g.classList.toggle('uncert',reach>0);
+  if(rc){ if(reach>0){ rc.style.display=''; rc.setAttribute('r',reach.toFixed(1)); } else rc.style.display='none'; }
+  if(reach>0){ const pl=m.place==='\u043e\u0431\u043b\u0430\u0441\u0442\u044c'?'':pn(m.place);
+    b.g.querySelector('.lbl2').textContent=`${t('msl_reach',Math.round(reach))} \u00b7 ${pl?t('msl_seen',pl,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`; }
+  return reach; }
+// every second, for missiles only — not a full render: during a raid there can be dozens of markers and a
+// phone on 2G has better things to do than re-lay out all of them once a second.
+function growReach(){ if(document.hidden) return;
+  for(const m of MK){ if(!mslKind(m)||m.status||m.endedBy) continue; const b=built.get(m.id); if(b) paintReach(b,m); } }
+setInterval(growReach,1000);
 function buildMarker(m){
   const g=document.createElementNS('http://www.w3.org/2000/svg','g'); g.setAttribute('class',`mk ${m.type} ${m.jet?'jet':''} ${m.status?'st st-'+m.status:''}`); g.dataset.id=m.id;
-  const glyph=m.status?G[m.status]:(m.type==='drones'?G.drone:m.type==='unknown'?G.unknown:(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?G.bomb:G.missile);
+  const glyph=m.status?G[m.status]:(m.type==='drones'?G.drone:m.type==='unknown'?G.unknown:m.type==='ballistic_missiles'?G.ballistic:(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?G.bomb:G.missile);
   const isNew=!seenMk.has(m.id); seenMk.add(m.id);
   const isMsl=/missile/.test(m.type)&&!m.status; if(isMsl) g.classList.add('msl');
-  g.innerHTML=`<line class="ahead" x1="0" y1="0" x2="0" y2="0"/><polygon class="cone" points="0,0 0,0 0,0"/><circle class="halo" cx="0" cy="0" r="6"/>${isMsl?'<circle class="halo2" cx="0" cy="0" r="6"/>':''}${isNew?`<circle class="spawn" cx="0" cy="0" r="${(10*KPX).toFixed(1)}"/>`:''}
+  g.innerHTML=`<line class="ahead" x1="0" y1="0" x2="0" y2="0"/><polygon class="cone" points="0,0 0,0 0,0"/><circle class="halo" cx="0" cy="0" r="6"/>${isMsl?'<circle class="halo2" cx="0" cy="0" r="6"/><circle class="reach" cx="0" cy="0" r="0" style="display:none"/>':''}${isNew?`<circle class="spawn" cx="0" cy="0" r="${(10*KPX).toFixed(1)}"/>`:''}
     ${m.type==='drones'&&!m.status?`<g class="orbit"><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="7s" repeatCount="indefinite"/><g class="body"><g class="rot">${glyph}</g></g></g><circle class="loiter" cx="0" cy="0" r="1"/>`:`<g class="body"><g class="rot">${glyph}</g></g>`}
     <polygon class="hdg" points="0,-4.5 4.5,3 0,1 -4.5,3" style="display:none"/><text class="qm" x="0" y="0">?</text><text class="dn" x="0" y="0">↓</text><g class="cnt" style="display:none"><circle r="6.5"/><text y="3.2">2</text></g><text class="lbl" x="5" y="-4"></text><text class="lbl2" x="5" y="0"></text><circle class="hit" cx="0" cy="0" r="8"/>`;
   g.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;showTip(m,e);}); g.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;moveTip(e);}); g.addEventListener('pointerleave',()=>{$('tip').hidden=true;});
@@ -800,6 +847,7 @@ function tick(){
     }else if(orbit){ const at=orbit.querySelector('animateTransform'); if(at) at.remove(); orbit.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright(m)}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
     else b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright(m)}) scale(${gs.toFixed(2)})`);
     const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.25*KPX).toFixed(2)})`);}else hdg.style.display='none';
+    paintReach(b,m);          // how far a fast target could have travelled since it was last reported
     const dsc=!!(m.alt&&m.alt.state==='descending')&&!m.status&&!m.endedBy&&!m.stale;
     const altM=(m.alt&&m.alt.m&&!m.status&&!m.endedBy)?m.alt.m:null;
     b.g.classList.toggle('desc',dsc); b.g.classList.toggle('hasalt',!!altM);
@@ -822,7 +870,7 @@ function tick(){
     b.g.querySelector('.lbl').textContent=name;
     const placeEn=m.place==='область'?'':pn(m.place);
     const descTxt=(m.alt&&m.alt.state==='descending'&&!m.status&&!m.endedBy&&!m.stale)?('↓ '+t('alt_desc')+' · '):'';
-    b.g.querySelector('.lbl2').textContent=descTxt+(m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||m.endedBy.status,pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
+    b.g.querySelector('.lbl2').textContent=descTxt+(m._reach>0?`${t('msl_reach',Math.round(m._reach))} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||m.endedBy.status,pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
     if(m.status){ if(m.status!=='clear') downed++; } else if(!m.endedBy){ tracked++; const c=m.csum||m.count||1; if(m.stale) totStale+=c; else if(m.type==='drones'){ if(m.jet) totJet+=c; else totShahed+=c; } else if(m.type==='unknown') totUnk+=c; else totMsl+=c; if(info.inbound&&!m.stale){inboundCount++; if(!nearest||info.dist<nearest.dist) nearest={...info,m};} }
     if(!m.status&&!m.endedBy&&(x<VB.x||x>VB.x+VB.w||y<VB.y||y>VB.y+VB.h)) edges.push({m,x,y,info,name});
     lblPos.push({b,m,sx:x/KPX,sy:y/KPX});
@@ -961,6 +1009,7 @@ function openSheet(id){
     :closed?`<div class="kv1 green">${t('sh_closes',closed.type==='drones'?(closed.jet?t('k_jet_l'):t('k_shahed')):THREAT[closed.type]?.[1],esc(pn(closed.place)),fmtT(closed.ts))}</div>`:'';
   const merged=m.cids&&m.cids.length?`<div class="kv1 muted">${t('sh_merged',m.cids.length+1,m.csum)}</div>`:''; const track=m.history&&m.history.length?`<div class="kv1">${t('sh_track',m.history.length+1)}: ${m.history.length>3?'… → ':''}${m.history.slice(-3).map(h=>`${esc(pn(h.place||'?'))} ${fmtT(h.ts)}`).join(' → ')} → <b>${esc(placeEn)} ${fmtT(m.ts)}</b></div>`:'';
   const conf=`${t('sh_conf',cf(ev.position?.confidence))}${m.status?'':` · ${t('sh_hconf',cf(ev.heading?.confidence))}`}${ev.count?' · '+t('sh_cnttext'):''}${cor.length?` · ${tn('sh_others',cor.length)}`:''}`;
+  const mk=(!m.status&&!m.endedBy)?mslKind(m):null;
   const alt=m.alt&&!m.status?m.alt:null;
   const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
   const altChip=alt&&alt.state==='descending'?` <span class="chip desc">↓ ${esc(t('alt_desc'))}</span>`:alt&&alt.m?` <span class="chip">~${alt.m} ${t('m_unit')}</span>`:alt&&alt.state?` <span class="chip">${esc(ALTL[alt.state]||alt.state)}</span>`:'';
@@ -968,6 +1017,8 @@ function openSheet(id){
     <div class="kv1 muted">${src} · <a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">${t('sh_post')}</a></div>
     <div class="kv1">${where}</div>${state}${merged}${track}
     ${m.type==='unknown'&&!m.status?`<div class="kv1 yellow">${esc(t('unk_note'))}${m.likely==='drones'?' '+esc(m.alt&&m.alt.m?t('alt_likely'):t('unk_likely_l')):''}</div>`:''}
+    ${mk?`<div class="kv1 muted" style="font-size:12px">${esc(m.type==='ballistic_missiles'?t('msl_bal'):t('msl_cru'))}</div>`:''}
+    ${(m._reach>0)?`<div class="kv1 yellow"><b>${esc(t('msl_reach',Math.round(m._reach)))}</b> — ${esc(t('msl_seen',placeEn,fmtT(m.ts)))}<div style="color:var(--muted);font-size:11.5px;margin-top:3px">${esc(t('msl_note',mk.v))}</div></div>`:''}
     <div class="txt" style="border-left-color:var(--orange);margin-top:8px">${esc(showUA()?(ev.segment||m.text):(ev.segment_en||ev.segment||m.text_en||m.text))}</div>
     <div class="kv1 muted" style="font-size:11.5px">${conf}</div>
     <details style="margin-top:6px"><summary style="font:12px var(--mono);color:var(--muted);cursor:pointer">${t('sh_details')}</summary>
@@ -1237,7 +1288,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.2';
+const APP_VERSION='1.4';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
@@ -1368,7 +1419,7 @@ async function pushSync(){ if(!PUSH_SUB) return;
 
 // ---- 7. how the app works ----------------------------------------------------------------
 function helpSheet(){
-  const secs=[1,2,3,4,5,6,7,8,9,10,11,12,13].map(i=>`<div class="hsec"><h4>${esc(t('h'+i+'_t'))}</h4><p>${esc(t('h'+i+'_b'))}</p></div>`).join('');
+  const secs=[1,2,3,4,5,6,7,8,9,10,11,12,13,14].map(i=>`<div class="hsec"><h4>${esc(t('h'+i+'_t'))}</h4><p>${esc(t('h'+i+'_b'))}</p></div>`).join('');
   $('sheetbody').innerHTML=`<div class="type">${t('help_title')}</div>
     <div class="kv1">${esc(t('help_intro'))}</div>
     <div class="warnbox">${esc(t('help_warn'))}</div>
@@ -1400,11 +1451,18 @@ document.querySelectorAll('#tabs button').forEach(b=>b.addEventListener('click',
 dchevSync();
 (()=>{let y0=null;$('handle').addEventListener('pointerdown',e=>{y0=e.clientY;});$('handle').addEventListener('pointerup',e=>{if(y0==null)return;const dy=e.clientY-y0;y0=null;if(dy<-20)$('drawer').classList.add('open');else if(dy>20)$('drawer').classList.remove('open');});})();
 setInterval(()=>{$('clock').textContent=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ})+' '+t('c_kyiv');},1000);
-let lastV=null, lastFull=0;
+let lastV=null, lastFull=0, lastUpd=null, nextPulse=Date.now()+15000;
 async function refreshAll(){await Promise.all([loadState(),loadMarkers(),loadFeed(false)]);lastFull=Date.now();lastUpd=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:TZ});}
 // every 15 s: a ~60-byte version ping; full reload only when the server says something changed (or every 60 s for staleness)
-// 15 s pulse normally; 5 s while a ballistic / cruise-missile threat is open (server decides: /api/version.missile)
-let MISSILE=false,pulseTimer=null,pulseBusy=false,pulseStarted=0;
+// Three cadences, chosen by the server (/api/version.msl), because the two missile families leave you very
+// different amounts of time:
+//   0  nothing flying   15 s
+//   1  cruise / MiG-31K   5 s
+//   2  ballistic open      1 s  — ~35 km a minute: every second not knowing is ~half a kilometre of warning.
+// Level 2 is rare and lasts minutes, which is the only reason a one-second ping is affordable. The server
+// speeds its own sources up to match; a one-second client in front of a fifteen-second server is theatre.
+let MISSILE=false,MSLLVL=0,pulseTimer=null,pulseBusy=false,pulseStarted=0;
+const pulseIv=()=>MSLLVL>=2?1000:MSLLVL?5000:15000;
 // Every request gets a deadline. Without one, a single fetch stalled on a weak cell can hang for minutes with
 // `pulseBusy` still true — and then the app quietly stops updating altogether, which is the one failure nobody
 // would notice until it mattered. The whole point is 15 s, always; 5 s while missiles are up.
@@ -1416,8 +1474,9 @@ async function pulse(force){
   if(document.hidden&&!force) return;
   pulseBusy=true; pulseStarted=Date.now();
   try{
-    const v=await jget('/api/version',8000); checkBuild(v);
-    if(v.missile!==MISSILE){MISSILE=!!v.missile;document.body.classList.toggle('missile',MISSILE);schedulePulse();}
+    const v=await jget('/api/version',MSLLVL>=2?4000:8000); checkBuild(v);
+    const lvl=v.msl!=null?+v.msl:(v.missile?1:0);
+    if(lvl!==MSLLVL){MSLLVL=lvl;MISSILE=lvl>0;document.body.classList.toggle('missile',MISSILE);document.body.classList.toggle('ballistic',lvl>=2);schedulePulse();}
     if(v.v!==lastV||Date.now()-lastFull>60000){lastV=v.v;await refreshAll();}
     else lastUpd=nowKyiv();
     netOK=true; lastPing=Date.now();
@@ -1426,14 +1485,17 @@ async function pulse(force){
 }
 const nowKyiv=()=>new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:TZ});
 let netOK=true,lastPing=Date.now();
-function schedulePulse(){ clearInterval(pulseTimer); const iv=MISSILE?5000:15000; nextPulse=Date.now()+iv;
+function schedulePulse(){ clearInterval(pulseTimer); const iv=pulseIv(); nextPulse=Date.now()+iv;
   pulseTimer=setInterval(()=>{nextPulse=Date.now()+iv;pulse();},iv); }
 // A phone throttles background timers, so the interval alone is not a guarantee. This second-by-second check is
 // the guarantee: if the last successful round is older than it should be, the next one starts now.
 setInterval(()=>{
-  const iv=MISSILE?5000:15000;
-  if(!document.hidden&&!pulseBusy&&Date.now()-lastPing>iv*2.5) { nextPulse=Date.now()+iv; pulse(); }
-  if(pulseBusy){$('upd').textContent=t('u_updating');return;}
+  const iv=pulseIv();
+  if(!document.hidden&&!pulseBusy&&Date.now()-lastPing>Math.max(iv*2.5,3000)) { nextPulse=Date.now()+iv; pulse(); }
+  if(pulseBusy&&MSLLVL<2){$('upd').textContent=t('u_updating');return;}
+  // At one-second cadence a countdown would just flicker between 1 and 0 and read as a fault. It says LIVE
+  // instead, and turns red the moment a round actually fails — which is the only thing worth noticing there.
+  if(MSLLVL>=2){ $('upd').innerHTML=`${lastUpd?t('u_upd')+' '+lastUpd+' \u00b7 ':''}<span class="cd live${netOK?'':' bad'}">${t('u_live')}</span>`; return; }
   const left=Math.max(0,Math.ceil((nextPulse-Date.now())/1000));
   $('upd').innerHTML=`${lastUpd?t('u_upd')+' '+lastUpd+' · ':''}<span class="cd${netOK?'':' bad'}">${left}s</span>`;
 },1000);

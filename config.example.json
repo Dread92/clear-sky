@@ -54,5 +54,6 @@
   "bind": "0.0.0.0",
   "marker_ttl_minutes": 45,
   "poll_telegram_missile_seconds": 10,
+  "poll_telegram_ballistic_seconds": 5,
   "track_stale_minutes": 5
 }

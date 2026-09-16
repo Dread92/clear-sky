@@ -91,11 +91,13 @@ en:{
   st_expl:'Explosions recorded',st_downs:'Confirmed shot down',st_launched:'Launched over Ukraine — Air Force',st_afdown:'shot down',st_win:'24 h · 7 d · 30 d',st_expl_day:'Explosions per day',st_src:'Explosions and shoot-downs are read from monitoring posts tied to a named town. Launch and shoot-down totals are the Air Force summaries.',
   fd_more:'more',fd_less:'less',fd_times:'×{0}',dr_close:'Close',dr_open:'Open',
   h13_t:'Status words',h13_b:'Shot down — a source confirmed the target was destroyed. Left the area — its oblast is no longer under alert, so the threat has gone or was resolved. Location lost — tracking stopped; the last known place is shown. Marker not confirmed — no new report for five minutes: it fades, then goes. None of these mean the sky is safe.',
+  h14_t:'Missiles are treated differently',h14_b:'A Shahed does about 3 km a minute, so a five-minute-old dot still means something and it simply turns grey. A cruise missile does about 13, a ballistic one about 35 — a two-minute-old dot would already be tens of kilometres wrong. So missiles never go grey. Shortly after the report the marker grows a red circle: the area it could have reached since, not where it is. Ballistic is the white blinking spike, cruise the red arrow, and while a ballistic alert is open the app refreshes every second and shows LIVE instead of the countdown.',
   unk_likely:'likely a drone',unk_likely_l:'Most likely a strike drone — that is what this channel tracks. The post did not say so.',
   m_unit:'m',alt_likely:'A stated height almost always means a drone — the monitors call heights for them.',
   sup_free:'Free to use. Any support for hosting & development and NGO 07300 volunteer work is deeply appreciated.',
   sup_hosting:'Hosting & development',sup_ngo:'NGO 07300 — volunteer work',sup_community:'Community & feedback',sup_ver:'version',
-  c_kyiv:'Kyiv',u_upd:'upd',u_updating:'updating…',d_h:'h',d_min:'min'
+  msl_seen:'last seen {0} at {1}',msl_seen_np:'last seen at {0}',msl_reach:'could be anywhere within {0} km',msl_note:'A missile at this speed covers {0} km a minute. This circle is where it could have reached since the last report — not where it is. Take cover on the official alert, not on this map.',msl_bal:'Ballistic — arcs down from above, minutes from launch to impact',msl_cru:'Cruise — flies a route, can turn, can be re-reported',
+  c_kyiv:'Kyiv',u_upd:'upd',u_updating:'updating…',u_live:'LIVE',d_h:'h',d_min:'min'
 },
 uk:{
   m_home:'Пріоритетне місце…',m_ua:'Показувати оригінал (укр.)',m_snd:'Звукові сповіщення',m_vib:'Вібрація',m_push:'Push-сповіщення (телефон, застосунок закрито)',m_push_on:'Push-сповіщення на цьому телефоні ✓',m_push_ns:'Push-сповіщення тут не підтримуються',
@@ -185,11 +187,13 @@ uk:{
   st_expl:'Зафіксовано вибухів',st_downs:'Підтверджено збито',st_launched:'Запущено по Україні — Повітряні сили',st_afdown:'збито',st_win:'24 год · 7 д · 30 д',st_expl_day:'Вибухів за день',st_src:'Вибухи та збиття зчитано з моніторингових дописів із прив’язкою до названого міста. Підсумки запусків і збиттів — зі зведень Повітряних сил.',
   fd_more:'більше',fd_less:'менше',fd_times:'×{0}',dr_close:'Закрити',dr_open:'Відкрити',
   h13_t:'Слова статусу',h13_b:'Збито / Приземлено — джерело підтвердило знищення цілі. Залишив область / Вийшов із зони — в її області вже немає тривоги, тож загроза пішла або знята. Локаційно втрачено — спостереження припинилось; показано останнє відоме місце. Позначка не фіксується — немає нових повідомлень п’ять хвилин: тьмяніє, потім зникає. Жодне з цих слів не означає, що небо безпечне.',
+  h14_t:'Ракети показані інакше',h14_b:'Шахед летить близько 3 км за хвилину, тому позначка п’ятихвилинної давності ще щось значить і просто сіріє. Крилата ракета — близько 13, балістична — близько 35: позначка двохвилинної давності вже помилялася б на десятки кілометрів. Тому ракети ніколи не сіріють. За короткий час після допису біля позначки росте червоне коло: це зона, куди вона могла долетіти, а не де вона є. Балістична — білий спалахуючий шпиль, крилата — червона стрілка. Поки триває балістична загроза, застосунок оновлюється щосекунди і замість відліку показує НАЖИВО.',
   unk_likely:'ймовірно, дрон',unk_likely_l:'Найімовірніше ударний дрон — саме їх відстежує цей канал. У дописі це не вказано.',
   m_unit:'м',alt_likely:'Вказана висота майже завжди означає дрон — саме для них монітори називають висоту.',
   sup_free:'Користуйтеся безкоштовно. Будь-яка підтримка хостингу й розробки та волонтерської роботи ГО 07300 буде дуже вдячно прийнята.',
   sup_hosting:'Хостинг і розробка',sup_ngo:'ГО 07300 — волонтерська робота',sup_community:'Спільнота та відгуки',sup_ver:'версія',
-  c_kyiv:'Київ',u_upd:'онов.',u_updating:'оновлення…',d_h:'год',d_min:'хв'
+  msl_seen:'востаннє {0} о {1}',msl_seen_np:'востаннє о {0}',msl_reach:'може бути будь-де в межах {0} км',msl_note:'Ракета на такій швидкості долає {0} км за хвилину. Це коло — куди вона могла долетіти від останнього допису, а не де вона є. Ховайтеся за офіційною тривогою, а не за цією мапою.',msl_bal:'Балістична — заходить згори, від пуску до влучання кілька хвилин',msl_cru:'Крилата — летить маршрутом, може змінити курс, її можуть помітити знову',
+  c_kyiv:'Київ',u_upd:'онов.',u_updating:'оновлення…',u_live:'НАЖИВО',d_h:'год',d_min:'хв'
 },
 fr:{
   m_home:'Lieu prioritaire…',m_ua:'Afficher l\'original en ukrainien',m_snd:'Alertes sonores',m_vib:'Vibration',m_push:'Notifications push (téléphone, appli fermée)',m_push_on:'Notifications push sur ce téléphone ✓',m_push_ns:'Notifications push — non prises en charge ici',
@@ -279,11 +283,13 @@ fr:{
   st_expl:'Explosions enregistrées',st_downs:'Abattus confirmés',st_launched:"Lancés sur l'Ukraine — Forces aériennes",st_afdown:'abattus',st_win:'24 h · 7 j · 30 j',st_expl_day:'Explosions par jour',st_src:"Explosions et cibles abattues lues dans les publications de veille liées à une ville nommée. Les totaux de lancements et d'abattus viennent des bilans des Forces aériennes.",
   fd_more:'plus',fd_less:'moins',fd_times:'×{0}',dr_close:'Fermer',dr_open:'Ouvrir',
   h13_t:'Les mots de statut',h13_b:"Abattu — une source a confirmé la destruction de la cible. A quitté la zone — son oblast n'est plus en alerte, la menace est partie ou levée. Position perdue — le suivi s'est arrêté ; le dernier lieu connu est affiché. Marqueur non confirmé — aucun nouveau rapport depuis cinq minutes : il s'estompe, puis disparaît. Aucun de ces mots ne veut dire que le ciel est sûr.",
+  h14_t:"Les missiles sont traités autrement",h14_b:"Un Shahed fait environ 3 km par minute : un point vieux de cinq minutes veut encore dire quelque chose, il passe simplement en gris. Un missile de croisière en fait environ 13, un balistique environ 35 — un point vieux de deux minutes serait déjà faux de plusieurs dizaines de kilomètres. Les missiles ne passent donc jamais en gris. Peu après le signalement, un cercle rouge grandit autour du marqueur : c'est la zone qu'il a pu atteindre depuis, pas l'endroit où il est. Le balistique est la pointe blanche clignotante, la croisière la flèche rouge, et pendant une alerte balistique l'application se rafraîchit chaque seconde et affiche DIRECT à la place du compte à rebours.",
   unk_likely:'probablement un drone',unk_likely_l:"Probablement un drone d'attaque — c'est ce que suit ce canal. La publication ne le dit pas.",
   m_unit:'m',alt_likely:"Une altitude annoncée signifie presque toujours un drone — c'est pour eux que les moniteurs donnent la hauteur.",
   sup_free:"Gratuit à l'usage. Tout soutien à l'hébergement, au développement et au travail bénévole de l'ONG 07300 est très apprécié.",
   sup_hosting:'Hébergement et développement',sup_ngo:'ONG 07300 — travail bénévole',sup_community:'Communauté et retours',sup_ver:'version',
-  c_kyiv:'Kyiv',u_upd:'màj',u_updating:'mise à jour…',d_h:'h',d_min:'min'
+  msl_seen:'vu pour la dernière fois {0} à {1}',msl_seen_np:'vu pour la dernière fois à {0}',msl_reach:'peut être n\'importe où dans un rayon de {0} km',msl_note:"Un missile à cette vitesse parcourt {0} km par minute. Ce cercle est la zone qu'il a pu atteindre depuis le dernier rapport — pas l'endroit où il est. Mettez-vous à l'abri sur l'alerte officielle, pas sur cette carte.",msl_bal:"Balistique — plonge depuis la haute altitude, quelques minutes entre le tir et l'impact",msl_cru:'De croisière — suit une route, peut virer, peut être re-signalé',
+  c_kyiv:'Kyiv',u_upd:'màj',u_updating:'mise à jour…',u_live:'DIRECT',d_h:'h',d_min:'min'
 }};
 function t(k,...a){let s=(I18N[LANG]&&I18N[LANG][k]);if(s==null)s=I18N.en[k];if(s==null)return k;return a.length?s.replace(/\{(\d)\}/g,(_,i)=>a[+i]??''):s;}
 // plural: key_1 / key_n (en, fr) — uk also key_2 (2–4) / key_5 (5+, 11–14)

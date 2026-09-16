@@ -1,5 +1,46 @@
 # Changelog
 
+## 1.4.0 — 2026-09-17
+
+### Changed
+- **Missiles are no longer aged like drones.** Going grey after five minutes of silence is honest for a Shahed
+  (~3 km/min); for a cruise missile (~13 km/min) or a ballistic one (~35 km/min) a two-minute-old pin is already
+  tens of kilometres from the truth, and leaving it there is a lie with a precise point in it. So a missile never
+  gets the grey *stale* flag at all. For a short window after the report — 2.5 min cruise, 1.5 min ballistic — the
+  position still counts as a point. After that the marker grows a ring at that family's speed and reads
+  **"could be anywhere within N km · last seen \<place\> at HH:MM"**. The ring is capped at 260 km, and missiles
+  are dropped from the map at 12 minutes instead of 15, because past that even a circle says nothing.
+- **Ballistic now looks different from cruise at a glance.** A white-hot downward spike, blinking twice as fast,
+  with no course ray — a lofted trajectory cannot justify one — against the red cruise arrow with its capped ray
+  and uncertainty cone. The time you have is different for the two; the marker should say so without being read.
+- The threat sheet explains both, in all three languages: what the circle means, why a missile has no "last
+  updated" state, and that nothing on the screen estimates where a missile *is*.
+
+- **One-second refresh while a ballistic threat is open.** The cadence is now a level the server decides
+  (`/api/version.msl`): 15 s normally, 5 s for cruise missiles or a MiG-31K, **1 s for ballistic**. The server
+  speeds its own sources up with it — Telegram and the alert APIs go to 5 s at that level — because a
+  one-second client in front of a fifteen-second poller only refreshes a stale answer faster. At 1 s the
+  countdown is replaced by a pulsing **LIVE**, since a number flickering between 1 and 0 reads as a fault.
+- **The uncertainty ring now grows every second**, not only when new data arrives. A ballistic missile adds
+  about half a kilometre of doubt per second; a circle that sat still between updates would read as a known
+  position. Only missile markers are repainted on that tick — a phone on 2G does not re-lay out forty markers
+  a second.
+
+### Added
+- A **Missiles are treated differently** section in *How Clear Sky works*, in all three languages.
+- `docs/SAFETY.md`: why missiles are aged apart from drones, what the uncertainty ring claims, and the
+  refresh-level table.
+- `poll_telegram_ballistic_seconds` (default 5) in `config.example.json`.
+- Regression tests: a missile never receives `stale`, always carries `fast`, and is gone at 12 minutes
+  (`tests/test_prune.py`); the missile level, the source-poll shortening and its failure behaviour, and that
+  pings are batched rather than committed one by one (`tests/test_cadence.py`).
+
+### Fixed
+- **Usage counting could have become the bottleneck it was measuring.** Every ping committed its own SQLite
+  transaction; at one ping a second per device that is thousands of writes a second through a single
+  connection, during a ballistic alert, competing with the alert path. Pings are now counted in memory and
+  written in batches (at 200, or every 20 s), with the unwritten tail included in the dashboard's numbers.
+
 ## 1.3.0 — 2026-09-17
 
 ### Added

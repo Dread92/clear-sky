@@ -281,6 +281,11 @@ class Usage:
         self.day = None
         self.salt = os.urandom(16)
         self.seen = set()          # hashes seen today, in memory only, dropped at midnight
+        # Pings are counted in memory and written in batches. During a ballistic alert every client pings once
+        # a second: one committed transaction per ping would put thousands of writes a second through a single
+        # SQLite connection and stall the alert path itself — a counter is never allowed to do that.
+        self.pending = 0
+        self.flushed = 0.0
         with store.lock:
             store.conn.execute("""CREATE TABLE IF NOT EXISTS usage(
                 day TEXT PRIMARY KEY, devices INTEGER, loads INTEGER, pings INTEGER,
@@ -290,18 +295,39 @@ class Usage:
     def _roll(self):
         d = datetime.now(timezone(timedelta(hours=3))).strftime("%Y-%m-%d")
         if d != self.day:
+            if self.day is not None and self.pending:
+                self._flush(self.day, self.pending)          # yesterday's tail is not thrown away
+                self.pending = 0
             self.day, self.seen, self.salt = d, set(), os.urandom(16)   # new day, new salt: no linking across days
         return d
+
+    def _flush(self, day, n):
+        with self.store.lock:
+            c = self.store.conn
+            c.execute("INSERT OR IGNORE INTO usage(day,devices,loads,pings,lang,pwa,lite) VALUES(?,0,0,0,'{}',0,0)", (day,))
+            c.execute("UPDATE usage SET pings=pings+? WHERE day=?", (n, day))
+            c.commit()
 
     def hit(self, ip, ua, kind, lang=None, pwa=False, lite=False):
         try:
             import hashlib
+            due = 0
             with self.lock:
                 day = self._roll()
                 h = hashlib.blake2s(self.salt + (ip or "").encode() + (ua or "")[:120].encode(), digest_size=8).hexdigest()
                 new = h not in self.seen
                 if new:
                     self.seen.add(h)
+                if kind != "load":
+                    self.pending += 1
+                    now = time.time()
+                    due = self.pending if (self.pending >= 200 or now - self.flushed > 20) else 0
+                    if due:
+                        self.pending, self.flushed = 0, now
+            if kind != "load" and not new:
+                if due:
+                    self._flush(day, due)
+                return                    # the common case writes nothing at all
             with self.store.lock:
                 c = self.store.conn
                 c.execute("INSERT OR IGNORE INTO usage(day,devices,loads,pings,lang,pwa,lite) VALUES(?,0,0,0,'{}',0,0)", (day,))
@@ -318,8 +344,8 @@ class Usage:
                         d = json.loads(row[0] or "{}") if row else {}
                         d[lang] = d.get(lang, 0) + 1
                         c.execute("UPDATE usage SET lang=? WHERE day=?", (json.dumps(d), day))
-                else:
-                    c.execute("UPDATE usage SET pings=pings+1 WHERE day=?", (day,))
+                elif due:
+                    c.execute("UPDATE usage SET pings=pings+? WHERE day=?", (due, day))   # `due` already counts this one
                 c.commit()
         except Exception:
             pass       # counting must never get in the way of an alert
@@ -331,7 +357,12 @@ class Usage:
         out = [{"day": r[0], "devices": r[1], "loads": r[2], "pings": r[3],
                 "lang": json.loads(r[4] or "{}"), "pwa": r[5], "lite": r[6]} for r in rows]
         with self.lock:
-            live = len(self.seen)
+            live, day, tail = len(self.seen), self.day, self.pending
+        if tail:                                   # pings counted but not yet written
+            for r in out:
+                if r["day"] == day:
+                    r["pings"] += tail
+                    break
         return {"days": out, "today_devices": live,
                 "push_subs": len(self.store.push_all()),
                 "generated": now_iso()}
@@ -346,6 +377,10 @@ def _clean_post(text):
     except Exception:
         return text
 
+
+# How long a missile report stays on the map at all. Past this the last position tells you nothing useful even
+# as an uncertainty circle: a cruise missile has covered 150 km, a ballistic one has already arrived.
+MISSILE_TTL_MIN = 12
 
 AF_SUMMARY_CHANNELS = {"kpszsu", "war_monitor", "monitor_ukr"}   # the Air Force summary and the channels that re-post it verbatim
 _AF_NUM = r"(\d{1,3})(?:-?[а-яіїєґ']{1,3})?"
@@ -873,11 +908,18 @@ class State:
         return out
 
     # -- missile mode -----------------------------------------------------
-    # True while a ballistic / cruise-missile (or MiG-31K) threat is open on a watched region, or a post
-    # tagged ballistic/cruise came in during the last 10 min → clients poll every 5 s and Telegram every 10 s.
-    _missile_res = (0, False)
+    # A level, not a flag, because the two missile families leave you different amounts of time:
+    #   0  nothing flying   → clients ping every 15 s, Telegram every 30 s
+    #   1  cruise / MiG-31K → clients every 5 s, Telegram every 10 s
+    #   2  ballistic open   → clients every second, Telegram and the alert APIs every 5 s
+    # A ballistic missile covers ~35 km a minute: from the moment a post exists, every second the app
+    # spends not knowing about it is roughly half a kilometre of someone's warning. Level 2 is rare and
+    # short (the whole event is minutes), which is what makes a one-second cadence affordable at all.
+    MSL_NONE, MSL_CRUISE, MSL_BALLISTIC = 0, 1, 2
+    _missile_res = (0, 0)
 
     def missile_active(self):
+        """0 / 1 / 2 — truthy exactly when something missile-shaped is up, so old call sites still work."""
         t0, v = self._missile_res
         if time.time() - t0 < 4:
             return v
@@ -887,18 +929,26 @@ class State:
 
     def _missile_active(self):
         fav = set(self.cfg.get("favourites") or [])
+        bal = {"ballistic_missiles"}
         kinds = {"ballistic_missiles", "cruise_missiles", "mig31k_departure"}
+        level = self.MSL_NONE
         with self.lock:
             for a in self.active.values():
                 if fav and a.get("oblast_uid") not in fav:
                     continue
                 for t in a.get("threats") or []:
-                    if (t.get("threat_type") if isinstance(t, dict) else t) in kinds:
-                        return True
+                    ty = t.get("threat_type") if isinstance(t, dict) else t
+                    if ty in bal:
+                        return self.MSL_BALLISTIC          # nothing outranks this, stop looking
+                    if ty in kinds:
+                        level = self.MSL_CRUISE
         for p in self.store.feed_since(10, limit=60, translate=False):
-            if kinds & set(p.get("tags") or []):
-                return True
-        return False
+            tags = set(p.get("tags") or [])
+            if bal & tags:
+                return self.MSL_BALLISTIC
+            if kinds & tags:
+                level = self.MSL_CRUISE
+        return level
 
     # -- impact / shoot-down history (24/48/72 h) ---------------------------
     # "impact / explosion" and confirmed "shot down" outcome markers, parsed from every post of the window (cached per post,
@@ -995,6 +1045,17 @@ class State:
             if m.get("status"):
                 if age <= 25:
                     keep.append(m)
+                continue
+            # A missile is not a drone and must not be aged like one. A Shahed does ~3 km a minute, so a
+            # five-minute-old dot is still worth something. A cruise missile does ~13, a ballistic one ~35: a
+            # position two minutes old is already tens of kilometres wrong, and a grey dot left on the map would
+            # be a lie with a precise pin in it. So missiles keep no "stale" flag at all — the client turns them
+            # into a growing circle of where they could now be — and they are dropped sooner.
+            if "missile" in (m.get("type") or ""):
+                if age > MISSILE_TTL_MIN:
+                    continue
+                m["fast"] = True
+                keep.append(m)
                 continue
             if age > stale:
                 # An unspecified threat ("Васильків увага") says where, not what. It is a loud red sign while it
@@ -1094,6 +1155,20 @@ class Notifier:
 # ---------------------------------------------------------------------------
 # Source pollers
 # ---------------------------------------------------------------------------
+def poll_gap(state, interval, rush=5):
+    """Seconds to wait before the next round.
+
+    While a ballistic threat is open everything upstream is read at `rush` instead. Serving a client every
+    second is theatre if the server itself last looked fifteen seconds ago — the app can only ever be as
+    fresh as the slowest link, and that link is the source poll, not the browser. Ballistic windows are
+    measured in minutes, so the extra requests cost little and stop the moment the alert clears.
+    """
+    try:
+        return rush if state.missile_active() >= 2 else interval
+    except Exception:
+        return interval
+
+
 class AlertsInUa(threading.Thread):
     NAME = "alerts_in_ua"
 
@@ -1142,7 +1217,7 @@ class AlertsInUa(threading.Thread):
             except Exception as e:
                 self.state.set_source(self.NAME, False, error=str(e)[:200])
                 log("alerts.in.ua error:", e)
-            time.sleep(interval)
+            time.sleep(poll_gap(self.state, interval))
 
     def poll(self):
         headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/json"}
@@ -1193,7 +1268,7 @@ class UkraineAlarm(threading.Thread):
             except Exception as e:
                 self.state.set_source(self.NAME, False, error=str(e)[:200])
                 log("ukrainealarm error:", e)
-            time.sleep(interval)
+            time.sleep(poll_gap(self.state, interval))
 
     def poll(self):
         h = {"Authorization": self.key, "Accept": "application/json"}
@@ -1292,6 +1367,9 @@ class Telegram(threading.Thread):
     def run(self):
         interval = max(30, int(self.cfg.get("poll_telegram_seconds", 45)))
         fast = max(8, int(self.cfg.get("poll_telegram_missile_seconds", 10)))
+        # Ballistic only. A one-second client is pointless if the server itself last looked ten seconds ago:
+        # the client can only be as fresh as the source behind it.
+        rush = max(5, int(self.cfg.get("poll_telegram_ballistic_seconds", 5)))
         import concurrent.futures as _cf
         pool = _cf.ThreadPoolExecutor(max_workers=4, thread_name_prefix="tg")
         def one(ch):
@@ -1301,9 +1379,9 @@ class Telegram(threading.Thread):
                 self.state.set_source(f"tg:{ch}", False, error=str(e)[:200])
                 log(f"telegram {ch} error:", e)
         while True:
-            missile = self.state.missile_active()
+            lvl = self.state.missile_active()
             list(pool.map(one, self.channels))   # 4 channels at a time, ~1 round trip each
-            time.sleep(fast if missile else interval)
+            time.sleep(rush if lvl >= 2 else fast if lvl else interval)
 
     def poll(self, ch):
         st, _, body = http_get(f"https://t.me/s/{ch}", {"Accept-Language": "uk,en"})
@@ -1756,7 +1834,10 @@ class Handler(BaseHTTPRequestHandler):
                     usage.hit(self._peer_ip(), self.headers.get("User-Agent") or "", "ping")
                 with st.cond:
                     seq = st.seq
-                return self._json({"v": f"{seq}-{st.store.feed_count()}", "now": now_iso(), "missile": st.missile_active(), "build": BUILD})
+                lvl = st.missile_active()
+                # `missile` stays a boolean for any client still on an older build; `msl` carries the level.
+                return self._json({"v": f"{seq}-{st.store.feed_count()}", "now": now_iso(),
+                                   "missile": bool(lvl), "msl": lvl, "build": BUILD})
             if u.path == "/api/stats":
                 return self._json(st.stats(int(q.get("days", ["14"])[0])))
             if u.path == "/api/impacts":

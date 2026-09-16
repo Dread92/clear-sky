@@ -41,3 +41,23 @@ def test_a_drone_goes_grey_instead_of_disappearing():
 
 def test_a_drone_is_dropped_after_fifteen_minutes():
     assert _state()._chain_and_prune([_m(20, "drones")], 45) == []
+
+
+# --- missiles are not aged like drones -----------------------------------------------------------
+def test_a_missile_never_gets_the_grey_stale_flag():
+    """A cruise missile covers 13 km a minute. A grey pin five minutes old would be a lie with a
+    precise dot on it; the client draws a growing circle of where it could be instead."""
+    kept = _state()._chain_and_prune([_m(7, "cruise_missiles")], 45)
+    assert len(kept) == 1
+    assert not kept[0].get("stale")
+    assert kept[0]["fast"] is True
+
+
+def test_a_missile_is_dropped_sooner_than_a_drone():
+    assert _state()._chain_and_prune([_m(14, "ballistic_missiles")], 45) == []
+    assert len(_state()._chain_and_prune([_m(14, "drones")], 45)) == 1      # a drone at 14 min is still grey
+
+
+def test_a_fresh_missile_is_kept_plainly():
+    kept = _state()._chain_and_prune([_m(1, "ballistic_missiles")], 45)
+    assert len(kept) == 1 and not kept[0].get("stale")
