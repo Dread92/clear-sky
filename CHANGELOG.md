@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.2.1 — 2026-09-17
+
+### Fixed
+- **Updates could stop altogether.** Every request now has a deadline, so a fetch stalled on a weak cell can no
+  longer wedge the poller with `pulseBusy` stuck true — the failure nobody would notice until it mattered. A
+  watchdog checks every second that a round actually completed, and restarts one if not; coming back to the app,
+  regaining network or refocusing the tab all trigger an immediate refresh. The countdown turns red when the last
+  round failed. Cadence measured: 15 s normally, 5 s while missiles are up.
+- **Markers stacked on top of each other.** Anything landing within 26 px of something already drawn steps onto a
+  ring around it — 6 slots, then 12, then 18 — with a thin leader line back to a dot at the true position, so the
+  glyph moves but the reported place stays honest. Live targets keep their spot first; history gives way.
+- **The same village hit nine times is one marker with ×9**, not nine glyphs buried on top of each other.
+- The drawer's open/close tab is centred and in the app's yellow; it was tucked in a corner over the map icons.
+
+### Changed
+- **Explosions are brighter**: a white-edged glyph with a red glow, and a shockwave on the freshest ones.
+- **Altitude is read the way the channels write it** — "2200 висота" as well as "висота 2200", and a follow-up
+  post that is only a number and a place ("1600, Вороньків"). A stated height is treated as a strong hint of a
+  drone, shown as *likely a drone*, never as the type itself. A road number or a small count is not a height.
+- **Footer**: hosting & development and NGO 07300 as separate destinations, a community link that only appears
+  once configured, and a version tag — © 2026 Black Flame Studio & NGO 07300 · Developed by Dread92 · v1.2.
+  Contacts live in one `CONTACT` block at the top of the page script.
+
 ## 1.2.0 — 2026-09-17
 
 ### Fixed (safety)

@@ -30,6 +30,7 @@ button{font:inherit;cursor:pointer}
 .ticker{height:18px;overflow:hidden;background:#0f1218;border-bottom:1px solid var(--line);font:600 10.5px/18px var(--mono);color:#b9c2d0;letter-spacing:.03em;white-space:nowrap}
 .ticker .tk{display:inline-block;animation:tkscroll 55s linear infinite}.ticker .tk span{padding-right:40px}@keyframes tkscroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 .upd .cd{display:inline-block;min-width:26px;color:var(--ua-yellow);font-weight:700}
+.upd .cd.bad{color:var(--red2)}
 .modal{position:fixed;inset:0;background:rgba(5,7,10,.78);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}.modal[hidden]{display:none}
 .mbox{background:#14171d;border:1px solid var(--line);border-top:3px solid var(--ua-yellow);max-width:480px;max-height:calc(100vh - 32px - var(--sat) - var(--sab));overflow:auto;padding:16px 18px;font:14px/1.45 var(--sans);color:var(--ink)}.mbox p{margin:8px 0}.mbox .type{font:700 20px var(--cond);text-transform:uppercase;letter-spacing:.03em}
 .sbars{display:flex;align-items:flex-end;gap:2px;height:46px;margin-top:4px}.sbars .sb{flex:1;min-width:2px;border-radius:1px 1px 0 0;opacity:.9}.sbars.h24 .sb{min-width:4px}
@@ -80,8 +81,8 @@ svg#map{display:block;width:100%;height:100%}
 .rt.note{border-left-color:var(--ink3);color:var(--ink3)}
 .homerow{font:500 11.5px/1.3 var(--sans);padding:5px 8px;background:rgba(18,21,27,.92);border:1px solid var(--line);border-left:3px solid var(--ua-blue);max-width:min(360px,calc(100vw - 60px));white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .homerow.danger{border-left-color:var(--red2);background:rgba(58,21,18,.94)}.homerow b{font-weight:600}
-.livebar{position:absolute;left:8px;bottom:8px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 124px);pointer-events:none}
-@media (min-width:1000px){.livebar{max-width:calc(100% - 60px)}}
+.livebar{position:absolute;left:8px;bottom:42px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 60px);pointer-events:none}
+@media (min-width:1000px){.livebar{bottom:8px}}
 .livebar .chip{font:600 11px/1 var(--mono);letter-spacing:.03em;padding:6px 8px;white-space:nowrap;background:rgba(18,21,27,.92);border:1px solid var(--line);color:var(--ink2);border-radius:0}
 .livebar .chip.red{color:#ffd9d6;border-color:#6a2a26}.livebar .chip.orange{color:#ffc9a3}.livebar .chip.green{color:#c9f2da}.livebar .chip.yellow{color:#ffefa8}.livebar .chip.blue{color:#bcd5ff}
 .livebar .chip b{font-weight:600}
@@ -89,9 +90,19 @@ svg#map{display:block;width:100%;height:100%}
 .mapctl button{width:34px;height:34px;border:1px solid var(--line);background:rgba(18,21,27,.94);color:var(--ink);border-radius:2px;font:600 15px var(--mono);padding:0}
 .mapctl button.on{color:var(--ua-yellow);border-color:#5a4d00}
 #impbtn{position:relative;color:#ff8a80}#impbtn:not(.on){color:#8f9bb0}#impbtn small{position:absolute;right:2px;bottom:1px;font:600 8.5px var(--mono);color:var(--ua-yellow)}
-.imp{cursor:pointer}.imp .ig{fill:#ff5a4e;stroke:#080b10;stroke-width:calc(var(--k,1)*1px)}.imp .ir{fill:none;stroke:#ff5a4e;stroke-width:1;vector-effect:non-scaling-stroke;opacity:.5}
+.imp{cursor:pointer}
+.imp .ig{fill:#ff3b2f;stroke:#fff;stroke-width:calc(var(--k,1)*.8px);filter:drop-shadow(0 0 calc(var(--k,1)*3px) rgba(255,70,50,.95))}
+.imp .ir{fill:none;stroke:#ff3b2f;stroke-width:1.6;vector-effect:non-scaling-stroke;opacity:.55}
+/* a shockwave on the freshest explosions — the ones still worth reacting to */
+.imp.fresh .sw{fill:none;stroke:#ff3b2f;stroke-width:2;vector-effect:non-scaling-stroke;transform-box:fill-box;transform-origin:center;animation:shock 1.8s ease-out infinite}
+.imp.fresh .ig{animation:impflash 1.2s steps(2) infinite}
+@keyframes shock{0%{transform:scale(.35);opacity:.95}100%{transform:scale(2.1);opacity:0}}
+@keyframes impflash{0%,55%{fill:#ff3b2f}56%,100%{fill:#ffd08a}}
+body.lite .imp .ig{fill:#fff;filter:none;animation:none}body.lite .imp.fresh .sw{stroke:#fff}
 .imp .it{font:600 calc(var(--k,1)*9.5px) system-ui;fill:#ffb3ad;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}svg.far .imp .it{display:none}
 .imp.d1{opacity:.75}.imp.d2{opacity:.5}
+.imp .icnt circle{fill:#fff;stroke:#080b10;stroke-width:1}.imp .icnt text{font:800 9px var(--mono);fill:#080b10;text-anchor:middle}
+body.lite .imp .icnt circle{fill:#fff}
 .imp.dn .ig{fill:#39d98a}.imp.dn .ir{stroke:#39d98a}.imp.dn .it{fill:#b8f0d3}svg.no-himp .imp.im,svg.no-hdown .imp.dn{display:none}
 .mapfoot{display:none}
 .tip{position:absolute;z-index:6;max-width:300px;background:rgba(18,21,27,.98);border:1px solid var(--line);border-left:3px solid var(--orange);padding:8px 10px;font-size:12.5px;pointer-events:none}
@@ -102,10 +113,11 @@ svg#map{display:block;width:100%;height:100%}
 #drawer .handle{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;cursor:pointer;flex:none;border-bottom:1px solid var(--line)}
 /* the panel is opened and closed constantly during an attack, so the control is a 88x28 tab riding on the
    drawer's top edge — above the tabs, never on top of them */
-#drawer .dchev{position:absolute;right:12px;top:-28px;width:88px;height:28px;
-  border:1px solid var(--line);border-bottom:0;border-radius:10px 10px 0 0;background:var(--panel);
-  color:var(--ink2);font:15px/26px var(--mono);padding:0;z-index:3;cursor:pointer;box-shadow:0 -4px 12px rgba(0,0,0,.35)}
-#drawer .dchev:active{background:var(--panel2);color:var(--ink)}
+#drawer .dchev{position:absolute;left:50%;transform:translateX(-50%);top:-30px;width:96px;height:30px;
+  border:1px solid #5a4d00;border-bottom:0;border-radius:12px 12px 0 0;background:#1e1a05;
+  color:var(--ua-yellow);font:700 17px/28px var(--mono);padding:0;z-index:3;cursor:pointer;box-shadow:0 -4px 14px rgba(0,0,0,.5)}
+#drawer .dchev:active{background:#2a2408;color:#fff}
+body.lite #drawer .dchev{background:#111;border-color:#fff;color:#fff}
 @media (min-width:1000px){#drawer .dchev{display:none}}
 .tabs{display:flex;gap:14px}
 .tabs button{border:0;background:transparent;color:var(--ink3);font:700 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;padding:0;height:30px;border-bottom:2px solid transparent}
@@ -285,7 +297,9 @@ svg.veryfar .mk .lbl{display:none}svg:not(.close) .mk:not(.inbound):not(.tohome)
 .mk.st .glyph.x{fill:none;stroke:#fff;stroke-width:2.2px;vector-effect:non-scaling-stroke;stroke-linecap:round}
 .mk.st .glyph.ring{fill:rgba(11,14,19,.85);stroke:#fff;stroke-width:1.5px;vector-effect:non-scaling-stroke}
 .mk.st .glyph.q{fill:#fff;font:700 11px var(--mono);stroke:none}
-.mk.st-down .glyph.x,.mk.st-down .glyph.ring{stroke:#3ecf8e}.mk.st-impact .glyph.x{fill:#ff5c61;stroke:#080b10;stroke-width:1px}
+.mk.st-down .glyph.x,.mk.st-down .glyph.ring{stroke:#3ecf8e}
+.mk.st-impact .glyph.x{fill:#ff3b2f;stroke:#fff;stroke-width:.8px;filter:drop-shadow(0 0 calc(var(--k,1)*3px) rgba(255,70,50,.95));animation:impflash 1.2s steps(2) infinite}
+body.lite .mk.st-impact .glyph.x{fill:#fff;filter:none;animation:none}
 .mk.st-lost .glyph.ring{stroke:#8a94a6}.mk.st-lost .glyph.q{fill:#c9d1de}.mk.st-clear .glyph.x,.mk.st-clear .glyph.ring{stroke:#3ecf8e}
 .mk.st .halo{stroke:#3ecf8e;animation-iteration-count:3}.mk.st-impact .halo{stroke:#ff5c61}.mk.st-lost .halo{stroke:#8a94a6}
 .mk.st .lbl2{fill:#a8f0cf}.mk.st-impact .lbl2{fill:#ffb3b5}.mk.st-lost .lbl2{fill:#c9d1de}
@@ -303,6 +317,10 @@ svg.veryfar .mk .lbl{display:none}svg:not(.close) .mk:not(.inbound):not(.tohome)
 .mk.tohome .glyph{fill:#ff2d55}.mk.tohome .halo{stroke:#ff2d55;animation-duration:.8s}.mk.tohome .ahead{stroke:#ff2d55}.mk.tohome .lbl2{fill:#ffb3c5}
 svg.no-trails .trail{display:none}svg.no-cones .ahead,svg.no-cones .cone{display:none}svg.no-rivers .river,svg.no-rivers .rvlbl{display:none}
 svg.no-roads .road,svg.no-roads .roadlbl,svg.no-roads .bridge{display:none}svg.no-infra .poi,svg.no-infra .poilbl{display:none}svg.no-rings .ring,svg.no-rings .ringlbl{display:none}svg.no-minor .minor{display:none}
+/* a glyph that stepped aside to avoid an overlap, and the thin line back to where it was actually reported */
+.leader{stroke:#9aa5b8;stroke-width:1px;vector-effect:non-scaling-stroke;stroke-opacity:.55;pointer-events:none}
+.anchor{fill:#9aa5b8;fill-opacity:.8;pointer-events:none}
+body.lite .leader{stroke:#fff;stroke-opacity:.6}body.lite .anchor{fill:#fff}
 .edge{pointer-events:none}
 .edge .arrow{fill:#ff8a3d;stroke:#080b10;stroke-width:1px;vector-effect:non-scaling-stroke}
 .edge.inbound .arrow{fill:#ff3b3f}
@@ -329,7 +347,8 @@ svg.no-roads .road,svg.no-roads .roadlbl,svg.no-roads .bridge{display:none}svg.n
 /* descending: the moment a drone dives on its target */
 .mk.desc .glyph{fill:#ff2d55}.mk.desc .halo{stroke:#ff2d55;animation-duration:.9s}
 .mk .dn{display:none;font:800 calc(var(--k,1)*10px) var(--mono);fill:#ff2d55;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px);text-anchor:middle}
-.mk.desc .dn{display:block}svg.veryfar .mk .dn{display:none}
+.mk.desc .dn,.mk.hasalt .dn{display:block}svg.veryfar .mk .dn{display:none}
+.mk.hasalt:not(.desc) .dn{fill:#cfe0ff}
 .chip.desc{color:#ffb3c5;border-color:#7a2a3a;background:rgba(255,45,85,.12)}
 /* blackout mode: 2G, weak signal, OLED. Pure black and white, no tiles, no images, minimal payload. */
 body.lite{--bg:#000;--panel:#0a0a0a;--panel2:#111;--line:#3a3a3a;--ink:#fff;--ink2:#cfcfcf;--ink3:#8a8a8a}
@@ -349,7 +368,7 @@ body.lite .tstrip{background:#fff;color:#000;border-color:#fff;animation:none}
 body.lite .imp .ig{fill:#fff}body.lite .imp .it{fill:#ddd}
 #litetag{display:none;position:absolute;left:8px;bottom:8px;z-index:7;font:700 9.5px var(--mono);letter-spacing:.1em;color:#8a8a8a;border:1px solid #3a3a3a;padding:2px 5px}
 body.lite #litetag{display:block}
-body.lite .livebar{bottom:28px}
+body.lite #litetag{bottom:8px}
 body.lite .edge .arrow,body.lite .edge.inbound .arrow{fill:#fff;stroke:#000}body.lite .edge .etxt{fill:#fff}
 body.lite .livebar .chip,body.lite .rt,body.lite .chip{color:#fff;border-color:#666;background:#000}
 body.lite .rt.R{background:#fff;color:#000;border-left-color:#fff}body.lite .rt.Y{background:#2a2a2a;color:#fff;border-left-color:#fff}
@@ -392,7 +411,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">build 2026-09-17 · 1.1</div>
+    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">v1.2</div>
     <button class="mi" id="est" data-t="m_est">Estimate motion along heading (EST)</button>
     <button class="mi" id="zcity2" data-t="m_city">Kyiv city map (10 districts) — toggle</button><button class="mi" id="zobl" data-t="m_zobl">Zoom out to whole oblast</button><button class="mi" id="zreg" data-t="m_zreg">Zoom out to surrounding oblasts</button><button class="mi" id="zua" data-t="m_zua">Zoom out to all of Ukraine</button>
   </div>
@@ -443,7 +462,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <div class="sec" id="hist" hidden></div>
     <div id="layers" hidden><div class="layermenu" id="layerbox"><span class="lbl" data-t="l_title">Layers</span><label><input type="checkbox" data-l="tiles"> <span data-t="l_tiles">Streets &amp; buildings (OSM, zoomed in)</span></label><label><input type="checkbox" data-l="himp"> <span data-t="l_himp">History: explosions ✸</span></label><label><input type="checkbox" data-l="hdown"> <span data-t="l_hdown">History: confirmed shot down ✕</span></label><label><input type="checkbox" data-l="trails"> <span data-t="l_trails">Tracks</span></label><label><input type="checkbox" data-l="cones"> <span data-t="l_cones">Course rays</span></label><label><input type="checkbox" data-l="rivers"> <span data-t="l_rivers">Rivers</span></label><label><input type="checkbox" data-l="roads"> <span data-t="l_roads">Roads</span></label><label><input type="checkbox" data-l="infra"> <span data-t="l_infra">Airports / plants</span></label><label><input type="checkbox" data-l="rings"> <span data-t="l_rings">Rings</span></label><label><input type="checkbox" data-l="minor"> <span data-t="l_minor">Villages &amp; small towns (off by default — clutters the phone)</span></label></div>
       <div class="foot" data-t-html="legend"></div>
-      <div class="foot"><div class="credit" style="border-top:0;margin-top:0"><img src="/static/bf-logo.png" alt=""><div><span class="cn" data-t="credits"></span><br><span data-t="credits_dev"></span> · <span data-t="build_lbl"></span> <span id="buildtag2"></span></div></div></div></div>
+      <div class="foot" id="mapfoot"></div></div>
   </div>
 </aside>
 
@@ -459,8 +478,8 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
   <p data-t-html="d_p3"></p>
   <div class="dset"><label><span data-t="d_obl">My oblast</span><select id="discobl"></select></label>
     <label><span data-t="d_home">Precise place to watch — optional</span><button class="tgl" id="dischome" type="button"></button></label></div>
-  <div style="font:500 12px/1.4 var(--sans);color:var(--ink3);margin-top:10px" data-t="sup_hint"></div>
-  <div class="credit"><img src="/static/bf-logo.png" alt=""><div><span class="cn" data-t="credits"></span><br><span data-t="credits_dev"></span></div></div>
+  <div style="font:500 12px/1.4 var(--sans);color:var(--ink3);margin-top:10px" data-t="sup_free"></div>
+  <div id="discfoot"></div>
   <div style="text-align:right;margin-top:10px"><button class="tgl on" id="discok" data-t="d_ok">I understand</button></div></div></div>
 
 <script src="/static/i18n.js"></script>
@@ -536,6 +555,10 @@ pushInit();
   $('discobl').onchange=e=>setMyOblast(e.target.value);
   $('dischome').onclick=async()=>{$('disc').hidden=true;await $('homebtn').onclick();};})();
 // the entry screen offers the two "watch" settings straight away: my oblast (status band, alerts) + an optional precise place
+function paintFooters(){ const h=footerHTML();
+  const a=$('discfoot'); if(a) a.innerHTML=h;
+  const b2=$('mapfoot'); if(b2) b2.innerHTML=h;
+  document.querySelectorAll('#bt2').forEach(e=>{ if(MYBUILD) e.textContent=' · '+t('build_lbl')+' '+MYBUILD; }); }
 function discHomeLabel(){ const b=$('dischome'); if(b) b.textContent=HOME?`${t('d_home_set')}: ${homeName()} ✓`:t('d_home_btn'); }
 function fillDiscOblasts(){ const sel=$('discobl'); if(!sel||!MAP) return; const list=(MAP.oblasts||[]).filter(o=>o.uid!=='31'&&o.uid!=='30').sort((a,b)=>oblName(a.uid).localeCompare(oblName(b.uid),LOCALE()));
   sel.innerHTML=list.map(o=>`<option value="${o.uid}" ${o.uid===MYOBL.uid?'selected':''}>${esc(oblFull(o.uid))}</option>`).join(''); discHomeLabel(); }
@@ -767,6 +790,7 @@ function tick(){
     const [x,y,x0,y0]=posOf(m,now); const info=inboundInfo(m,x,y); const hi=homeInfo(m,x,y); const age=agoMin(m.ts);
     b.g.classList.toggle('tohome',hi.inbound||(hi.near&&!m.status&&!m.endedBy)); if(hi.inbound||hi.near){ if(!m.status&&!m.endedBy){ homeThreats++; if(hi.inbound&&(!homeNearest||hi.dist<homeNearest.dist)) homeNearest={...hi,m}; if(!homeAlerted.has(m.id)){homeAlerted.add(m.id); notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start');} } }
     const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?1.5:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
+    b.g.dataset.tx=x.toFixed(2); b.g.dataset.ty=y.toFixed(2);
     b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);
     const orbit=b.g.querySelector('.orbit');
     if(orbit&&!m.endedBy&&!m.stale){ // Shahed: drawn loitering around the reported point (their real path is erratic); the chevron shows the reported heading
@@ -774,8 +798,11 @@ function tick(){
     }else if(orbit){ const at=orbit.querySelector('animateTransform'); if(at) at.remove(); orbit.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright(m)}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
     else b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright(m)}) scale(${gs.toFixed(2)})`);
     const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.25*KPX).toFixed(2)})`);}else hdg.style.display='none';
-    b.g.classList.toggle('desc',!!(m.alt&&m.alt.state==='descending')&&!m.status&&!m.endedBy&&!m.stale);
-    {const dn=b.g.querySelector('.dn'); if(dn) dn.setAttribute('y',(16*KPX).toFixed(2));}
+    const dsc=!!(m.alt&&m.alt.state==='descending')&&!m.status&&!m.endedBy&&!m.stale;
+    const altM=(m.alt&&m.alt.m&&!m.status&&!m.endedBy)?m.alt.m:null;
+    b.g.classList.toggle('desc',dsc); b.g.classList.toggle('hasalt',!!altM);
+    {const dn=b.g.querySelector('.dn'); if(dn){ dn.setAttribute('y',(16*KPX).toFixed(2));
+      dn.textContent=altM?((dsc?'↓':'')+altM+' '+t('m_unit')):(dsc?'↓':''); }}
     b.g.classList.toggle('inbound',info.inbound&&!m.stale); b.g.classList.toggle('old',age>ttl*0.65); b.g.classList.toggle('ended',!!m.endedBy); b.g.classList.toggle('stale',!!m.stale&&!m.endedBy&&!m.status); b.g.classList.toggle('s2',!!m.stale&&m.stale>=8); b.g.classList.toggle('s3',!!m.stale&&m.stale>=11); b.g.querySelector('.qm').setAttribute('y',(-12*KPX).toFixed(2));
     const v=SPEED(m); const ah=b.g.querySelector('.ahead'); const cone=b.g.querySelector('.cone');
     if(!m.status&&!m.endedBy&&v&&m.heading!=null){ // reported heading: 12-min ray + ±20° uncertainty cone
@@ -831,8 +858,50 @@ function tick(){
     return `<g class="edge ${info.inbound?'inbound':''}"><polygon class="arrow" points="0,-3 6,0 0,3" transform="translate(${ex.toFixed(1)} ${ey.toFixed(1)}) rotate(${ang.toFixed(0)}) scale(${(1.6*KPX).toFixed(2)})"/><text class="etxt" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(txt)}</text></g>`;
   }).join('');
   const parts=[]; if(tracked){ const tot=[totShahed?`<b>${totShahed}</b> ${t('lb_shahed')}`:'',totJet?`<b>${totJet}</b> ${t('lb_jet')}`:'',totMsl?`<b>${totMsl}</b> ${t('lb_msl')}`:'',totUnk?`<b>${totUnk}</b> ⚠`:'',totStale?`<b>${totStale}</b> ?`:''].filter(Boolean).join(' · '); parts.push(tot||`<b>${tracked}</b> ${t('lb_targets')}`); } if(inboundCount) parts.push(`<b style="color:#ffd9d6">${inboundCount} ${t('lb_tokyiv')}</b>`); if(HOME&&homeThreats) parts.push(`<b style="color:#ffb3c5">${homeThreats} → ${esc(homeName())}</b>`); if(ESTIMATE) parts.push('EST'); 
-  $('livebar').innerHTML=(parts.length?`<span class="chip ${inboundCount||homeThreats?'red':'orange'}">${parts.join(' · ')}</span>`:'')+(typeof IMP_H!=='undefined'&&IMP_H?(()=>{const ni=IMP.filter(m=>m.status!=='down').length,nd=IMP.length-ni;return `<span class="chip red">✸ ${tn('lb_expl',ni)}</span><span class="chip green">✕ ${t('lb_down',nd)}</span><span class="chip">${IMP_H} h</span>`;})():'');
+  $('livebar').innerHTML=(parts.length?`<span class="chip ${inboundCount||homeThreats?'red':'orange'}">${parts.join(' · ')}</span>`:'')+(typeof IMP_H!=='undefined'&&IMP_H?(()=>{const cl=clusterImpacts(IMP);const ni=cl.filter(c=>c.m.status!=='down').reduce((a,c)=>a+c.n,0),nd=cl.reduce((a,c)=>a+c.n,0)-ni;return `<span class="chip red">✸ ${tn('lb_expl',ni)}</span><span class="chip green">✕ ${t('lb_down',nd)}</span><span class="chip">${IMP_H} h</span>`;})():'');
+  declutter();
   scheduleTick();
+}
+// Two things reported at the same village — a target and an explosion, say — used to sit exactly on top of each
+// other and hide one another. They are fanned onto a small ring instead. A marker moved this way is NOT where it
+// was reported any more, so a thin leader line runs back to the true point: the position stays honest, the glyph
+// just steps aside. Live targets keep their place first; history gives way.
+function declutter(){
+  const r=svg.getBoundingClientRect(); if(!r.width) return;
+  const k=VB.w/r.width;                                   // km per screen px
+  const items=[];
+  for(const [id,b] of built){ const tr=b.g.dataset.tx; if(tr===undefined) continue;
+    items.push({g:b.g,x:+b.g.dataset.tx,y:+b.g.dataset.ty,pri:b.g.classList.contains('st')?2:1}); }
+  document.querySelectorAll('#impactsg .imp').forEach(g=>{ if(g.dataset.tx===undefined) return;
+    items.push({g,x:+g.dataset.tx,y:+g.dataset.ty,pri:3}); });
+  if(items.length<2){ items.forEach(it=>place(it,0,0)); return; }
+  items.sort((a,b)=>a.pri-b.pri);
+  const placed=[]; const MIN=26*k, RING=30*k;             // 26 px apart is enough to read two glyphs
+  for(const it of items){
+    let dx=0,dy=0, slot=0;
+    for(let step=0;step<25;step++){
+      const px=it.x+dx, py=it.y+dy;
+      if(!placed.some(q=>Math.hypot(q.x-px,q.y-py)<MIN)) break;
+      // successive rings, each with room for more: 6 slots, then 12, then 18 — no slot is ever reused
+      let ring=1, s=slot;
+      while(s>=6*ring){ s-=6*ring; ring++; }
+      const a=(s*(360/(6*ring)))*Math.PI/180, rad=RING*ring;
+      dx=rad*Math.sin(a); dy=-rad*Math.cos(a); slot++;
+    }
+    placed.push({x:it.x+dx,y:it.y+dy});
+    place(it,dx,dy);
+  }
+  function place(it,dx,dy){
+    it.g.setAttribute('transform',`translate(${(it.x+dx).toFixed(2)} ${(it.y+dy).toFixed(2)})`);
+    let ld=it.g.querySelector('.leader');
+    if(dx||dy){
+      if(!ld){ ld=document.createElementNS('http://www.w3.org/2000/svg','line'); ld.setAttribute('class','leader'); it.g.insertBefore(ld,it.g.firstChild); }
+      ld.setAttribute('x1',(-dx).toFixed(2)); ld.setAttribute('y1',(-dy).toFixed(2)); ld.setAttribute('x2','0'); ld.setAttribute('y2','0');
+      let dot=it.g.querySelector('.anchor');
+      if(!dot){ dot=document.createElementNS('http://www.w3.org/2000/svg','circle'); dot.setAttribute('class','anchor'); it.g.insertBefore(dot,it.g.firstChild); }
+      dot.setAttribute('cx',(-dx).toFixed(2)); dot.setAttribute('cy',(-dy).toFixed(2)); dot.setAttribute('r',(1.6*k).toFixed(2));
+    } else if(ld){ ld.remove(); const d=it.g.querySelector('.anchor'); if(d) d.remove(); }
+  }
 }
 function scheduleTick(){ if(document.hidden){setTimeout(scheduleTick,1000);return;} if(ESTIMATE) requestAnimationFrame(tick); else setTimeout(tick,250); }
 function corroboration(m){ // other reports of the same family within 25 km and ±15 min, from any channel
@@ -892,11 +961,11 @@ function openSheet(id){
   const conf=`${t('sh_conf',cf(ev.position?.confidence))}${m.status?'':` · ${t('sh_hconf',cf(ev.heading?.confidence))}`}${ev.count?' · '+t('sh_cnttext'):''}${cor.length?` · ${tn('sh_others',cor.length)}`:''}`;
   const alt=m.alt&&!m.status?m.alt:null;
   const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
-  const altChip=alt&&alt.state==='descending'?` <span class="chip desc">↓ ${esc(t('alt_desc'))}</span>`:alt&&alt.m?` <span class="chip">~${alt.m} m</span>`:alt&&alt.state?` <span class="chip">${esc(ALTL[alt.state]||alt.state)}</span>`:'';
+  const altChip=alt&&alt.state==='descending'?` <span class="chip desc">↓ ${esc(t('alt_desc'))}</span>`:alt&&alt.m?` <span class="chip">~${alt.m} ${t('m_unit')}</span>`:alt&&alt.state?` <span class="chip">${esc(ALTL[alt.state]||alt.state)}</span>`:'';
   $('sheetbody').innerHTML=`<div class="type">${kind}${m.count?` <span class="chip">×${m.count}</span>`:''}${altChip}${info.inbound&&!m.stale&&!closer?` <span class="chip red">${t('lb_tokyiv')}</span>`:''}<span class="chip ${CONF[overall][0]}" style="margin-left:auto">${cf(overall)}</span></div>
     <div class="kv1 muted">${src} · <a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">${t('sh_post')}</a></div>
     <div class="kv1">${where}</div>${state}${merged}${track}
-    ${m.type==='unknown'&&!m.status?`<div class="kv1 yellow">${esc(t('unk_note'))}${m.likely==='drones'?' '+esc(t('unk_likely_l')):''}</div>`:''}
+    ${m.type==='unknown'&&!m.status?`<div class="kv1 yellow">${esc(t('unk_note'))}${m.likely==='drones'?' '+esc(m.alt&&m.alt.m?t('alt_likely'):t('unk_likely_l')):''}</div>`:''}
     <div class="txt" style="border-left-color:var(--orange);margin-top:8px">${esc(showUA()?(ev.segment||m.text):(ev.segment_en||ev.segment||m.text_en||m.text))}</div>
     <div class="kv1 muted" style="font-size:11.5px">${conf}</div>
     <details style="margin-top:6px"><summary style="font:12px var(--mono);color:var(--muted);cursor:pointer">${t('sh_details')}</summary>
@@ -971,16 +1040,26 @@ function layoutTownLabels(){
 // ---- impact history layer (off / 24 h / 48 h / 72 h) — past "impact / explosion" reports only ----
 const IMP_STEPS=[0,24,48,72]; let IMP_H=0,IMP=[],impTimer=null;
 try{IMP_H=+localStorage.getItem('imph')||0;}catch(e){}
+// The same place reported over and over across 24 h is one dot with a count — nine glyphs stacked on one
+// village told you nothing that "×9" does not, and buried everything around it.
+function clusterImpacts(list){
+  const by=new Map();
+  for(const m of list){ const k=[m.status,(m.place||'?'),m.lon.toFixed(2),m.lat.toFixed(2)].join('|');
+    const c=by.get(k);
+    if(c){ c.n++; if(m.ts>c.m.ts) c.m=m; c.ids.push(m.id); }
+    else by.set(k,{m,n:1,ids:[m.id]}); }
+  return [...by.values()];
+}
 function drawImpacts(){
   const g=$('impactsg'); if(!IMP_H){g.innerHTML='';return;}
   const now=Date.now();
-  g.innerHTML=IMP.map(m=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const cls=h>48?'d2':h>24?'d1':''; const s=(1.1*KPX).toFixed(2); const dn=m.status==='down';
+  g.innerHTML=clusterImpacts(IMP).map(({m,n})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const cls=h>48?'d2':h>24?'d1':''; const s=((dn?1.1:1.35)*KPX).toFixed(2);
     const glyph=dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
-    return `<g class="imp ${cls} ${dn?'dn':'im'}" data-id="${esc(m.id)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${(9*KPX).toFixed(2)}"/><g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))} ${fmtD(m.ts)}</text></g>`;}).join('');
+    return `<g class="imp ${cls} ${dn?'dn':'im'} ${(!dn&&h<1.5)?'fresh':''}" data-id="${esc(m.id)}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${(9*KPX).toFixed(2)}"/>${(!dn&&h<1.5)?`<circle class="sw" r="${(11*KPX).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
   $('imph').textContent=IMP_H?IMP_H+'h':''; $('impbtn').classList.toggle('on',!!IMP_H);
 }
 function fmtD(ts){const d=new Date(ts);const tm=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ});const today=new Date().toLocaleDateString('en-GB',{timeZone:TZ})===d.toLocaleDateString('en-GB',{timeZone:TZ});return today?tm:d.toLocaleDateString(LOCALE(),{day:'2-digit',month:'short',timeZone:TZ})+' '+tm;}
-async function loadImpacts(){ if(!IMP_H){IMP=[];drawImpacts();return;} try{const d=await(await fetch('/api/impacts?hours='+IMP_H)).json();IMP=d.impacts||[];}catch(e){IMP=[];} drawImpacts(); }
+async function loadImpacts(){ if(!IMP_H){IMP=[];drawImpacts();return;} try{const d=await jget('/api/impacts?hours='+IMP_H,12000);IMP=d.impacts||[];}catch(e){IMP=[];} drawImpacts(); }
 $('impbtn').onclick=()=>{IMP_H=IMP_STEPS[(IMP_STEPS.indexOf(IMP_H)+1)%IMP_STEPS.length];try{localStorage.setItem('imph',String(IMP_H));}catch(e){};loadImpacts();};
 function openImpact(id){ const m=IMP.find(x=>x.id===id); if(!m) return; $('tip').hidden=true; const [x,y]=proj(m.lon,m.lat); const dist=Math.hypot(x,y);
   const dn=m.status==='down';
@@ -1116,14 +1195,14 @@ function renderHist(){
   if(!$('stats')) $('hist').innerHTML='<div id="stats"></div>';
   renderStats();
 }
-async function loadState(){try{S=await(await fetch('/api/state')).json();render();if(CITY)paintDistricts();}catch(e){}}
+async function loadState(){try{S=await jget('/api/state',12000);render();if(CITY)paintDistricts();}catch(e){}}
 let STALE=5;
-async function loadMarkers(){try{const d=await(await fetch('/api/markers')).json();MK=d.markers;ttl=d.ttl_minutes||45;STALE=d.stale_minutes||5;linkStatus();if(CITY)paintDistricts();}catch(e){}}
-async function loadFeed(flash){try{const posts=(await(await fetch('/api/feed?limit='+((typeof LITE!=='undefined'&&LITE)?25:150))).json()).feed;renderFeed(posts,flash&&!firstFeed);firstFeed=false;}catch(e){}}
-async function loadHist(){try{hist=(await(await fetch('/api/history?hours=24&oblast=31,14')).json()).alerts;renderHist();}catch(e){} loadStats();}
+async function loadMarkers(){try{const d=await jget('/api/markers',12000);MK=d.markers;ttl=d.ttl_minutes||45;STALE=d.stale_minutes||5;linkStatus();if(CITY)paintDistricts();}catch(e){}}
+async function loadFeed(flash){try{const posts=(await jget('/api/feed?limit='+((typeof LITE!=='undefined'&&LITE)?25:150),12000)).feed;renderFeed(posts,flash&&!firstFeed);firstFeed=false;}catch(e){}}
+async function loadHist(){try{hist=(await jget('/api/history?hours=24&oblast=31,14',12000)).alerts;renderHist();}catch(e){} loadStats();}
 // ---- statistics of past attacks (server-aggregated, Kyiv time) ----
 let STATS=null,STAT_DAYS=14;
-async function loadStats(){try{STATS=await(await fetch('/api/stats?days='+STAT_DAYS)).json();renderStats();}catch(e){}}
+async function loadStats(){try{STATS=await jget('/api/stats?days='+STAT_DAYS,15000);renderStats();}catch(e){}}
 function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; const d=STATS;
   const W=d.windows||{}, IW=d.imp_windows||{};
   const n=v=>(v===undefined||v===null)?'—':v;
@@ -1153,14 +1232,23 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // =====================================================================================
 // Update notice, install prompt, support, sharing, blackout mode, proximity alerts
 // =====================================================================================
-const DONATE='nomakievip@gmail.com';
+// ---------------------------------------------------------------------------------------------------
+// Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
+// ever ships: fill TELEGRAM in when the channel exists.
+const APP_VERSION='1.2';
+const CONTACT={
+  hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
+  ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
+  telegram:''                          // e.g. 'https://t.me/yourchannel' — hidden while empty
+};
+const DONATE=CONTACT.ngo;
 const ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):(localStorage.setItem(k,v),v);}catch(e){return null;}};
 
 // ---- 1. "you are running an old build" ------------------------------------------------
 // The page keeps the build id it loaded with; /api/version carries the server's. When they differ the app has
 // been updated under a page that may have been open for days — during an attack that page must not stay stale.
 let MYBUILD=null, updShown=false;
-function checkBuild(v){ if(!v||!v.build) return; if(MYBUILD===null){MYBUILD=v.build;$('buildtag2').textContent=v.build;return;}
+function checkBuild(v){ if(!v||!v.build) return; if(MYBUILD===null){MYBUILD=v.build;paintFooters();return;}
   if(v.build===MYBUILD||updShown) return; updShown=true;
   $('updT').textContent=t('upd_title'); $('updB').textContent=t('upd_body'); $('updGo').textContent=t('upd_btn'); $('updbar').hidden=false;
   if(soundOn)beep('end'); }
@@ -1185,18 +1273,30 @@ if(isIOS()&&!standalone()) setTimeout(()=>showPwaBar(true),20000);
 
 // ---- 3. support / donations -------------------------------------------------------------
 function supportSheet(){
+  const row=(label,addr,id)=>`<div class="kv1 muted" style="margin-top:10px">${esc(label)}</div>
+    <div class="sup"><b>${esc(addr)}</b><button class="tgl" data-copy="${esc(addr)}" id="${id}">${t('sup_copy')}</button></div>`;
+  const same=CONTACT.hosting===CONTACT.ngo;
   $('sheetbody').innerHTML=`<div class="type">${t('sup_title')}</div>
-    <div class="kv1">${esc(t('sup_body'))}</div>
-    <div class="kv1 muted" style="margin-top:8px">${esc(t('sup_how'))}</div>
-    <div class="sup"><b id="donaddr">${esc(DONATE)}</b><button class="tgl" id="doncopy">${t('sup_copy')}</button></div>
+    <div class="kv1">${esc(t('sup_free'))}</div>
+    ${same?row(t('sup_hosting')+' · '+t('sup_ngo'),CONTACT.ngo,'cp1')
+          :row(t('sup_hosting'),CONTACT.hosting,'cp1')+row(t('sup_ngo'),CONTACT.ngo,'cp2')}
+    ${CONTACT.telegram?`<div class="kv1" style="margin-top:12px">💬 <a href="${esc(CONTACT.telegram)}" target="_blank" rel="noopener">${esc(t('sup_community'))}</a></div>`:''}
     <div class="kv1 muted" style="margin-top:8px">${esc(t('sup_thanks'))}</div>
-    <div class="credit"><img src="/static/bf-logo.png" alt=""><div><span class="cn">${esc(t('credits'))}</span><br>${esc(t('credits_dev'))}</div></div>
+    ${footerHTML()}
     <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">
       <button class="tgl" id="donnever" style="font-size:11px">${t('sup_never')}</button>
       <button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
-  $('doncopy').onclick=()=>copyText(DONATE,$('doncopy'),t('sup_copied'));
+  $('sheetbody').querySelectorAll('[data-copy]').forEach(btn=>btn.onclick=()=>copyText(btn.dataset.copy,btn,t('sup_copied')));
   $('donnever').onclick=()=>{ls('sup_never','1');closeSheet();};
   $('sheet').classList.add('show'); }
+// one footer, used on the welcome screen, in the Map tab and at the bottom of the support sheet
+function footerHTML(){
+  return `<div class="credit"><img src="/static/bf-logo.png" alt=""><div>
+    <span class="cn">© 2026 Black Flame Studio &amp; NGO 07300</span><br>
+    ${esc(t('credits_dev'))} · ${esc(t('sup_ver'))} ${APP_VERSION}<span id="bt2"></span>
+    ${CONTACT.telegram?` · <a href="${esc(CONTACT.telegram)}" target="_blank" rel="noopener">💬 ${esc(t('sup_community'))}</a>`:''}
+    </div></div>`;
+}
 $('supbtn').onclick=()=>{$('menu').hidden=true;supportSheet();};
 // a reminder at most once every 14 days, only after the app has actually been used, never during an alert
 function maybeRemindSupport(){ if(ls('sup_never')==='1') return; const last=+(ls('sup_seen')||0);
@@ -1217,7 +1317,7 @@ function markerText(m){
   const place=m.place==='область'?t('oblcentre'):pn(m.place);
   const L=[`Clear Sky · ${kind}${n} — ${place} · ${fmtT(m.ts)}`];
   if(m.alt&&m.alt.state==='descending') L.push('↓ '+t('alt_desc'));
-  if(m.alt&&m.alt.m) L.push(`~${m.alt.m} m`);
+  if(m.alt&&m.alt.m) L.push(`~${m.alt.m} ${t('m_unit')}`);
   if(m.heading!=null&&!m.status) L.push(`${t('tp_heading')}: ${dirName(m.heading)}`);
   if(HOME){const [x,y]=proj(m.lon,m.lat),[hx,hy]=proj(HOME.lon,HOME.lat);L.push(`${Math.round(Math.hypot(x-hx,y-hy))} km — ${homeName()}`);}
   L.push(`(${CH[m.channel]||'@'+m.channel})`);
@@ -1302,15 +1402,46 @@ let lastV=null, lastFull=0;
 async function refreshAll(){await Promise.all([loadState(),loadMarkers(),loadFeed(false)]);lastFull=Date.now();lastUpd=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:TZ});}
 // every 15 s: a ~60-byte version ping; full reload only when the server says something changed (or every 60 s for staleness)
 // 15 s pulse normally; 5 s while a ballistic / cruise-missile threat is open (server decides: /api/version.missile)
-let MISSILE=false,pulseTimer=null,pulseBusy=false;
-async function pulse(){ if(document.hidden||pulseBusy) return; pulseBusy=true; try{const v=await(await fetch('/api/version')).json(); checkBuild(v); if(v.missile!==MISSILE){MISSILE=!!v.missile;document.body.classList.toggle('missile',MISSILE);schedulePulse();} if(v.v!==lastV||Date.now()-lastFull>60000){lastV=v.v;await refreshAll();} else {lastUpd=new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:TZ});} }catch(e){} pulseBusy=false; }
-let nextPulse=Date.now()+15000,lastUpd=null;
-function schedulePulse(){ clearInterval(pulseTimer); const iv=MISSILE?5000:15000; nextPulse=Date.now()+iv; pulseTimer=setInterval(()=>{nextPulse=Date.now()+iv;pulse();},iv); }
-setInterval(()=>{ if(pulseBusy){$('upd').textContent=t('u_updating');return;} const left=Math.max(0,Math.ceil((nextPulse-Date.now())/1000)); $('upd').innerHTML=`${lastUpd?t('u_upd')+' '+lastUpd+' · ':''}<span class="cd">${left}s</span>`; },1000);
+let MISSILE=false,pulseTimer=null,pulseBusy=false,pulseStarted=0;
+// Every request gets a deadline. Without one, a single fetch stalled on a weak cell can hang for minutes with
+// `pulseBusy` still true — and then the app quietly stops updating altogether, which is the one failure nobody
+// would notice until it mattered. The whole point is 15 s, always; 5 s while missiles are up.
+async function jget(url,ms){ const c=new AbortController(); const t0=setTimeout(()=>c.abort(),ms);
+  try{ const r=await fetch(url,{signal:c.signal,cache:'no-store'}); if(!r.ok) throw new Error(r.status); return await r.json(); }
+  finally{ clearTimeout(t0); } }
+async function pulse(force){
+  if(pulseBusy){ if(Date.now()-pulseStarted<20000) return; pulseBusy=false; }   // a wedged round never blocks the next
+  if(document.hidden&&!force) return;
+  pulseBusy=true; pulseStarted=Date.now();
+  try{
+    const v=await jget('/api/version',8000); checkBuild(v);
+    if(v.missile!==MISSILE){MISSILE=!!v.missile;document.body.classList.toggle('missile',MISSILE);schedulePulse();}
+    if(v.v!==lastV||Date.now()-lastFull>60000){lastV=v.v;await refreshAll();}
+    else lastUpd=nowKyiv();
+    netOK=true; lastPing=Date.now();
+  }catch(e){ netOK=false; }
+  finally{ pulseBusy=false; }
+}
+const nowKyiv=()=>new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:TZ});
+let netOK=true,lastPing=Date.now();
+function schedulePulse(){ clearInterval(pulseTimer); const iv=MISSILE?5000:15000; nextPulse=Date.now()+iv;
+  pulseTimer=setInterval(()=>{nextPulse=Date.now()+iv;pulse();},iv); }
+// A phone throttles background timers, so the interval alone is not a guarantee. This second-by-second check is
+// the guarantee: if the last successful round is older than it should be, the next one starts now.
+setInterval(()=>{
+  const iv=MISSILE?5000:15000;
+  if(!document.hidden&&!pulseBusy&&Date.now()-lastPing>iv*2.5) { nextPulse=Date.now()+iv; pulse(); }
+  if(pulseBusy){$('upd').textContent=t('u_updating');return;}
+  const left=Math.max(0,Math.ceil((nextPulse-Date.now())/1000));
+  $('upd').innerHTML=`${lastUpd?t('u_upd')+' '+lastUpd+' · ':''}<span class="cd${netOK?'':' bad'}">${left}s</span>`;
+},1000);
 schedulePulse();setInterval(()=>{if(!document.hidden)render();},30000);setInterval(()=>{if(!document.hidden)loadHist();},180000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden){refreshAll();}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){schedulePulse();pulse(true);}});
+window.addEventListener('online',()=>{schedulePulse();pulse(true);});
+window.addEventListener('focus',()=>{ if(Date.now()-lastPing>4000) pulse(true); });
 (async()=>{await loadMap();fillDiscOblasts();loadDistricts();drawHome();assignTownOblasts();setView(0,0,110);updateTiles();layoutTownLabels();applySelOblast();await refreshAll();
   try{ checkBuild(await(await fetch('/api/version')).json()); }catch(e){}
+  paintFooters();
   {const q=new URLSearchParams(location.search);            // home-screen shortcuts from the manifest
    if(q.get('city')==='1') toggleCity(true);
    if(q.get('help')==='1') setTimeout(()=>{$('disc').hidden=true;helpSheet();},400);}$('imph').textContent=IMP_H?IMP_H+'h':'';loadImpacts();await loadHist();connect();scheduleTick();})();

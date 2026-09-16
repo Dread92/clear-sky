@@ -92,6 +92,9 @@ en:{
   fd_more:'more',fd_less:'less',fd_times:'×{0}',dr_close:'Close',dr_open:'Open',
   h13_t:'Status words',h13_b:'Shot down — a source confirmed the target was destroyed. Left the area — its oblast is no longer under alert, so the threat has gone or was resolved. Location lost — tracking stopped; the last known place is shown. Marker not confirmed — no new report for five minutes: it fades, then goes. None of these mean the sky is safe.',
   unk_likely:'likely a drone',unk_likely_l:'Most likely a strike drone — that is what this channel tracks. The post did not say so.',
+  m_unit:'m',alt_likely:'A stated height almost always means a drone — the monitors call heights for them.',
+  sup_free:'Free to use. Any support for hosting & development and NGO 07300 volunteer work is deeply appreciated.',
+  sup_hosting:'Hosting & development',sup_ngo:'NGO 07300 — volunteer work',sup_community:'Community & feedback',sup_ver:'version',
   c_kyiv:'Kyiv',u_upd:'upd',u_updating:'updating…',d_h:'h',d_min:'min'
 },
 uk:{
@@ -183,6 +186,9 @@ uk:{
   fd_more:'більше',fd_less:'менше',fd_times:'×{0}',dr_close:'Закрити',dr_open:'Відкрити',
   h13_t:'Слова статусу',h13_b:'Збито / Приземлено — джерело підтвердило знищення цілі. Залишив область / Вийшов із зони — в її області вже немає тривоги, тож загроза пішла або знята. Локаційно втрачено — спостереження припинилось; показано останнє відоме місце. Позначка не фіксується — немає нових повідомлень п’ять хвилин: тьмяніє, потім зникає. Жодне з цих слів не означає, що небо безпечне.',
   unk_likely:'ймовірно, дрон',unk_likely_l:'Найімовірніше ударний дрон — саме їх відстежує цей канал. У дописі це не вказано.',
+  m_unit:'м',alt_likely:'Вказана висота майже завжди означає дрон — саме для них монітори називають висоту.',
+  sup_free:'Користуйтеся безкоштовно. Будь-яка підтримка хостингу й розробки та волонтерської роботи ГО 07300 буде дуже вдячно прийнята.',
+  sup_hosting:'Хостинг і розробка',sup_ngo:'ГО 07300 — волонтерська робота',sup_community:'Спільнота та відгуки',sup_ver:'версія',
   c_kyiv:'Київ',u_upd:'онов.',u_updating:'оновлення…',d_h:'год',d_min:'хв'
 },
 fr:{
@@ -274,6 +280,9 @@ fr:{
   fd_more:'plus',fd_less:'moins',fd_times:'×{0}',dr_close:'Fermer',dr_open:'Ouvrir',
   h13_t:'Les mots de statut',h13_b:"Abattu — une source a confirmé la destruction de la cible. A quitté la zone — son oblast n'est plus en alerte, la menace est partie ou levée. Position perdue — le suivi s'est arrêté ; le dernier lieu connu est affiché. Marqueur non confirmé — aucun nouveau rapport depuis cinq minutes : il s'estompe, puis disparaît. Aucun de ces mots ne veut dire que le ciel est sûr.",
   unk_likely:'probablement un drone',unk_likely_l:"Probablement un drone d'attaque — c'est ce que suit ce canal. La publication ne le dit pas.",
+  m_unit:'m',alt_likely:"Une altitude annoncée signifie presque toujours un drone — c'est pour eux que les moniteurs donnent la hauteur.",
+  sup_free:"Gratuit à l'usage. Tout soutien à l'hébergement, au développement et au travail bénévole de l'ONG 07300 est très apprécié.",
+  sup_hosting:'Hébergement et développement',sup_ngo:'ONG 07300 — travail bénévole',sup_community:'Communauté et retours',sup_ver:'version',
   c_kyiv:'Kyiv',u_upd:'màj',u_updating:'mise à jour…',d_h:'h',d_min:'min'
 }};
 function t(k,...a){let s=(I18N[LANG]&&I18N[LANG][k]);if(s==null)s=I18N.en[k];if(s==null)return k;return a.length?s.replace(/\{(\d)\}/g,(_,i)=>a[+i]??''):s;}

@@ -92,3 +92,25 @@ def test_the_channels_emoji_shorthand_counts_as_naming_it():
 def test_no_marker_on_a_place_the_post_declared_clear():
     out = geo.parse_for_channel("kyiv_airdef", "Чисте небо Київська область та Київ. Васильків увага ‼️")
     assert [m["place"] for m in out] == ["Васильків"]
+
+
+# --- altitude as the channels actually write it ---------------------------------------------------
+def test_height_written_after_the_number():
+    m = geo.parse_for_channel("kyiv_airdef", "У бік Трипілля, 2200 висота")[0]
+    assert m["alt"]["m"] == 2200
+    assert m["place"].endswith("Трипілля")      # "→ Трипілля": the post says it is heading there
+
+
+def test_a_follow_up_post_that_is_only_a_height_and_a_place():
+    m = geo.parse_for_channel("kyiv_airdef", "1600, Вороньків")[0]
+    assert m["alt"]["m"] == 1600
+    assert m["count"] is None          # 1600 is a height, never a count of 1600 drones
+    assert m["likely"] == "drones"
+
+
+def test_a_road_number_is_not_a_height():
+    assert geo.parse_altitude_bare("Р-02 Бровари") is None
+
+
+def test_a_small_number_is_a_count_not_a_height():
+    assert geo.parse_altitude_bare("3х Бровари") is None

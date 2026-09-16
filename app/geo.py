@@ -432,7 +432,12 @@ ALT_RX = [
     ("low", re.compile(r"\bнизьк\w*\b|низько\s+йде|на\s+малій\s+висоті|гранично\s+мал\w*\s+висот\w*", re.I)),
     ("high", re.compile(r"\bвисоко\b|на\s+велик\w*\s+висот\w*|ешелон", re.I)),
 ]
-ALT_M_RX = re.compile(r"висот\w*\s*(?:бл\.|близько|~|приблизно)?\s*(\d{2,5})\s*(м|метр\w*|км)?", re.I)
+# The channels write the height both ways round — "висота 2200" and "2200 висота" — and in a follow-up post
+# they drop the word entirely: "1600, Вороньків". All three are read; nothing is guessed when none appear.
+ALT_M_RX = re.compile(r"висот\w*\s*(?:бл\.|близько|~|приблизно)?\s*(\d{2,5})\s*(м|метр\w*|км)?"
+                      r"|(\d{3,5})\s*(?:м|метр\w*)?\s*висот\w*", re.I)
+# a lone 300–9000 in a short live post is a height, not a count: counts are written "3х" or "3 шахеди"
+ALT_BARE_RX = re.compile(r"(?<![\d.,\-хx×])(\d{3,4})(?!\d|[.,]\d)", re.I)
 
 
 def parse_altitude(seg):
@@ -449,14 +454,27 @@ def parse_altitude(seg):
             break
     mm = ALT_M_RX.search(seg)
     if mm:
-        v = int(mm.group(1))
+        v = int(mm.group(1) or mm.group(3))
         if (mm.group(2) or "").lower().startswith("км"):
             v *= 1000
         if 10 <= v <= 20000:
             out = out or {"state": None, "matched": mm.group(0)}
             out["m"] = v
-            out["matched"] = mm.group(0)
+            out["matched"] = mm.group(0).strip()
     return out
+
+
+def parse_altitude_bare(t):
+    """A follow-up post that is only a number and a place — '1600, Вороньків' — is a height report."""
+    if len(t.split()) > 5 or re.search(r"висот|бпла|шахед|ракет|курс", t, re.I):
+        return None
+    m = ALT_BARE_RX.search(t)
+    if not m:
+        return None
+    v = int(m.group(1))
+    if 300 <= v <= 9000:
+        return {"state": None, "m": v, "matched": m.group(1)}
+    return None
 
 
 # A post often reports clear sky AND a warning in the same breath:
@@ -495,9 +513,13 @@ def parse_post(text):
             mtype = name
             type_ev = {"matched": mm.group(0), "method": "keyword"}
             break
-    if not mtype and (COUNT_RX.search(t) or "🅿" in text or "⚠" in text or "‼" in text) and not re.search(r"чисто|збит|знищен|мінус", t):
+    likely = None
+    if not mtype and (COUNT_RX.search(t) or "🅿" in text or "⚠" in text or "‼" in text or parse_altitude(t)) and not re.search(r"чисто|збит|знищен|мінус", t):
         mtype = "unknown"
-        type_ev = {"matched": None, "method": "the post does not say what it is — shown as an unspecified threat", "confidence": "none"}
+        # the type is not stated, but a height or a bare count on these channels almost always means a drone:
+        # carried as a likelihood, never as the type itself
+        likely = "drones"
+        type_ev = {"matched": None, "method": "the post does not say what it is; most likely a drone, from what this channel reports", "confidence": "none"}
     if not mtype:
         return []
     # split into segments: newlines, ';', ' та ' , ' також '
@@ -633,7 +655,7 @@ def parse_post(text):
             ev["altitude"] = {"matched": alt["matched"], "method": "stated in the post", "confidence": "high"}
         markers.append({"type": mtype, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None if heading is None else round(heading),
                         "place": where, "target": tgt_name, "count": cnt, "jet": bool(re.search(r"реактив|jet", seg)),
-                        "alt": alt,
+                        "alt": alt, "likely": likely,
                         "oblast_uid": obl[1] if obl else PLACES.get(where.replace("→ ", ""), (0, 0, None))[2] if where else None,
                         "evidence": ev})
     return markers
@@ -757,7 +779,11 @@ def _parse_live(text, uid):
     mc = COUNT_RX.search(t)
     if mc:
         cnt = int(mc.group(1) or mc.group(2))
+    alt = parse_altitude(t) or parse_altitude_bare(t)
+    if alt and alt.get("m") and cnt == alt["m"]:
+        cnt = None                      # "1600, Вороньків" is a height, never a count of 1600 drones
     return [{"type": mtype, "status": st, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None, "place": name, "target": None, "count": cnt,
+             "alt": alt,
              "jet": bool(re.search(r"реактив", t)), "oblast_uid": uid, "live": True, "likely": (None if stated else "drones"),
              "evidence": {"segment": t.strip(), "type": {"matched": "(none)", "method": ("keyword" if stated else "the post names only a place — this channel tracks strike drones, but it did not say so here"), "confidence": ("high" if stated else "none")},
                           "position": {"matched": t[s:e], "place": name, "method": "bare place name = current position of the tracked target (gazetteer)", "confidence": "high"},
