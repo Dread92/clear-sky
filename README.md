@@ -57,7 +57,12 @@ and opens the browser. Linux/macOS: `scripts/start.sh`.
 | **History layer** | Explosions ✸ and confirmed shoot-downs ✕ over the last 24 / 48 / 72 h. |
 | **Stats** | Alerts per day, time of day, longest alert, explosions and shoot-downs by oblast, and what the Air Force says was *launched* over Ukraine (24 h / 7 d / 30 d) — kept separate from the count of *reports*, which is a volume of posts, not of targets. |
 | **Three languages** | Full UI in 🇬🇧 English, 🇺🇦 Ukrainian, 🇫🇷 French — including place names, raions, districts and channel names. See [docs/I18N.md](docs/I18N.md). |
-| **Push notifications** | Web Push (VAPID / RFC 8291, hand-rolled on `cryptography`) wakes the phone with the app closed. |
+| **Altitude when it is stated** | A post saying `знижується` marks the target ↓ DESCENDING in crimson — it is diving. Climbing, low, high and values in metres are read the same way. Never inferred: no public source publishes altitude. |
+| **Push notifications** | Web Push (VAPID / RFC 8291, hand-rolled on `cryptography`) wakes the phone with the app closed — for your oblast, your chosen place, or anything reported within a radius of your location. |
+| **Share in one tap** | The status of any target as text, for a chat: what, where, when, descent, heading, distance, source, and the caveat that it is not radar. |
+| **Install as an app** | A PWA: add it to the home screen and it runs full-screen with no browser bar. No store, no download. |
+| **Blackout mode** | For 2G during an attack: black and white, no tiles, no images, minimal data. |
+| **Knows when it is stale** | A page left open for days notices that the server has a newer build and offers a one-tap reload. |
 | **Your place** | Pick an oblast for the status band and, optionally, a precise place: targets heading there or within 10 km alert first. |
 
 ## Layout
@@ -163,6 +168,13 @@ What each one gives and how it is parsed: [docs/SOURCES.md](docs/SOURCES.md).
 Map data: raion and oblast boundaries from [geoBoundaries](https://www.geoboundaries.org/) (CC BY
 4.0); Kyiv district boundaries from OpenStreetMap via Nominatim (ODbL); street tiles from
 OpenStreetMap (© OpenStreetMap contributors).
+
+## Credits
+
+Made by **Black Flame Studio** & **NGO 07300**. Built by the French Cossack of Obolon.
+
+The app is free and stays free. Donations cover the server, the development and the humanitarian work of
+NGO 07300: **nomakievip@gmail.com**.
 
 ## License
 

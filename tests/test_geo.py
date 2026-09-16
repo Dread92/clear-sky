@@ -35,3 +35,37 @@ def test_similar_town_names_are_not_confused():
 def test_city_siren_maps_to_its_raion():
     out = geo.parse_city_siren("🔴 Повітряна тривога в місті")
     assert out is None or isinstance(out, (dict, list))
+
+
+# --- altitude and vertical behaviour ------------------------------------------------------------
+# No public source publishes altitude, so it is only ever read when a post states it in words.
+def test_descending_is_not_a_shoot_down():
+    """A drone coming down ON its target is the most dangerous moment there is.
+    'знижується' must never be shown as a confirmed shoot-down."""
+    m = geo.parse_post("1х Шахед знижується над Броварами")[0]
+    assert m.get("status") != "down"
+    assert m["alt"]["state"] == "descending"
+
+
+def test_bare_descent_report_still_places_a_target():
+    m = geo.parse_post("1х зниження Троєщина")[0]
+    assert m.get("status") != "down"
+    assert m["alt"]["state"] == "descending"
+
+
+def test_an_explicit_shoot_down_is_still_a_shoot_down():
+    assert geo.parse_post("Збито шахед над Броварами")[0]["status"] == "down"
+
+
+def test_shot_down_wins_when_the_post_says_both():
+    assert geo.parse_post("Шахед знижується, збито над Ірпенем")[0]["status"] == "down"
+
+
+def test_stated_altitude_in_metres_is_read():
+    m = geo.parse_post("БпЛА на висоті 2000м курсом на Київ")[0]
+    assert m["alt"]["m"] == 2000
+
+
+def test_altitude_is_never_invented():
+    m = geo.parse_post("2 БпЛА курсом на Бровари")[0]
+    assert m.get("alt") is None

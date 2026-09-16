@@ -373,7 +373,10 @@ def _sub_direction_offset(text, pos):
     return (0.9 * math.sin(math.radians(deg)), 0.6 * math.cos(math.radians(deg)))
 
 
-STATUS_RX = [("down", re.compile(r"збит|знищен|мінус|ліквідован|зниженн|знижу|падінн|впав|впали|приземл|збили", re.I)),
+# "зниження / знижується" (it is DESCENDING) is deliberately NOT an outcome: a drone coming down on its target
+# is the most dangerous moment there is, and it used to be painted green as "confirmed shot down". It now stays a
+# live marker carrying altitude state "descending". A post that also says збито/знищено still reads as shot down.
+STATUS_RX = [("down", re.compile(r"збит|знищен|мінус|ліквідован|падінн|впав|впали|приземл|збили", re.I)),
              ("impact", re.compile(r"вибух|приліт|прильот|влучанн|влучив|попадання", re.I)),
              ("lost", re.compile(r"втрачен|зник|не спостеріга|загубл", re.I)),
              ("clear", re.compile(r"чисто|небо чисте", re.I))]
@@ -418,6 +421,39 @@ def _status_markers(t, status):
 
 
 _OBL_CLAUSE = re.compile(r",\s*(?=(?:на|в|у|над|по)\s+(?:" + "|".join(sorted({a[0] for a in OBLAST_ADJ}, key=len, reverse=True)) + r"))")
+
+
+ALT_RX = [
+    ("descending", re.compile(r"зниж\w*|знижуєть\w*|скида\w*\s+висот\w*|пікіру\w*|захід\s+на\s+ціль|заходить\s+на\s+ціль", re.I)),
+    ("climbing", re.compile(r"набира\w*\s+висот\w*|підійма\w*|піднімаєть\w*", re.I)),
+    ("low", re.compile(r"\bнизьк\w*\b|низько\s+йде|на\s+малій\s+висоті|гранично\s+мал\w*\s+висот\w*", re.I)),
+    ("high", re.compile(r"\bвисоко\b|на\s+велик\w*\s+висот\w*|ешелон", re.I)),
+]
+ALT_M_RX = re.compile(r"висот\w*\s*(?:бл\.|близько|~|приблизно)?\s*(\d{2,5})\s*(м|метр\w*|км)?", re.I)
+
+
+def parse_altitude(seg):
+    """Altitude / vertical behaviour, ONLY when the post states it.
+
+    No public source publishes target altitude, so this is never inferred: a drone with nothing said about its
+    height gets no altitude field at all, and the UI shows nothing rather than implying 'level flight'.
+    Returned dict: {"state": descending|climbing|low|high, "m": metres or None, "matched": "<the words>"}."""
+    out = None
+    for state, rx in ALT_RX:
+        m = rx.search(seg)
+        if m:
+            out = {"state": state, "m": None, "matched": m.group(0)}
+            break
+    mm = ALT_M_RX.search(seg)
+    if mm:
+        v = int(mm.group(1))
+        if (mm.group(2) or "").lower().startswith("км"):
+            v *= 1000
+        if 10 <= v <= 20000:
+            out = out or {"state": None, "matched": mm.group(0)}
+            out["m"] = v
+            out["matched"] = mm.group(0)
+    return out
 
 
 def parse_post(text):
@@ -573,8 +609,12 @@ def parse_post(text):
         elif GROUP_RX.search(seg):
             cnt = 3
             ev["count"] = {"matched": GROUP_RX.search(seg).group(0), "method": "'group' → shown as ×3 (unknown size)"}
+        alt = parse_altitude(seg) or parse_altitude(t)
+        if alt:
+            ev["altitude"] = {"matched": alt["matched"], "method": "stated in the post", "confidence": "high"}
         markers.append({"type": mtype, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None if heading is None else round(heading),
                         "place": where, "target": tgt_name, "count": cnt, "jet": bool(re.search(r"реактив|jet", seg)),
+                        "alt": alt,
                         "oblast_uid": obl[1] if obl else PLACES.get(where.replace("→ ", ""), (0, 0, None))[2] if where else None,
                         "evidence": ev})
     return markers

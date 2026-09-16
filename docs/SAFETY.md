@@ -63,6 +63,25 @@ oblast-wide alert always paints the oblast; raion-level alerts can only **add** 
 inside a yellow oblast), never reduce or replace it. Getting this wrong — showing "clear" where the
 state says "alert" — is the single most dangerous bug this app can have.
 
+## Altitude is read, never guessed
+
+No public source publishes target altitude. So the app shows it **only when a post states it in words**, and
+shows nothing at all otherwise — never a default, never an estimate, never "level flight".
+
+What the channels do say is read and shown:
+
+| The post says | The map shows |
+|---|---|
+| `знижується`, `зниження`, `заходить на ціль` | ↓ **DESCENDING** — the marker turns crimson and keeps its label at every zoom |
+| `набирає висоту` | climbing |
+| `низько`, `на малій висоті` | low |
+| `на висоті 2000м` | ~2000 m |
+
+A descending drone is the most dangerous state there is: it is diving at something. Until version 1.1 the word
+`зниження` was matched by the *shoot-down* keywords, so a drone in its attack dive was drawn green as "confirmed
+shot down". It is now a live target, and a post has to say `збито` / `знищено` before anything is called a
+shoot-down. `tests/test_geo.py` pins both halves of that.
+
 ## Every number is traceable
 
 Tap any marker and you see the sentence it came from, the channel, the time, and how position,

@@ -249,6 +249,23 @@ def parse_iso(s):
         return None
 
 
+def build_id():
+    """A short id that changes whenever the front end or the service changes. An open page compares it with
+    the one it loaded and offers a reload — that is how someone running for three days on an old build finds out."""
+    h = 0
+    for rel in ("static/kyiv.html", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py"):
+        p = os.path.join(ROOT, rel)
+        try:
+            st = os.stat(p)
+            h = (h * 1000003 + int(st.st_mtime) ^ st.st_size) & 0xFFFFFFFF
+        except OSError:
+            pass
+    return format(h, "08x")
+
+
+BUILD = None    # filled at startup
+
+
 AF_SUMMARY_CHANNELS = {"kpszsu", "war_monitor", "monitor_ukr"}   # the Air Force summary and the channels that re-post it verbatim
 _AF_NUM = r"(\d{1,3})(?:-?[а-яіїєґ']{1,3})?"
 _AF_ATTACK_RX = re.compile(r"(?:противник|ворог|росі\w+|рф)\s+(?:масовано\s+|знову\s+)?атакув\w+", re.I)
@@ -1442,6 +1459,12 @@ class Pusher:
             self.q.append({"title": title, "body": body, "tag": tag, "raion": raion, "ts": now_iso()})
             self.cond.notify()
 
+    def queue_direct(self, title, body, tag, endpoint):
+        """One device only — used by the proximity watcher, which does its own deduplication."""
+        with self.cond:
+            self.q.append({"title": title, "body": body, "tag": tag, "raion": None, "only": endpoint, "ts": now_iso()})
+            self.cond.notify()
+
     def send_test(self, endpoint=None):
         with self.cond:
             self.q.append({"title": "Clear Sky", "body": "Push notifications are on for this phone.", "tag": "test", "raion": None, "only": endpoint, "ts": now_iso()})
@@ -1465,6 +1488,91 @@ class Pusher:
                     log("push error:", e); continue
                 if gone:
                     self.store.push_remove(s_["endpoint"])
+
+
+def haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+
+
+# Notifications by distance from the subscriber's own position.
+#
+# The rules exist because a false alert at 3 a.m. costs more than a missed one here: the official siren is the
+# primary warning, this is the detail on top of it.
+#   - only live targets: never a stale one, never a closed track, never an outcome marker;
+#   - each target notifies a given device once (30 min memory), so a target re-reported every minute is one push;
+#   - at most one push per device every 2 minutes;
+#   - the distance sent is the distance to where the post said the target was, and the text says so.
+PROX_SEEN = {}          # endpoint -> {marker id: time}
+PROX_LAST = {}          # endpoint -> time of the last push to that device
+
+
+def proximity_watch(state, interval=20):
+    while True:
+        time.sleep(interval)
+        try:
+            pusher = getattr(state, "pusher", None)
+            if not (pusher and pusher.enabled):
+                continue
+            subs = [x for x in state.store.push_all() if (x.get("home") or {}).get("lat") is not None]
+            if not subs:
+                continue
+            live = [m for m in state.markers() if not m.get("status") and not m.get("stale") and not m.get("endedBy")]
+            if not live:
+                continue
+            now = time.time()
+            for sb in subs:
+                ep = sb["endpoint"]; home = sb["home"]
+                radius = float(home.get("radius") or 15)
+                seen = PROX_SEEN.setdefault(ep, {})
+                for mid, t0 in list(seen.items()):
+                    if now - t0 > 1800:
+                        del seen[mid]
+                if now - PROX_LAST.get(ep, 0) < 120:
+                    continue
+                near = []
+                for m in live:
+                    if m["id"] in seen:
+                        continue
+                    d = haversine_km(home["lat"], home["lon"], m["lat"], m["lon"])
+                    if d <= radius:
+                        near.append((d, m))
+                if not near:
+                    continue
+                near.sort(key=lambda x: x[0])
+                d, m = near[0]
+                for _, mm in near:
+                    seen[mm["id"]] = now
+                PROX_LAST[ep] = now
+                kind = {"drones": "Jet drone" if m.get("jet") else "Shahed"}.get(m["type"]) or THREAT_EN.get(m["type"], "Target")
+                extra = f" ×{m['count']}" if (m.get("count") or 1) > 1 else ""
+                more = f" (+{len(near) - 1} more)" if len(near) > 1 else ""
+                place = m.get("place") or "?"
+                hdg = f", heading {compass_en(m['heading'])}" if m.get("heading") is not None else ""
+                pusher.queue_direct(
+                    f"\u26a0 {kind}{extra} {round(d)} km from you{more}",
+                    f"Reported near {place}{hdg} at {fmt_kyiv(m['ts'])} \u00b7 position from a public post, not radar",
+                    "near", ep)
+        except Exception as e:
+            log("proximity error:", e)
+
+
+THREAT_EN = {"ballistic_missiles": "Ballistic missile", "cruise_missiles": "Cruise missile", "unspecified_missiles": "Missile",
+             "guided_aerial_bombs": "Guided bomb (KAB)", "tactic_aircraft_activity": "Tactical aviation"}
+
+
+def compass_en(deg):
+    return ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][int(round((deg % 360) / 45)) % 8]
+
+
+def fmt_kyiv(ts):
+    d = parse_iso(ts)
+    if not d:
+        return "?"
+    return d.astimezone(timezone(timedelta(hours=3))).strftime("%H:%M")
 
 
 # ---------------------------------------------------------------------------
@@ -1527,7 +1635,7 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/version":
                 with st.cond:
                     seq = st.seq
-                return self._json({"v": f"{seq}-{st.store.feed_count()}", "now": now_iso(), "missile": st.missile_active()})
+                return self._json({"v": f"{seq}-{st.store.feed_count()}", "now": now_iso(), "missile": st.missile_active(), "build": BUILD})
             if u.path == "/api/stats":
                 return self._json(st.stats(int(q.get("days", ["14"])[0])))
             if u.path == "/api/impacts":
@@ -1688,10 +1796,15 @@ def main():
             log(f"re-tagged {n} recent post(s)")
     except Exception as e:
         log(f"retag failed: {e}")
+    global BUILD
+    BUILD = build_id()
+    log("build", BUILD)
     state = State(store, cfg)
     state.pusher = Pusher(store)
     log("push notifications:", "enabled (VAPID key ready)" if state.pusher.enabled else "disabled — pip install cryptography to enable")
     Handler.state = state
+    if state.pusher.enabled:
+        threading.Thread(target=proximity_watch, args=(state,), daemon=True, name="proximity").start()
 
     keyed = False
     if cfg.get("demo"):

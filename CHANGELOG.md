@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.1.0 — 2026-09-17
+
+### Fixed (safety)
+- **A descending drone was shown as "confirmed shot down".** `зниження / знижується` — the word the monitoring
+  channels use for a drone diving on its target — was matched by the shoot-down keywords, so the most dangerous
+  moment of a target's flight was painted green and its track was closed. It is now a live target carrying the
+  altitude state `descending`, drawn crimson with a ↓ and a label that survives every zoom level. Only an explicit
+  `збито` / `знищено` / `мінус` makes a shoot-down.
+
+### Added
+- **Altitude, when the post states it** — descending, climbing, low, high, or a value in metres, with the words it
+  came from. Never inferred: no public source publishes altitude.
+- **"You are on an old build" notice.** `/api/version` carries a build id; a page that has been open for days
+  offers a one-tap reload when the server has moved on.
+- **Install as an app (PWA)** — a discreet prompt on Android, the Share → Add to Home Screen hint on iPhone,
+  snoozed for 14 days if dismissed, never shown over the welcome screen.
+- **Share a target in one tap** — the system share sheet, or the clipboard: type, count, place, time, descent,
+  heading, distance from your place, the source channel, the "not radar" caveat and the link.
+- **Proximity notifications** — allow your location, choose a radius (5–50 km), and get a push when something is
+  reported inside it. One push per target per device, at most one every two minutes, live targets only.
+- **Blackout mode** for 2G and weak signal: pure black and white, no map tiles, no images, a much smaller feed
+  payload. One accent colour survives — what is heading at you.
+- **"How this app works"** — twelve sections explaining the map, the markers, the grey targets, the warning
+  banner, the statistics and the notifications, in all three languages.
+- **Support the project** — the donation address, a polite line on the welcome screen, and a reminder at most
+  once a fortnight that never appears while an alert is running.
+- Credits: Black Flame Studio & NGO 07300.
+
 ## 1.0.0 — 2026-09-16
 
 First tagged version: the app as it runs today.
