@@ -283,9 +283,41 @@ LAST_OK = [True]   # whether the most recent translate() used the online transla
 _BOILER = re.compile(r"^\s*(#\S+(\s+#\S+)*|підписат[а-яіїє]*.*|поширюємо інформацію.*|детальніше читайте тут.*|читати більше.*|київ \| times.*|купуємо контент.*|➡️\s*оперативно про .*|реклама:.*|надіслати новину.*|зворотн[іи]й зв.язок.*|\(переглянути\)|⚡️перегляньте, що летить.*)\s*$", re.I | re.M)
 
 
+# Channel promos, ads and attributions glued to the END of a real warning:
+#   "…на Лівобережний масив, — монітори. Київ | Times Купуємо контент | ❤️"
+# They are not information, they take the space a warning needs, and they make the app look like an ad board.
+# Everything from the first marker to the end of the post is dropped.
+_PROMO = re.compile(
+    r"\s*(?:[—–-]\s*монітори\b[.,]?|"
+    r"купуємо\s+контент|київ\s*\|\s*times|"
+    r"➡️?\s*оперативно\s+про|новини\s*:\s*[А-ЯІЇЄа-яіїє]|"
+    r"підписат[а-яіїє]*|підписуйт[а-яіїє]*|"
+    r"надісл(?:ати|ать)\s+новину|присла(?:ти|ть)\s+новину|запропонувати\s+новину|"
+    r"наш\s+бот\b|бот\s+для\s+зв|зворотн[іи]й\s+зв|"
+    r"реклама\s*:|співпраця\s*:|"
+    r"підтримати\s+канал|донат|банка\s*:|monobank|приватбанк|"
+    r"поширюємо\s+інформацію|детальніше\s+читайте|читати\s+більше|"
+    r"⚡️?\s*перегляньте,?\s+що\s+летить"
+    r").*$", re.I | re.S)
+_TAIL_JUNK = re.compile(r"(?:\s*[|·•/]\s*)?(?:[\u2190-\u27bf\U0001f000-\U0001faff\ufe0f\u2600-\u26ff\s]|@[\w_]+)+$")
+
+
+def strip_promo(text):
+    """Cut the channel's advertising tail off a post, keeping the warning itself."""
+    if not text:
+        return text
+    t = _PROMO.sub("", text)
+    t = _TAIL_JUNK.sub("", t)          # trailing "| ❤️", "⚠️ @monitor_ukr", stray separators
+    t = re.sub(r"[ \t]+\n", "\n", t)
+    t = re.sub(r"\n{3,}", "\n\n", t)
+    t = re.sub(r"\s*[|·•,;:—–-]\s*$", "", t.strip())
+    return t.strip() or (text or "").strip()
+
+
 def clean(text):
     """Drop channel boilerplate before translation: hashtags (#без_бар'єрів), 'subscribe', 'read more', ads."""
     t = re.sub(r"[\u3164\u200b\u2800\u00a0]+", " ", text or "")
+    t = strip_promo(t)
     t = _BOILER.sub("", t)
     t = re.sub(r"(?<!\w)#[\w'’\-]+", "", t)
     t = re.sub(r"[ \t]+\n", "\n", t)

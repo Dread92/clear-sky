@@ -83,9 +83,13 @@ en:{
   lite_on:'Blackout mode on — black & white, no tiles, minimal data',lite_off:'Blackout mode off',
   geo_title:'Warn me near my location',geo_body:'Your position is stored only to compute the distance to reported targets, and only for the notifications on this device.',
   geo_btn:'Use my location',geo_radius:'Radius',geo_on:'Watching {0} km around you',geo_off:'Location alerts off',geo_deny:'Location permission refused',geo_need_push:'Turn on push notifications first.',
-  credits:'Made by Black Flame Studio & NGO 07300',credits_dev:'Built by the French Cossack of Obolon',
+  credits:'Made by Black Flame Studio & NGO 07300',credits_dev:'Built by Dread92',
   build_lbl:'build',
   alt_desc:'DESCENDING',alt_desc_l:'descending',alt_climb:'climbing',alt_low:'low',alt_high:'high',alt_src:'the post says so — altitude is never guessed',
+  th_unknown2:'Threat — type not stated',k_unknown:'Unspecified',lb_unknown:'?',
+  unk_note:'The post says where, not what. Shown as an unspecified threat rather than guessed.',
+  st_expl:'Explosions recorded',st_downs:'Confirmed shot down',st_launched:'Launched over Ukraine — Air Force',st_afdown:'shot down',st_win:'24 h · 7 d · 30 d',st_expl_day:'Explosions per day',st_src:'Explosions and shoot-downs are read from monitoring posts tied to a named town. Launch and shoot-down totals are the Air Force summaries.',
+  fd_more:'more',fd_less:'less',fd_times:'×{0}',dr_close:'Close',dr_open:'Open',
   c_kyiv:'Kyiv',u_upd:'upd',u_updating:'updating…',d_h:'h',d_min:'min'
 },
 uk:{
@@ -168,9 +172,13 @@ uk:{
   lite_on:'Режим блекауту увімкнено — чорно-біле, без тайлів, мінімум даних',lite_off:'Режим блекауту вимкнено',
   geo_title:'Попереджати біля мого місця',geo_body:'Ваша позиція зберігається лише для обчислення відстані до повідомлених цілей і лише для сповіщень на цьому пристрої.',
   geo_btn:'Використати моє місце',geo_radius:'Радіус',geo_on:'Стежимо за {0} км навколо вас',geo_off:'Сповіщення за місцем вимкнено',geo_deny:'Доступ до геолокації відхилено',geo_need_push:'Спочатку увімкніть push-сповіщення.',
-  credits:'Зроблено Black Flame Studio та ГО 07300',credits_dev:'Розробив французький козак з Оболоні',
+  credits:'Зроблено Black Flame Studio та ГО 07300',credits_dev:'Розробив Dread92',
   build_lbl:'збірка',
   alt_desc:'ЗНИЖУЄТЬСЯ',alt_desc_l:'знижується',alt_climb:'набирає висоту',alt_low:'низько',alt_high:'високо',alt_src:'так сказано в дописі — висота ніколи не вигадується',
+  th_unknown2:'Загроза — тип не вказано',k_unknown:'Не вказано',lb_unknown:'?',
+  unk_note:'Допис каже де, а не що. Показано як невизначену загрозу, а не вгадано.',
+  st_expl:'Зафіксовано вибухів',st_downs:'Підтверджено збито',st_launched:'Запущено по Україні — Повітряні сили',st_afdown:'збито',st_win:'24 год · 7 д · 30 д',st_expl_day:'Вибухів за день',st_src:'Вибухи та збиття зчитано з моніторингових дописів із прив’язкою до названого міста. Підсумки запусків і збиттів — зі зведень Повітряних сил.',
+  fd_more:'більше',fd_less:'менше',fd_times:'×{0}',dr_close:'Закрити',dr_open:'Відкрити',
   c_kyiv:'Київ',u_upd:'онов.',u_updating:'оновлення…',d_h:'год',d_min:'хв'
 },
 fr:{
@@ -253,9 +261,13 @@ fr:{
   lite_on:'Mode blackout activé — noir et blanc, sans tuiles, données minimales',lite_off:'Mode blackout désactivé',
   geo_title:'Me prévenir près de ma position',geo_body:"Votre position n'est conservée que pour calculer la distance aux cibles signalées, et uniquement pour les notifications de cet appareil.",
   geo_btn:'Utiliser ma position',geo_radius:'Rayon',geo_on:'Surveillance de {0} km autour de vous',geo_off:'Alertes de proximité désactivées',geo_deny:'Autorisation de localisation refusée',geo_need_push:"Activez d'abord les notifications push.",
-  credits:'Réalisé par Black Flame Studio & ONG 07300',credits_dev:"Développé par le cosaque français d'Obolon",
+  credits:'Réalisé par Black Flame Studio & ONG 07300',credits_dev:'Développé par Dread92',
   build_lbl:'build',
   alt_desc:'EN DESCENTE',alt_desc_l:'en descente',alt_climb:'en montée',alt_low:'basse altitude',alt_high:'haute altitude',alt_src:"c'est écrit dans la publication — l'altitude n'est jamais devinée",
+  th_unknown2:'Menace — type non précisé',k_unknown:'Non précisé',lb_unknown:'?',
+  unk_note:"La publication dit où, pas quoi. Affiché comme menace non précisée plutôt que deviné.",
+  st_expl:'Explosions enregistrées',st_downs:'Abattus confirmés',st_launched:"Lancés sur l'Ukraine — Forces aériennes",st_afdown:'abattus',st_win:'24 h · 7 j · 30 j',st_expl_day:'Explosions par jour',st_src:"Explosions et cibles abattues lues dans les publications de veille liées à une ville nommée. Les totaux de lancements et d'abattus viennent des bilans des Forces aériennes.",
+  fd_more:'plus',fd_less:'moins',fd_times:'×{0}',dr_close:'Fermer',dr_open:'Ouvrir',
   c_kyiv:'Kyiv',u_upd:'màj',u_updating:'mise à jour…',d_h:'h',d_min:'min'
 }};
 function t(k,...a){let s=(I18N[LANG]&&I18N[LANG][k]);if(s==null)s=I18N.en[k];if(s==null)return k;return a.length?s.replace(/\{(\d)\}/g,(_,i)=>a[+i]??''):s;}

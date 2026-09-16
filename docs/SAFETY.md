@@ -82,6 +82,21 @@ A descending drone is the most dangerous state there is: it is diving at somethi
 shot down". It is now a live target, and a post has to say `збито` / `знищено` before anything is called a
 shoot-down. `tests/test_geo.py` pins both halves of that.
 
+## A threat type is never invented
+
+If the post does not say what is flying, the map does not say it either: the marker is an amber warning triangle
+labelled *type not stated*, counted apart from drones and missiles. "Васильків увага ‼️" tells you where to worry,
+not what to worry about, and a Shahed icon there would be a claim nobody made.
+
+The channels' shorthand does count as naming it — 🛸 🛵 🏍 🅿 for a strike drone, 🚀 for a missile, 💣 for a KAB —
+because that is how those channels write, every night.
+
+## Nothing is drawn where the source said it is clear
+
+Posts mix an all-clear and a warning in one breath: "Чисте небо Київська область та Київ. Васильків увага ‼️".
+Clear sentences are removed before parsing, so only Vasylkiv gets a marker. A false alarm over a city that was
+just declared clear is the fastest way to make people stop trusting the map — and then stop reading it at all.
+
 ## Every number is traceable
 
 Tap any marker and you see the sentence it came from, the channel, the time, and how position,

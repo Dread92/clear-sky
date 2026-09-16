@@ -266,6 +266,16 @@ def build_id():
 BUILD = None    # filled at startup
 
 
+def _clean_post(text):
+    """What the reader sees: the warning without the channel's ad tail ("Купуємо контент | ❤️")."""
+    if not _tr:
+        return text
+    try:
+        return _tr.strip_promo(text)
+    except Exception:
+        return text
+
+
 AF_SUMMARY_CHANNELS = {"kpszsu", "war_monitor", "monitor_ukr"}   # the Air Force summary and the channels that re-post it verbatim
 _AF_NUM = r"(\d{1,3})(?:-?[а-яіїєґ']{1,3})?"
 _AF_ATTACK_RX = re.compile(r"(?:противник|ворог|росі\w+|рф)\s+(?:масовано\s+|знову\s+)?атакув\w+", re.I)
@@ -428,12 +438,12 @@ class Store:
         since = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
         with self.lock:
             rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en FROM feed WHERE ts>=? ORDER BY ts DESC LIMIT ?", (since, limit)).fetchall()
-        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": r[3], "tags": json.loads(r[4]), "text_en": r[5] or (to_en(r[3]) if translate else None)} for r in rows]
+        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": json.loads(r[4]), "text_en": r[5] or (to_en(r[3]) if translate else None)} for r in rows]
 
     def feed(self, limit=80):
         with self.lock:
             rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en FROM feed ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
-        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": r[3], "tags": json.loads(r[4]), "text_en": r[5] or to_en(r[3])} for r in rows]
+        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": json.loads(r[4]), "text_en": r[5] or to_en(r[3])} for r in rows]
 
     def history(self, hours=24, oblast_uids=None):
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
@@ -716,7 +726,8 @@ class State:
         for k in by_day.values():
             for kk, v in empty.items():
                 k.setdefault(kk, v)
-        windows = {w: {"drone_reports": 0, "missile_reports": 0, "launched_drones": 0, "launched_missiles": 0, "summaries": 0} for w in (1, 7, 30)}
+        windows = {w: {"drone_reports": 0, "missile_reports": 0, "launched_drones": 0, "launched_missiles": 0,
+                       "af_down": 0, "summaries": 0} for w in (1, 7, 30)}
         for p in self.store.feed_since(30 * 24 * 60, limit=60000, translate=False):
             tg = set(p.get("tags") or [])
             pts = parse_iso(p["ts"]) or now
@@ -764,18 +775,29 @@ class State:
                 continue
             pts = parse_iso(p["ts"]) or now
             d = pts.astimezone(kyiv_tz).strftime("%Y-%m-%d")
-            cur = day_max.get(d, {"drones": 0, "missiles": 0, "age": 0})
-            day_max[d] = {"drones": max(cur["drones"], summ["drones"]), "missiles": max(cur["missiles"], summ["missiles"]), "age": (now - pts).total_seconds() / 86400}
+            cur = day_max.get(d, {"drones": 0, "missiles": 0, "down": 0, "age": 0})
+            day_max[d] = {"drones": max(cur["drones"], summ["drones"]), "missiles": max(cur["missiles"], summ["missiles"]),
+                          "down": max(cur["down"], summ["down"]), "age": (now - pts).total_seconds() / 86400}
         for d, v in day_max.items():
             for w, acc in windows.items():
                 if v["age"] <= w:
-                    acc["launched_drones"] += v["drones"]; acc["launched_missiles"] += v["missiles"]
+                    acc["launched_drones"] += v["drones"]; acc["launched_missiles"] += v["missiles"]; acc["af_down"] += v["down"]
+        # Explosions and confirmed shoot-downs come from parsed posts, and that parsing covers at most 96 h —
+        # so they are reported for 24 h and 72 h only. Reporting them "per 30 days" would be a number that is
+        # simply missing most of its days.
+        imp_windows = {1: {"impacts": 0, "down": 0}, 3: {"impacts": 0, "down": 0}}
+        for m in imp:
+            age_d = (now - (parse_iso(m["ts"]) or now)).total_seconds() / 86400
+            for w, acc in imp_windows.items():
+                if age_d <= w:
+                    acc["impacts" if m["status"] == "impact" else "down"] += 1
         daysl = [(since + timedelta(days=i)).astimezone(kyiv_tz).strftime("%Y-%m-%d") for i in range(days + 1)]
         series = [{"day": d, **by_day.get(d, empty)} for d in daysl]
         out = {"days": days, "since": since.isoformat(), "series": series, "hours": hours, "kyiv_minutes": round(tot_min),
                "kyiv_alerts": sum(1 for a in al if a["oblast_uid"] == "31"), "longest": longest, "by_oblast": by_obl,
                "impacts_total": sum(1 for m in imp if m["status"] == "impact"), "down_total": sum(1 for m in imp if m["status"] == "down"),
-               "impact_window_h": min(days * 24, 96), "windows": {str(k): v for k, v in windows.items()}}
+               "impact_window_h": min(days * 24, 96), "windows": {str(k): v for k, v in windows.items()},
+               "imp_windows": {str(k): v for k, v in imp_windows.items()}, "imp_max_h": min(days * 24, 96)}
         self._stats_res[days] = (time.time(), out)
         return out
 

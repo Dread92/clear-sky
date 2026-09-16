@@ -1,5 +1,36 @@
 # Changelog
 
+## 1.2.0 — 2026-09-17
+
+### Fixed (safety)
+- **A threat is no longer invented when the post does not name one.** A post that says only where —
+  "Васильків увага ‼️", "Лісники" — used to be drawn as a Shahed. It is now an amber warning triangle labelled
+  *type not stated*, counted separately from drones. The channels' own shorthand still counts as naming it:
+  🛸 / 🛵 / 🏍 / 🅿 is a strike drone, 🚀 a missile, 💣 a KAB.
+- **No marker where the source said the sky is clear.** "Чисте небо Київська область та Київ. Васильків увага"
+  produced threat markers over Kyiv — a false alarm on a city that had just been declared clear. Clear sentences
+  are now removed before anything is parsed, and "чисте небо" is recognised as an all-clear.
+- **The stylus no longer moves the map on its own.** A hovering pen sends pointer moves with no contact; the map
+  panned on them. Nothing moves now unless something is actually pressed.
+- **The details card stayed inside the map.** It flipped left past the middle of a phone screen and was cut off.
+  Below 560 px it docks full width at the top or bottom, away from the target; above that it follows the cursor,
+  clamped on both axes.
+
+### Changed
+- **Cruise and ballistic missiles are the loudest thing on the map**: brighter red with a white edge, larger
+  glyph, a double pulse, a faster course ray, and a label that never hides. They fly further, arrive faster and
+  carry far more than a Shahed.
+- **Channel advertising is stripped from every post** ("Купуємо контент | ❤️", "➡️Оперативно про…", subscribe
+  and donation lines). The warning is kept, the ad is not — it was taking the space a warning needs.
+- **The feed is condensed**: identical warnings repeated district by district collapse into one card listing the
+  places, and a long post shows two lines with *more* to expand.
+- **Statistics reduced to what is real**: explosions recorded and confirmed shoot-downs (24 h / 72 h — the window
+  the parsing actually covers), what the Air Force reported as launched and shot down (24 h / 7 d / 30 d), and
+  explosions per day. The "alerts / 24 h", "under alert" and per-oblast figures are gone; they were double
+  counting and nobody used them.
+- The drawer opens and closes with a proper tab on its top edge instead of a 3-px pill.
+- Credit: built by **Dread92**.
+
 ## 1.1.0 — 2026-09-17
 
 ### Fixed (safety)

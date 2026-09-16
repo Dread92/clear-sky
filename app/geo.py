@@ -226,6 +226,9 @@ TYPE_RX = [
     ("strategic_aircraft_activity", re.compile(r"ту-?95|ту-?160|ту-?22|стратегічн", re.I)),
     ("tactic_aircraft_activity", re.compile(r"тактичн", re.I)),
     ("drones", re.compile(r"бпла|шахед|дрон|безпілотн|мопед|герань|реактив|\d+\s*звичайн", re.I)),
+    ("ballistic_missiles", re.compile(r"\U0001f680", re.I)),                                   # 🚀
+    ("guided_aerial_bombs", re.compile(r"\U0001f4a3", re.I)),                                  # 💣
+    ("drones", re.compile(r"[\U0001f6f8\U0001f6f5\U0001f3cd\U0001f6f5\U0001f681]|\U0001f17f", re.I)),   # 🛸 🛵 🏍 🚁 🅿 — the channels' shorthand for a strike drone
 ]
 CLEAR_RX = re.compile(r"відбій|загроза минула|небезпека минула|зникл", re.I)
 ALERT_MSG_RX = re.compile(r"повітрян[а-яіїє]* тривог|відбій|рівень (тривоги|небезпеки)|загроза застосування|(прямуйте|перейдіть|пройдіть) (в|до) укритт|небезпека минула|оголошен[оа] тривог", re.I)
@@ -379,7 +382,7 @@ def _sub_direction_offset(text, pos):
 STATUS_RX = [("down", re.compile(r"збит|знищен|мінус|ліквідован|падінн|впав|впали|приземл|збили", re.I)),
              ("impact", re.compile(r"вибух|приліт|прильот|влучанн|влучив|попадання", re.I)),
              ("lost", re.compile(r"втрачен|зник|не спостеріга|загубл", re.I)),
-             ("clear", re.compile(r"чисто|небо чисте", re.I))]
+             ("clear", re.compile(r"чисто|небо чисте|чист[еиої]\w*\s+небо", re.I))]
 
 
 def _status_of(t):
@@ -456,9 +459,25 @@ def parse_altitude(seg):
     return out
 
 
+# A post often reports clear sky AND a warning in the same breath:
+#   "Чисте небо Київська область та Київ. Васильків увага ‼️"
+# The places in the CLEAR sentence must never receive a threat marker — a false alarm over a city that was
+# just declared clear is the worst kind of noise. Sentences are filtered before anything is parsed.
+SENT_CLEAR_RX = re.compile(r"чист[еиої]\w*\s+небо|\bчисто\b|небо\s+чист|відбій|загроза\s+минула|небезпека\s+минула", re.I)
+
+
+def _drop_clear_sentences(t):
+    parts = re.split(r"(?<=[.!?‼])\s+", t)
+    if len(parts) < 2:
+        return t
+    kept = [p for p in parts if not (SENT_CLEAR_RX.search(p) and not re.search(r"увага|загроз|курс|летить|йде|бпла|ракет|каб", p[SENT_CLEAR_RX.search(p).end():] if SENT_CLEAR_RX.search(p) else ""))]
+    return " ".join(kept) if kept else t
+
+
 def parse_post(text):
     """Return a list of marker dicts for one post (may be empty)."""
     t = _norm(text)
+    t = _drop_clear_sentences(t)
     if CLEAR_RX.search(t) and not re.search(r"бпла|ракет|каб", t):
         return []
     # alert announcements ("відбій … ракетна загроза", "повітряна тривога! дронова загроза", "загроза застосування
@@ -476,9 +495,9 @@ def parse_post(text):
             mtype = name
             type_ev = {"matched": mm.group(0), "method": "keyword"}
             break
-    if not mtype and (COUNT_RX.search(t) or "🅿" in text or "⚠" in text) and not re.search(r"чисто|збит|знищен|мінус", t):
-        mtype = "drones"
-        type_ev = {"matched": "🅿️/⚠️ + count, no type word", "method": "assumed drone (monitoring-channel convention)"}
+    if not mtype and (COUNT_RX.search(t) or "🅿" in text or "⚠" in text or "‼" in text) and not re.search(r"чисто|збит|знищен|мінус", t):
+        mtype = "unknown"
+        type_ev = {"matched": None, "method": "the post does not say what it is — shown as an unspecified threat", "confidence": "none"}
     if not mtype:
         return []
     # split into segments: newlines, ';', ' та ' , ' також '
@@ -702,6 +721,9 @@ def _parse_live(text, uid):
     Returns markers; status posts without a place get 'needs_context' so the server can place them at the
     channel's previous position."""
     t = _norm(text)
+    kept = _drop_clear_sentences(t)         # "Чисте небо … Київ. Васильків увага" → only Vasylkiv is a warning
+    if kept != t and kept.strip():
+        text, t = kept, kept
     if len(t.split()) > 8 or re.search(r"курс|напрям|у бік|летить", t):
         r = parse_post(text)
         if r:
@@ -723,18 +745,21 @@ def _parse_live(text, uid):
         return parse_post(text)
     s, e, name = places[-1] if re.search(r"йде|летить|на\s", t) else places[0]
     lon, lat, uid = PLACES[name]
-    mtype = "drones"
+    mtype = None
     for n, rx in TYPE_RX:
         if rx.search(t):
             mtype = n
             break
+    # a bare place name on a live-tracking channel says WHERE, not WHAT: shown as an unspecified threat
+    stated = mtype is not None
+    mtype = mtype or "unknown"
     cnt = None
     mc = COUNT_RX.search(t)
     if mc:
         cnt = int(mc.group(1) or mc.group(2))
     return [{"type": mtype, "status": st, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None, "place": name, "target": None, "count": cnt,
              "jet": bool(re.search(r"реактив", t)), "oblast_uid": uid, "live": True,
-             "evidence": {"segment": t.strip(), "type": {"matched": "(none)", "method": "channel convention: this live-tracking channel posts the current position of strike drones"},
+             "evidence": {"segment": t.strip(), "type": {"matched": "(none)", "method": ("keyword" if stated else "the post names only a place — this channel tracks strike drones, but it did not say so here"), "confidence": ("high" if stated else "none")},
                           "position": {"matched": t[s:e], "place": name, "method": "bare place name = current position of the tracked target (gazetteer)", "confidence": "high"},
                           "heading": {"matched": None, "method": "derived from the previous report of this channel when available", "confidence": "medium"}, "count": None}}]
 
