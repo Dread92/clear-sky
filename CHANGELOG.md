@@ -53,6 +53,14 @@
   at a screenshot. A test pins the version in the page, the server and the changelog to each other.
 
 ### Changed
+- **The Shahed looks like a Shahed.** The plain delta triangle is replaced by the real airframe seen from
+  above — nose cone, slim fuselage, the big delta, fins at the wingtips, engine at the tail — drawn as vector
+  shapes rather than a sprite so it still takes a colour (orange, amber for the jet, white in blackout) and
+  stays sharp at every zoom. The Shahed-238 is the same airframe with the turbojet's dorsal intake, a fatter
+  nozzle and a longer flame, because that is what actually distinguishes them.
+  - The glyph no longer rides around the loiter ring. It was spinning with it — invisible on a triangle,
+    impossible on an aircraft, which tumbled. The ring keeps the meaning; the airframe sits still, nose up
+    like every other symbol on the map.
 - **One weapon, one symbol — and it never turns.** A rotating symbol has to point somewhere, so a target
   reported with no course forced a choice between inventing a heading and drawing a different icon for the
   same weapon; the app did both, and a Banderol was an arrow in one place and a diamond in another. Every

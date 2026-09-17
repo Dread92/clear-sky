@@ -14,9 +14,10 @@ open, not once, and the scrolling ticker repeats the essentials while the app is
 
 A target is drawn **where a post said it was**. Nothing else.
 
-- Shaheds are drawn *loitering* around the reported point, because their real path is erratic and a
-  straight arrow would imply a precision nobody has. The reported heading is shown as a chevron —
-  a direction someone reported, not a course line.
+- A Shahed sits inside a dashed ring rather than on a point, because its real path is erratic and a
+  marker pinned to one spot would imply a precision nobody has. The airframe itself does not move or turn:
+  the ring says *somewhere around here*, and the chevron shows a heading someone reported — a direction from
+  a post, not a course line.
 - Dead reckoning along a heading exists only behind the explicit **EST** switch, off by default,
   labelled as an estimate. A drone that turned after the report would otherwise be drawn somewhere
   it is not.

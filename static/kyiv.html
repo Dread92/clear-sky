@@ -902,7 +902,22 @@ const oblWhere=m=>{const q=((m.evidence||{}).position||{}).quad; return q?t('oq_
 // (every marker on the map sits at the same angle, so its nose cannot be read as a course) and the whole
 // direction story lives in the chevron, the ray and the uncertainty cone — which appear only when a post
 // actually gave a course, and are simply absent when it did not.
-const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4.5 6.5 L-8.5 6.5 Z"/><path class="glyph" d="M0-9 L0 6" style="fill:none;stroke:#080b10;stroke-width:1.2px"/><g class="jetfx"><path class="flame" d="M-2.5 9 L0 15 L2.5 9 Z"/><path class="flame2" d="M-1.2 9 L0 12.5 L1.2 9 Z"/></g>',
+// The Shahed-136 as it actually looks from above: nose cone, slim fuselage, a big delta, fins at the wingtips
+// and the engine at the tail. Drawn as shapes rather than a bitmap because the glyph has to take a colour —
+// orange for a Shahed, amber for the jet, white in blackout mode, and the app tints it for other states too —
+// and stay sharp at every zoom, neither of which a sprite sheet does. The sub-shapes overlap on purpose: the
+// outline they share reads as panel lines at marker size.
+const SHAHED_BODY='<path class="glyph" d="M0-11.6 L2-6.8 L2 6.2 L-2 6.2 L-2-6.8 Z"/>'
+  +'<path class="glyph" d="M-2-3.6 L-10.4 6.2 L-2 6.2 Z"/><path class="glyph" d="M2-3.6 L10.4 6.2 L2 6.2 Z"/>'
+  +'<rect class="glyph" x="-10.9" y="5.2" width="2.4" height="4.8" rx="0.5"/>'
+  +'<rect class="glyph" x="8.5" y="5.2" width="2.4" height="4.8" rx="0.5"/>';
+const G={drone:SHAHED_BODY+'<rect class="glyph" x="-2.8" y="6" width="5.6" height="4.4" rx="0.8"/>'
+    +'<g class="jetfx"><path class="flame" d="M-2.4 10.4 L0 16.6 L2.4 10.4 Z"/><path class="flame2" d="M-1.1 10.4 L0 13.8 L1.1 10.4 Z"/></g>',
+  // Same airframe, because it is the same airframe. What tells them apart is the turbojet: an intake on the
+  // spine and a fatter nozzle — plus the flame, which only a jet one is drawn with.
+  jetdrone:SHAHED_BODY+'<rect class="glyph" x="-3.3" y="-6.6" width="6.6" height="4.4" rx="2.2"/>'
+    +'<rect class="glyph" x="-3.2" y="6" width="6.4" height="4.6" rx="0.8"/>'
+    +'<g class="jetfx"><path class="flame" d="M-3 10.6 L0 19.5 L3 10.6 Z"/><path class="flame2" d="M-1.5 10.6 L0 15.6 L1.5 10.6 Z"/></g>',
   // swept wings: a cruise missile at a glance, and not the same shape as anything else here
   missile:'<path class="glyph" d="M0-11 L2.3-4.6 L2.3-2.4 L9 4.4 L9 6.4 L2.3 3.2 L2.3 6.4 L4.6 10 L-4.6 10 L-2.3 6.4 L-2.3 3.2 L-9 6.4 L-9 4.4 L-2.3-2.4 L-2.3-4.6 Z"/>',
   // the S8000 is a small straight-winged airframe with the jet on its back — drawn as such, so it can never
@@ -983,7 +998,7 @@ function buildMarker(m){
   const isNew=!seenMk.has(m.id); seenMk.add(m.id);
   const isMsl=/missile/.test(m.type)&&!m.status; if(isMsl) g.classList.add('msl');
   g.innerHTML=`<line class="ahead" x1="0" y1="0" x2="0" y2="0"/><polygon class="cone" points="0,0 0,0 0,0"/><circle class="halo" cx="0" cy="0" r="6"/>${isMsl?'<circle class="halo2" cx="0" cy="0" r="6"/><circle class="reach" cx="0" cy="0" r="0" style="display:none"/>':''}${isNew?`<circle class="spawn" cx="0" cy="0" r="${(10*KPX).toFixed(1)}"/>`:''}
-    ${m.type==='drones'&&!m.status?`<g class="orbit"><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="7s" repeatCount="indefinite"/><g class="body"><g class="rot">${glyph}</g></g></g><circle class="loiter" cx="0" cy="0" r="1"/>`:`<g class="body"><g class="rot">${glyph}</g></g>`}
+    ${m.type==='drones'&&!m.status?`<g class="orbit"><g class="body"><g class="rot">${glyph}</g></g></g><circle class="loiter" cx="0" cy="0" r="1"/>`:`<g class="body"><g class="rot">${glyph}</g></g>`}
     <polygon class="hdg" points="0,-5.2 5.4,3.6 0,1.3 -5.4,3.6" style="display:none"/><text class="qm" x="0" y="0">?</text><text class="dn" x="0" y="0">↓</text><g class="cnt" style="display:none"><circle r="6.5"/><text y="3.2">2</text></g><text class="lbl" x="5" y="-4"></text><text class="lbl2" x="5" y="0"></text><circle class="hit" cx="0" cy="0" r="8"/>`;
   g.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;showTip(m,e);}); g.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;moveTip(e);}); g.addEventListener('pointerleave',()=>{$('tip').hidden=true;});
   const trail=document.createElementNS('http://www.w3.org/2000/svg','line'); trail.setAttribute('class','trail');
@@ -991,7 +1006,7 @@ function buildMarker(m){
   return {g,trail,hist,gk};
 }
 // one weapon, one symbol — and the same symbol whether or not a course was reported
-const glyphKey=m=>m.status?m.status:m.type==='drones'?'drone':m.type==='unknown'?'unknown'
+const glyphKey=m=>m.status?m.status:m.type==='drones'?(m.jet?'jetdrone':'drone'):m.type==='unknown'?'unknown'
   :m.type==='banderol_missiles'?'banderol':m.type==='ballistic_missiles'?'ballistic'
   :(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?'bomb':'missile';
 // Nothing turns. See the note on G above: orientation carries no meaning on this map, the ray does.
@@ -1043,9 +1058,13 @@ function tick(){
     // a later post can add the course that the first one lacked: swap the blind mark for a pointed one
     {const gk=glyphKey(m); if(b.gk!==gk){b.gk=gk; b.g.querySelector('.rot').innerHTML=G[gk];}}
     const orbit=b.g.querySelector('.orbit');
-    if(orbit&&!m.endedBy&&!m.stale){ // Shahed: drawn loitering around the reported point (their real path is erratic); the chevron shows the reported heading
-      const R=9*KPX; b.g.querySelector('.body').setAttribute('transform',`translate(${R.toFixed(2)} 0)`); b.g.querySelector('.rot').setAttribute('transform',`rotate(180) scale(${(gs*0.85).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r',R.toFixed(2));
-    }else if(orbit){ const at=orbit.querySelector('animateTransform'); if(at) at.remove(); orbit.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
+    if(orbit&&!m.endedBy&&!m.stale){
+      // A Shahed's real path is erratic, so the ring says "somewhere around here" rather than pretending the
+      // reported point is exact. The glyph used to ride around that ring, spinning with it — which was fine
+      // for a plain triangle and impossible for an aircraft: it tumbled. The ring keeps the meaning; the
+      // airframe sits still at the reported point, nose up like every other symbol on this map.
+      const R=13.5*KPX; b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`scale(${gs.toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r',R.toFixed(2));
+    }else if(orbit){ orbit.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
     else b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${gs.toFixed(2)})`);
     const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.55*KPX).toFixed(2)})`);}else hdg.style.display='none';
     paintReach(b,m);          // how far a fast target could have travelled since it was last reported
