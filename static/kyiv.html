@@ -25,10 +25,18 @@ button{font:inherit;cursor:pointer}
 #top .r1{height:40px;display:flex;align-items:center;gap:10px;padding:0 10px 0 8px;border-bottom:1px solid var(--line)}
 #top .logo{width:28px;height:28px;flex:none}
 #top .name{font:700 17px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
-.menu{position:absolute;right:8px;top:44px;background:#14171d;border:1px solid var(--line);display:flex;flex-direction:column;min-width:230px;z-index:25;box-shadow:0 8px 24px #0009}
+.menu{position:absolute;right:8px;top:44px;background:#14171d;border:1px solid var(--line);display:flex;flex-direction:column;min-width:230px;max-width:min(320px,calc(100vw - 16px));max-height:calc(100vh - 56px);overflow-y:auto;overscroll-behavior:contain;z-index:25;box-shadow:0 8px 24px #0009}
 .menu[hidden]{display:none}
-.ticker{height:18px;overflow:hidden;background:#0f1218;border-bottom:1px solid var(--line);font:600 10.5px/18px var(--mono);color:#b9c2d0;letter-spacing:.03em;white-space:nowrap}
-.ticker .tk{display:inline-block;animation:tkscroll 55s linear infinite}.ticker .tk span{padding-right:40px}@keyframes tkscroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+/* Was a 55-second marquee: you could not read it at your own pace, it clipped its own descenders at 18 px,
+   and during an attack nobody follows a moving line. It is now one short sentence at a time, fading between
+   five of them, each written to fit a phone in one line. Tapping it opens the full disclaimer. */
+.ticker{display:flex;align-items:center;gap:7px;width:100%;min-height:22px;padding:3px 12px;background:#0f1218;border:0;border-bottom:1px solid var(--line);font:600 10.5px/1.35 var(--mono);color:#b9c2d0;letter-spacing:.03em;text-align:left;cursor:pointer}
+.ticker .tki{flex:0 0 auto;color:var(--ua-yellow);font-size:11px}
+.ticker .tkt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;transition:opacity .45s ease}
+.ticker.fade .tkt{opacity:0}
+/* fixed two-line box on a phone: a line that wraps must not make the whole header jump under the map */
+@media (max-width:460px){.ticker{height:34px}.ticker .tkt{white-space:normal;overflow:hidden;text-overflow:clip;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-clamp:2}}
+body.lite .ticker .tki{color:#fff}
 .upd .cd{display:inline-block;min-width:26px;color:var(--ua-yellow);font-weight:700}
 /* ballistic: a second-by-second countdown would read as a stutter, so it says LIVE and pulses instead */
 .upd .cd.live{color:#ff5b52;letter-spacing:.08em;animation:livepulse 1s ease-in-out infinite}
@@ -52,8 +60,21 @@ button{font:inherit;cursor:pointer}
 .sheet .type{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .tstrip{font:700 12px/1.25 var(--mono);letter-spacing:.04em;text-transform:uppercase;padding:5px 12px;background:#3a1030;color:#ffd0f0;border-bottom:1px solid #7a2a6a;animation:tpulse 1.6s ease-in-out infinite}.tstrip small{font:600 10.5px var(--mono);color:inherit;opacity:.8;text-transform:none;letter-spacing:0}
 .tstrip.bal{background:#4a0d12;color:#ffd6d6;border-color:#8a2a2a}.tstrip.mig{background:#2b1440;color:#e9d6ff;border-color:#5f2f8a}.tstrip[hidden]{display:none}
+/* past the freshness window it stops shouting: no pulse, muted amber, past tense, age on the face of it */
+.tstrip.old{background:#221d13;color:#d9cba4;border-color:#4d411f;animation:none}
+.tstrip.old small{opacity:.95}
+body.lite .tstrip.old{background:#111;color:#ddd;border-color:#555}
 @keyframes tpulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
-.mi{background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--ink);text-align:left;padding:11px 14px;font:500 13px var(--sans)}.mi:last-child{border-bottom:0}.mi.on::after{content:' ✓';color:var(--ua-yellow)}
+.mi{background:transparent;border:0;border-bottom:1px solid var(--line);color:var(--ink);text-align:left;padding:9px 14px;font:500 13px var(--sans);text-decoration:none;display:block}.mi:last-child{border-bottom:0}.mi[hidden]{display:none}.mi.on::after{content:' ✓';color:var(--ua-yellow)}
+/* the menu is a list of seventeen things; without groups you read all of them to find one */
+.menu .mg{padding:7px 14px 5px;font:700 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--ink3,#6c6b66);background:#0f1217;border-bottom:1px solid var(--line)}
+.menu .mg:first-child{border-top:0}
+.mrow{display:flex;gap:6px;align-items:center;padding:7px 10px 7px 14px;border-bottom:1px solid var(--line)}
+.mrow .ml{font:500 12px var(--sans);color:var(--ink3,#6c6b66);margin-right:auto;white-space:nowrap}
+.mi2{flex:0 0 auto;background:#1b1f27;border:1px solid var(--line);color:var(--ink);padding:6px 10px;font:600 12px var(--sans);cursor:pointer;border-radius:2px}
+.mrow:not(.z) .mi2{flex:1 1 0;text-align:center}
+.mi2:hover{background:#232833}.mi2.on{border-color:var(--ua-yellow);color:var(--ua-yellow)}.mi2.on::after{content:' ✓'}
+.mi.bt{color:var(--muted);font:11px var(--mono);cursor:default}
 #top .name small{display:block;font:500 9.5px/1 var(--mono);letter-spacing:.14em;color:var(--ink3);margin-top:3px}
 .srcs{display:flex;gap:4px;margin-left:2px;align-items:center}.srcs i{width:6px;height:6px;background:var(--ink3);display:inline-block}.srcs i.ok{background:var(--green)}.srcs i.warn{background:var(--yellow)}.srcs i.bad{background:var(--red)}.srcs .sn{font:600 10px var(--mono);color:var(--ink3);letter-spacing:.02em}@media (max-width:999px){.srcs .sn{display:none}}
 #top .sp{flex:1}
@@ -430,24 +451,32 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="ib" id="menubtn" data-t-title="t_settings" title="Settings">☰</button>
   </div>
   <div class="menu" id="menu" hidden>
-    <button class="mi" id="langbtn"></button>
-    <button class="mi" id="oblbtn" data-t="m_obl">My oblast…</button>
-    <button class="mi" id="homebtn" data-t="m_home">Priority location…</button>
-    <button class="mi" id="lang" data-t="m_ua">Show original Ukrainian</button>
-    <button class="mi on" id="snd" data-t="m_snd">Sound alerts</button>
-    <button class="mi" id="vib" data-t="m_vib">Vibration</button>
+    <div class="mg" data-t="m_g_alert">Alerts</div>
     <button class="mi" id="pushbtn" data-t="m_push">Push notifications (phone, app closed)</button>
     <button class="mi" id="geobtn" data-t="geo_title">Warn me near my location</button>
-    <button class="mi" id="helpbtn" data-t="m_help">How this app works</button>
-    <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
-    <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
-    <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi" style="color:var(--muted);font:11px var(--mono);cursor:default" id="buildtag">v1.5</div>
+    <div class="mrow"><button class="mi2 on" id="snd" data-t="m_snd_s">Sound</button><button class="mi2" id="vib" data-t="m_vib_s">Vibration</button></div>
+
+    <div class="mg" data-t="m_g_map">Map</div>
+    <button class="mi" id="oblbtn" data-t="m_obl">My oblast…</button>
+    <button class="mi" id="homebtn" data-t="m_home">Priority location…</button>
+    <button class="mi" id="zcity2" data-t="m_city">Kyiv city map (10 districts) — toggle</button>
+    <div class="mrow z"><span class="ml" data-t="m_zoom">Zoom out</span><button class="mi2" id="zobl" data-t="m_z_obl">Oblast</button><button class="mi2" id="zreg" data-t="m_z_reg">Region</button><button class="mi2" id="zua" data-t="m_z_ua">Ukraine</button></div>
     <button class="mi" id="est" data-t="m_est">Estimate motion along heading (EST)</button>
-    <button class="mi" id="zcity2" data-t="m_city">Kyiv city map (10 districts) — toggle</button><button class="mi" id="zobl" data-t="m_zobl">Zoom out to whole oblast</button><button class="mi" id="zreg" data-t="m_zreg">Zoom out to surrounding oblasts</button><button class="mi" id="zua" data-t="m_zua">Zoom out to all of Ukraine</button>
+
+    <div class="mg" data-t="m_g_view">Display</div>
+    <button class="mi" id="langbtn"></button>
+    <button class="mi" id="lang" data-t="m_ua">Show original Ukrainian</button>
+    <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
+
+    <div class="mg" data-t="m_g_info">About</div>
+    <button class="mi" id="helpbtn" data-t="m_help">How this app works</button>
+    <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
+    <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
+    <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
+    <div class="mi bt" id="buildtag">v1.5.1</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
-  <div class="ticker"><div class="tk"><span id="tk1"></span><span id="tk2"></span></div></div>
+  <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
   <div class="tstrip" id="tstrip" hidden></div>
 </header>
 
@@ -525,7 +554,16 @@ const LT=x=>({oblast:t('lt_oblast'),raion:t('lt_raion'),hromada:t('lt_hromada'),
 document.documentElement.lang=LANG;
 document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t)); document.querySelectorAll('[data-t-html]').forEach(el=>el.innerHTML=t(el.dataset.tHtml));
 document.querySelectorAll('[data-t-title]').forEach(el=>el.title=t(el.dataset.tTitle)); document.querySelectorAll('[data-t-ph]').forEach(el=>el.placeholder=t(el.dataset.tPh));
-document.getElementById('tk1').textContent=t('ticker'); document.getElementById('tk2').textContent=t('ticker');
+// one line at a time, 7 s each, cross-faded — and it never rotates while the tab is hidden
+(()=>{ const el=document.getElementById('tkt'), box=document.getElementById('ticker');
+  const lines=()=>{const v=t('tkr'); return Array.isArray(v)?v:[String(v)];};
+  let i=0; const show=()=>{const L=lines(); el.textContent=L[i%L.length];};
+  show();
+  if(window.__tkTimer) clearInterval(window.__tkTimer);
+  window.__tkTimer=setInterval(()=>{ if(document.hidden) return; const L=lines(); if(L.length<2) return;
+    box.classList.add('fade'); setTimeout(()=>{ i=(i+1)%L.length; show(); box.classList.remove('fade'); },450); },7000);
+  box.onclick=()=>{ const d=document.getElementById('disc'); if(d) d.hidden=false; };
+})();
 const LFLAG={en:'🇬🇧',uk:'🇺🇦',fr:'🇫🇷'},LCODE={en:'EN',uk:'UA',fr:'FR'};
 document.getElementById('langbtn').textContent=t('m_lang')+': '+LFLAG[LANG]+' '+LANGS[LANG];
 function setLang(l){ if(!LANGS[l]||l===LANG) return; try{localStorage.setItem('lang',l);}catch(e){} location.reload(); }
@@ -599,10 +637,13 @@ function paintFooters(){ const h=footerHTML();
   const a=$('discfoot'); if(a) a.innerHTML=h;
   const b2=$('mapfoot'); if(b2) b2.innerHTML=h;
   const c=$('panelfoot'); if(c) c.innerHTML=`<div style="margin-bottom:6px">${esc(t('sup_free'))}</div>`+h;
-  document.querySelectorAll('#bt2').forEach(e=>{ if(MYBUILD) e.textContent=' · '+t('build_lbl')+' '+MYBUILD; }); }
+  document.querySelectorAll('#bt2').forEach(e=>{ if(MYBUILD) e.textContent=' · '+t('build_lbl')+' '+MYBUILD; });
+  const tg=$('tgbtn'); if(tg){ if(CONTACT.telegram){ tg.href=CONTACT.telegram; tg.hidden=false; } else tg.hidden=true; }
+  const bt=$('buildtag'); if(bt) bt.textContent='v'+APP_VERSION+(MYBUILD?' · '+t('build_lbl')+' '+MYBUILD:''); }
 function discHomeLabel(){ const b=$('dischome'); if(b) b.textContent=HOME?`${t('d_home_set')}: ${homeName()} ✓`:t('d_home_btn'); }
 function fillDiscOblasts(){ const sel=$('discobl'); if(!sel||!MAP) return; const list=(MAP.oblasts||[]).filter(o=>o.uid!=='31'&&o.uid!=='30').sort((a,b)=>oblName(a.uid).localeCompare(oblName(b.uid),LOCALE()));
   sel.innerHTML=list.map(o=>`<option value="${o.uid}" ${o.uid===MYOBL.uid?'selected':''}>${esc(oblFull(o.uid))}</option>`).join(''); discHomeLabel(); }
+{const tg=$('tgbtn'); if(tg) tg.addEventListener('click',()=>{$('menu').hidden=true;});}
 $('oblbtn').onclick=()=>{$('menu').hidden=true;pickOblast();};
 $('vib').onclick=()=>{vibOn=!vibOn;$('vib').classList.toggle('on',vibOn);try{localStorage.setItem('vib',vibOn?'1':'0')}catch(e){};if(vibOn&&navigator.vibrate)navigator.vibrate(80);};
 
@@ -939,19 +980,24 @@ function declutter(){
     items.push({g,x:+g.dataset.tx,y:+g.dataset.ty,pri:3}); });
   if(items.length<2){ items.forEach(it=>place(it,0,0)); return; }
   items.sort((a,b)=>a.pri-b.pri);
-  const placed=[]; const MIN=26*k, RING=30*k;             // 26 px apart is enough to read two glyphs
+  // History impacts are already merged by zoom in packImpacts(), so here they only ever need to step out of a
+  // live target's way — a short nudge, never a ring. At the all-Ukraine view 26 px is 90 km: sending a dot that
+  // far from the town it happened in is how a history layer turns into confetti nobody can read or trust.
+  const placed=[]; const MIN=26*k, RING=30*k, IMIN=13*k, IRING=14*k;
   for(const it of items){
+    const imp=it.pri===3, min=imp?IMIN:MIN, ring0=imp?IRING:RING, maxStep=imp?6:25;
     let dx=0,dy=0, slot=0;
-    for(let step=0;step<25;step++){
+    for(let step=0;step<maxStep;step++){
       const px=it.x+dx, py=it.y+dy;
-      if(!placed.some(q=>Math.hypot(q.x-px,q.y-py)<MIN)) break;
+      if(!placed.some(q=>Math.hypot(q.x-px,q.y-py)<((imp||q.imp)?min:MIN))) break;
+      if(step===maxStep-1){ dx=0; dy=0; break; }          // give up honestly rather than fly across the map
       // successive rings, each with room for more: 6 slots, then 12, then 18 — no slot is ever reused
       let ring=1, s=slot;
       while(s>=6*ring){ s-=6*ring; ring++; }
-      const a=(s*(360/(6*ring)))*Math.PI/180, rad=RING*ring;
+      const a=(s*(360/(6*ring)))*Math.PI/180, rad=ring0*ring;
       dx=rad*Math.sin(a); dy=-rad*Math.cos(a); slot++;
     }
-    placed.push({x:it.x+dx,y:it.y+dy});
+    placed.push({x:it.x+dx,y:it.y+dy,imp});
     place(it,dx,dy);
   }
   function place(it,dx,dy){
@@ -1123,14 +1169,19 @@ function clusterImpacts(list){
 // shoot-downs are never merged into each other: they mean opposite things, and are grouped apart even when
 // they sit on the same street. Nothing is lost — the grouping is a function of zoom, so zooming in pulls the
 // group back into its separate reports, and a tap lists every one of them with its own source.
-const IMP_GAP=26;                        // px between two impact glyphs before they read as one blob
+// Two knobs, both a function of zoom. Far out, a 24-hour history of a heavy night is a hundred reports across
+// 600 km of map: at full glyph size that is New Year's Eve, not information. So the further out you go, the
+// wider the net that merges them and the smaller each glyph is drawn — the dots stay dots, the counts carry
+// the weight, and zooming in gives every report back at full size.
+const impGap=()=>VB.w>900?42:VB.w>230?34:VB.w>90?30:26;   // px before two glyphs read as one blob
+const impScale=()=>VB.w>900?.5:VB.w>230?.66:VB.w>90?.82:1;
 function packImpacts(cl){
   const out=[];
   for(const c of cl){
     const dn=c.m.status==='down'; const [x,y]=proj(c.m.lon,c.m.lat);
     let host=null;
     for(const o of out){ if(o.dn!==dn) continue;
-      if(Math.hypot(o.x-x,o.y-y)<=IMP_GAP*KPX){ host=o; break; } }
+      if(Math.hypot(o.x-x,o.y-y)<=impGap()*KPX){ host=o; break; } }
     if(!host){ out.push({x,y,dn,n:c.n,m:c.m,ids:c.ids.slice(),places:new Set([c.m.place])}); continue; }
     host.n+=c.n; host.ids.push(...c.ids); host.places.add(c.m.place);
     // anchored and labelled by its most recent member, never by a centroid — a centroid would put the dot
@@ -1142,9 +1193,9 @@ function packImpacts(cl){
 function drawImpacts(){
   const g=$('impactsg'); if(!IMP_H){g.innerHTML='';return;}
   const now=Date.now();
-  g.innerHTML=packImpacts(clusterImpacts(IMP)).map(({m,n,ids,places})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const cls=h>48?'d2':h>24?'d1':''; const s=((dn?1.1:1.35)*KPX).toFixed(2); const more=places.size-1;
+  g.innerHTML=packImpacts(clusterImpacts(IMP)).map(({m,n,ids,places})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const cls=h>48?'d2':h>24?'d1':''; const IZ=impScale(); const s=((dn?1.1:1.35)*KPX*IZ).toFixed(2); const more=places.size-1;
     const glyph=dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
-    return `<g class="imp ${cls} ${dn?'dn':'im'} ${(!dn&&h<1.5)?'fresh':''}${n>1?' grp':''}" data-id="${esc(m.id)}" data-ids="${esc(ids.join('~'))}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${((n>1?11:9)*KPX).toFixed(2)}"/>${(!dn&&h<1.5)?`<circle class="sw" r="${(11*KPX).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${more>0?` +${more}`:``}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
+    return `<g class="imp ${cls} ${dn?'dn':'im'} ${(!dn&&h<1.5)?'fresh':''}${n>1?' grp':''}" data-id="${esc(m.id)}" data-ids="${esc(ids.join('~'))}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${((n>1?11:9)*KPX*IZ).toFixed(2)}"/>${(!dn&&h<1.5)?`<circle class="sw" r="${(11*KPX*IZ).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX*IZ).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${more>0?` +${more}`:``}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX*IZ).toFixed(2)} ${(-8*KPX*IZ).toFixed(2)}) scale(${(KPX*Math.max(IZ,.8)).toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
   $('imph').textContent=IMP_H?IMP_H+'h':''; $('impbtn').classList.toggle('on',!!IMP_H);
 }
 function fmtD(ts){const d=new Date(ts);const tm=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ});const today=new Date().toLocaleDateString('en-GB',{timeZone:TZ})===d.toLocaleDateString('en-GB',{timeZone:TZ});return today?tm:d.toLocaleDateString(LOCALE(),{day:'2-digit',month:'short',timeZone:TZ})+' '+tm;}
@@ -1186,12 +1237,19 @@ document.addEventListener('pointerdown',e=>{if($('sheet').classList.contains('sh
 // ---- state ----
 function raionKey(title){const t=(title||'').toLowerCase();for(const [st,k] of RAION_STEM) if(t.includes(st)) return k;return null;}
 // preventive threat strip: MiG-31K airborne / ballistic / cruise-missile threats are shown BEFORE any launch is seen
+// The banner is the loudest thing in the app, so it is only allowed to speak in the present tense while the
+// report behind it is fresh. A MiG-31K that took off is not a MiG-31K that is still up there twenty minutes
+// later, and "МІГ-31К У ПОВІТРІ" with no age on it reads as *now* however old it is. After TS_FRESH_MIN the
+// banner switches to the past tense, says how long it has gone unconfirmed, and loses the alarm colours — it
+// is not deleted, because a sortie can still end in a launch and silence is not an all-clear.
+const TS_FRESH_MIN=8, TS_MAX_MIN=20;
+const tsAge=x=>Math.max(0,Math.round((Date.now()-Date.parse(x.ts))/60000));
 function threatStrip(){
   if(!S) return; const now=Date.now(); const thr=[];
-  // warnings end as soon as a later post says so (відбій / посадка / загроза минула about MiG or ballistic), and never outlive 20 min without a new report
+  // warnings end as soon as a later post says so (відбій / посадка / загроза минула about MiG or ballistic), and never outlive TS_MAX_MIN without a new report
   const recent=lastPosts.filter(p=>(now-Date.parse(p.ts))/60000<=25);
   const cancelledAfter=(ts,kind)=>recent.some(p=>p.ts>ts&&(p.tags||[]).includes('clear')&&((p.tags||[]).includes(kind)||/міг|mig|баліст|ballistic|посадк|landing/i.test(p.text+' '+(p.text_en||''))));
-  for(const a of S.active) for(const th of (a.threats||[])){ const ty=th.threat_type; const kyiv=a.oblast_uid==='31'||a.oblast_uid==='14'; const ts=th.started_at||a.started_at; if((now-Date.parse(ts))/60000>20) continue;
+  for(const a of S.active) for(const th of (a.threats||[])){ const ty=th.threat_type; const kyiv=a.oblast_uid==='31'||a.oblast_uid==='14'; const ts=th.started_at||a.started_at; if((now-Date.parse(ts))/60000>TS_MAX_MIN) continue;
     if((ty==='mig31k_departure'||(kyiv&&(ty==='ballistic_missiles'||ty==='cruise_missiles'||ty==='strategic_aircraft_activity')))&&!cancelledAfter(ts,ty)) thr.push({ty,ts,src:a.notes||a.source,where:a.location_title_en||a.location_title}); }
   // a nightly assessment ("оцінка загроз на ніч", "#обстановка", "може відбутись") is a forecast, never a live threat
   const FORECAST=/оцінка загроз|загальна оцінка|#обстановка|прогноз|може відбутись|впродовж ночі|forecast|assessment/i;
@@ -1199,9 +1257,16 @@ function threatStrip(){
     if(tg.includes('mig31k_departure')){ if(!cancelledAfter(p.ts,'mig31k_departure')) thr.push({ty:'mig31k_departure',ts:p.ts,src:CH[p.channel]||p.channel,where:''}); }
     else if(tg.includes('ballistic_missiles')&&(/(?:^|[^а-яіїє])пуск|запуск[а-яіїє]*\s+(?:баліст|іскандер|кинджал|кінжал)|швидкісн[а-яіїє]*\s+ціл|балістик[а-яіїє]*\s+(?:на|по)\s+ки[їєе]в|загроза\s+(?:застосування\s+)?баліст[а-яіїє]*\s+(?:для|по|на)?\s*ки[їєе]в|ballistic.*kyiv|launch/i.test(p.text+' '+(p.text_en||''))||(tg.includes('kyiv')&&tg.includes('official')))){ if(!cancelledAfter(p.ts,'ballistic_missiles')) thr.push({ty:'ballistic_missiles',ts:p.ts,src:CH[p.channel]||p.channel,where:''}); } }
   const el=$('tstrip'); if(!thr.length){el.hidden=true;document.documentElement.style.setProperty('--top',TOPBASE+'px');return;}
-  const pri={mig31k_departure:0,ballistic_missiles:1,strategic_aircraft_activity:2,cruise_missiles:3}; thr.sort((a,b)=>(pri[a.ty]-pri[b.ty])||(a.ts<b.ts?1:-1)); const tt=thr[0];
-  const label={mig31k_departure:t('ts_mig'),ballistic_missiles:t('ts_bal'),strategic_aircraft_activity:t('ts_strat'),cruise_missiles:t('ts_cruise')}[tt.ty];
-  el.className='tstrip '+(tt.ty==='mig31k_departure'?'mig':tt.ty==='cruise_missiles'?'':'bal'); el.hidden=false; el.innerHTML=`${esc(label)} <small>· ${fmtT(tt.ts)}${tt.src?' · '+esc(tt.src):''}</small>`; document.documentElement.style.setProperty('--top',(TOPBASE+el.offsetHeight)+'px');
+  const pri={mig31k_departure:0,ballistic_missiles:1,strategic_aircraft_activity:2,cruise_missiles:3};
+  // freshness outranks type: an unconfirmed MiG from a quarter of an hour ago must never sit on top of a
+  // ballistic warning that came in a minute ago
+  thr.sort((a,b)=>((tsAge(a)>TS_FRESH_MIN)-(tsAge(b)>TS_FRESH_MIN))||(pri[a.ty]-pri[b.ty])||(a.ts<b.ts?1:-1));
+  const tt=thr[0]; const age=tsAge(tt); const old=age>TS_FRESH_MIN;
+  const label=(old?{mig31k_departure:t('ts_mig_old'),ballistic_missiles:t('ts_bal_old'),strategic_aircraft_activity:t('ts_strat_old'),cruise_missiles:t('ts_cruise_old')}
+                  :{mig31k_departure:t('ts_mig'),ballistic_missiles:t('ts_bal'),strategic_aircraft_activity:t('ts_strat'),cruise_missiles:t('ts_cruise')})[tt.ty];
+  el.className='tstrip '+(old?'old':tt.ty==='mig31k_departure'?'mig':tt.ty==='cruise_missiles'?'':'bal'); el.hidden=false;
+  el.innerHTML=`${esc(label)} <small>· ${fmtT(tt.ts)} · ${esc(old?t('ts_unconf',age):t('ts_ago',age))}${tt.src?' · '+esc(tt.src):''}</small>`;
+  document.documentElement.style.setProperty('--top',(TOPBASE+el.offsetHeight)+'px');
 }
 function render(){
   if(!S) return; const ob=S.oblasts; threatStrip();
@@ -1344,11 +1409,11 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.5';
+const APP_VERSION='1.5.1';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
-  telegram:''                          // e.g. 'https://t.me/yourchannel' — hidden while empty
+  telegram:'https://t.me/blackflamestudio'   // community & feedback — hidden while empty
 };
 const DONATE=CONTACT.ngo;
 const ls=(k,v)=>{try{return v===undefined?localStorage.getItem(k):(localStorage.setItem(k,v),v);}catch(e){return null;}};

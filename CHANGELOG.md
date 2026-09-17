@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.5.1 — 2026-09-17
+
+### Fixed
+- **The MiG-31K banner stopped shouting in the present tense long after the last report.** It is the loudest
+  thing in the app, so it now only speaks in the present while the report behind it is fresh: for the first
+  8 minutes it reads *MiG-31K airborne — ballistic risk · 02:33 · 4 min ago*, and after that it switches to the
+  past tense, loses the alarm colours and the pulse, and says *not confirmed for 16 min*. It still disappears
+  at 20 minutes. It is demoted rather than deleted, because a sortie can still end in a launch and silence is
+  not an all-clear. **The age is now always on its face** — a banner with only a start time reads as *now*,
+  whatever the clock says. Freshness also outranks type in the sort, so an unconfirmed MiG from a quarter of an
+  hour ago can no longer sit on top of a ballistic warning that came in a minute ago.
+- **The 24-hour history no longer looks like fireworks at the all-Ukraine view.** The merge distance and the
+  glyph size now both follow the zoom (26→42 px, full size→50 %), so a heavy night's hundred reports become
+  about thirty dots carrying their counts instead of a hundred full-size starbursts. History markers are also
+  no longer flung onto a decluttering ring: at that zoom 26 px is 90 km, and a dot that far from the town it
+  happened in is worse than a slight overlap. They nudge at most 13 px now, and otherwise stay where they were
+  reported.
+- **The safety ticker was clipped and unreadable.** The 55-second marquee is gone. It is now one short sentence
+  at a time, cross-fading every 7 seconds, in a fixed two-line box that cannot clip its own descenders or make
+  the header jump. Tapping it opens the full disclaimer. The five lines were rewritten in all three languages
+  (the Ukrainian ones want a native review).
+
+### Changed
+- **The menu is grouped instead of a flat list of seventeen rows**: Alerts · Map · Display · About, with
+  Sound/Vibration on one row and the three zoom levels on another. It scrolls if it does not fit the screen,
+  and the version and build are on one line.
+- **Community on Telegram** in the menu and the footers, pointing at t.me/blackflamestudio.
+
 ## 1.5.0 — 2026-09-17
 
 ### Changed
