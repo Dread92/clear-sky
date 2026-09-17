@@ -288,6 +288,44 @@ night**. It was being drawn as eight ballistic missiles over Kyiv, right now, fo
 stayed in the feed. A retrospective summary produces no markers at all — same rule as a press release, for the
 same reason.
 
+## One weapon, one symbol — and it never turns
+
+A symbol that rotates has to point somewhere, so a target reported without a course forced a choice between
+inventing a heading and drawing a second, different icon for the same weapon. The app did both at different
+times: a Banderol was an arrow in one place and a diamond in another, on the same map.
+
+Air-defence displays settled this long ago. **The symbol says what it is; the leader line says where it is
+going.** Every weapon has one silhouette, drawn at the same fixed angle everywhere on the map — so its nose
+cannot be read as a course, because every marker's nose points the same way. The chevron, the ray and the
+uncertainty cone carry the whole direction story, and they are simply **absent** when the post gave no course.
+Nothing has to be invented, and nothing has to be explained away.
+
+## An outcome with no place named belongs to the region, not to its centre
+
+"Київщина - вибухи" names an oblast and no town. Drawn as a pin it landed on the oblast centre, which for Kyiv
+oblast is near Vasylkiv — so a report about a region of three million people read as an explosion in one
+village, at high precision, in the wrong place.
+
+These no longer produce a marker at all. The **region itself** is outlined and tinted, and a label inside it
+says what was reported and that it was somewhere in the oblast. A label is not a position, and it cannot be
+mistaken for one.
+
+## An explosion is a moment, not a state
+
+Outcome markers stayed on the live map for 25 minutes. During a raid that filled the map with bursts that had
+already finished, and a burst that is still drawn reads as *still happening there*. Ten minutes, then it
+belongs to the history layer — which is where you go to ask what happened, not what is happening. A fire keeps
+its hour, because a fire really does last.
+
+## "Heading to your village" is a thing the post has to say
+
+The priority location alert used to mean "the reported course passes within 25° of it". From 80 km away a 25°
+cone is 35 km wide, so the app told people a drone was coming to their village when the post had said nothing
+of the kind — the single most alarming sentence in the app, produced by arithmetic on a bearing.
+
+It is now said only when the source said it: the target's place, or the destination the post named, is that
+town. Everything else gets a **distance in kilometres**, which is a fact, and nothing more.
+
 ## "High confidence" says how sharply it was read, not that it is true
 
 Confidence used to be one word with no stated meaning. Each reading method has a known sharpness, and the app

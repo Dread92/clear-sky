@@ -303,11 +303,20 @@ svg.city .town.district{fill:#aeb8c8;font-weight:500}
 .rnlbl{fill:#8a96aa;font:700 calc(var(--k,1)*11px) system-ui;text-transform:uppercase;letter-spacing:.3px;pointer-events:none;opacity:.8}
 .mk{cursor:pointer}
 .mk .glyph{stroke:#080b10;stroke-width:1px;vector-effect:non-scaling-stroke}
+/* An outcome that names no town belongs to a whole oblast. Drawn as a pin it claimed a place the post never
+   gave — for Kyiv oblast the centre is near Vasylkiv, so "вибухи на Київщині" read as "explosions at
+   Vasylkiv". The region itself is marked instead, and the count sits in it as a label, not as a position. */
+#oblevt .obring{fill:#ff3b3f;fill-opacity:.07;stroke:#ff4d57;stroke-width:1.6px;vector-effect:non-scaling-stroke;stroke-dasharray:7 5;animation:obpulse 1.6s ease-in-out infinite}
+#oblevt .obchip{fill:#180b0d;stroke:#ff4d57;stroke-width:1px;vector-effect:non-scaling-stroke}
+#oblevt .obtxt{fill:#ffd9db;font:600 4.2px var(--cond);letter-spacing:.4px;paint-order:stroke;stroke:#180b0d;stroke-width:1.6px}
+#oblevt .hit{fill:transparent;cursor:pointer}
+@keyframes obpulse{0%,100%{stroke-opacity:.9;fill-opacity:.07}50%{stroke-opacity:.35;fill-opacity:.02}}
+body.lite #oblevt .obring{fill:none;stroke:#fff;animation:none}body.lite #oblevt .obtxt{fill:#fff;stroke:#000}body.lite #oblevt .obchip{fill:#000;stroke:#fff}
 .mk .jetfx{display:none}.mk.jet .jetfx{display:block}.mk .flame{fill:#ffb347;opacity:.9;animation:flick .18s steps(2) infinite}.mk .flame2{fill:#fff4d6;animation:flick .12s steps(2) infinite alternate}
 @keyframes flick{0%{transform:scaleY(1)}100%{transform:scaleY(.6)}}.mk .flame,.mk .flame2{transform-origin:0 9px;transform-box:view-box}
 .mk .loiter{fill:none;stroke:#ff8a3d;stroke-opacity:.45;stroke-width:1px;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}.mk.jet .loiter{stroke:#ffb15c}.mk.inbound .loiter{stroke:#ff4d57}.mk.tohome .loiter{stroke:#ff2d55}
 .mk.ended .loiter,.mk.ended .orbit animateTransform{display:none}
-.mk .hdg{fill:#ff8a3d;stroke:#080b10;stroke-width:.6px;vector-effect:non-scaling-stroke}.mk.jet .hdg{fill:#ffb15c}.mk.inbound .hdg{fill:#ff4d57}.mk.tohome .hdg{fill:#ff2d55}.mk.ballistic_missiles .hdg,.mk.cruise_missiles .hdg{fill:#ff5a5a}.mk.guided_aerial_bombs .hdg{fill:#c78bff}
+.mk .hdg{fill:#ff8a3d;stroke:#080b10;stroke-width:.6px;vector-effect:non-scaling-stroke}.mk.jet .hdg{fill:#ffb15c}.mk.inbound .hdg{fill:#ff4d57}.mk.tohome .hdg{fill:#ff2d55}.mk.ballistic_missiles .hdg,.mk.cruise_missiles .hdg,.mk.banderol_missiles .hdg,.mk.unspecified_missiles .hdg{fill:#ff5a5a}.mk.guided_aerial_bombs .hdg{fill:#c78bff}
 /* Cruise and ballistic missiles: long range, minutes of warning, a much bigger warhead. They are the loudest
    thing on the map — brighter, larger, double pulse, and their label never hides at any zoom. */
 /* Cruise: a winged body on a route you can follow — red, with a marching course ray.
@@ -518,6 +527,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <g id="homeg"></g>
     <g id="infra"></g>
     <g id="towns"></g>
+    <g id="oblevt"></g>
     <g id="impactsg"></g>
     <g id="trails"></g>
     <g id="markers"></g>
@@ -808,12 +818,23 @@ function posOf(m,now){ // km coords: [x,y,x0,y0]
   const age=Math.min((now-new Date(m.ts))/60000,CAPMIN(m)); const d=age*v; const a=m.heading*Math.PI/180;
   return [x0+d*Math.sin(a), y0-d*Math.cos(a), x0, y0];
 }
-function homeInfo(m,x,y){ // reported heading pointing at the priority location?
-  if(!HOME) return {near:false,inbound:false,dist:null};
+// "Heading to <your place>" used to mean "the reported course happens to pass within 25° of it". From 80 km
+// away a 25° cone is 35 km wide, so the app told people a drone was coming to their village when the post had
+// said nothing of the kind — the single most alarming sentence in the app, produced by arithmetic. It is now
+// only said when the POST SAYS SO: the target's place or its stated destination is that town, or the raion it
+// sits in. Everything else gets a distance, which is a fact, and nothing more.
+const bare=v=>String(v||'').replace(/^[→➡\s]+/,'').trim().toLowerCase();
+function homeNamed(m){
+  if(!HOME) return false;
+  const want=new Set([HOME.name,HOME.uk].filter(Boolean).map(s=>String(s).toLowerCase()));
+  return want.has(bare(m.target))||want.has(bare(m.place));
+}
+function homeInfo(m,x,y){
+  if(!HOME) return {near:false,inbound:false,named:false,dist:null};
   const [hx,hy]=proj(HOME.lon,HOME.lat); const dist=Math.hypot(x-hx,y-hy); const v=SPEED(m);
-  if(m.status||m.endedBy||!v||m.heading==null) return {near:dist<10,inbound:false,dist};
-  const bTo=(Math.atan2(hx-x,-(hy-y))*180/Math.PI+360)%360; const diff=Math.abs(((m.heading-bTo)+540)%360-180);
-  const inbound=diff<25&&dist<80; return {near:dist<10,inbound,dist,eta:inbound?dist/v:null};
+  const named=!m.status&&!m.endedBy&&homeNamed(m);
+  if(m.status||m.endedBy||!v) return {near:dist<10,inbound:false,named:false,dist};
+  return {near:dist<10,inbound:named,named,dist,eta:named&&v?dist/v:null};
 }
 function drawHome(){ if(!MAP) return; if(!HOME){$('homeg').innerHTML='';return;} const [x,y]=proj(HOME.lon,HOME.lat);
   $('homeg').innerHTML=`<g class="homemk"><circle class="ring" cx="${x}" cy="${y}" r="5" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><circle class="ring" cx="${x}" cy="${y}" r="10" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><text class="ico" x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle">🏠</text><text class="hl" x="${x}" y="${(y-8*KPX).toFixed(1)}" text-anchor="middle">${esc(homeName())}</text></g>`; }
@@ -873,19 +894,21 @@ const statusIco=st=>STATUS_ICO[st]||'\u2022';
 // thing the channel was precise about, so the name is used whenever the server sent its id.
 const tgtName=m=>m.target==='\u043e\u0431\u043b\u0430\u0441\u0442\u044c'?(m.target_uid?oblFullGen(m.target_uid):t('tp_nextobl')):pn(m.target);
 const oblWhere=m=>{const q=((m.evidence||{}).position||{}).quad; return q?t('oq_'+q)||t('oblcentre'):t('oblcentre');};
+// ONE SILHOUETTE PER WEAPON, AND IT NEVER TURNS.
+// A symbol that rotates has to point somewhere, so a target reported without a course forced a choice
+// between inventing a heading and drawing a second, different icon for the same weapon — which is how a
+// Banderol ended up as an arrow in one place and a diamond in another. Air-defence displays settled this
+// long ago: the symbol says WHAT it is, the leader line says where it is going. Here the symbol is fixed
+// (every marker on the map sits at the same angle, so its nose cannot be read as a course) and the whole
+// direction story lives in the chevron, the ray and the uncertainty cone — which appear only when a post
+// actually gave a course, and are simply absent when it did not.
 const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4.5 6.5 L-8.5 6.5 Z"/><path class="glyph" d="M0-9 L0 6" style="fill:none;stroke:#080b10;stroke-width:1.2px"/><g class="jetfx"><path class="flame" d="M-2.5 9 L0 15 L2.5 9 Z"/><path class="flame2" d="M-1.2 9 L0 12.5 L1.2 9 Z"/></g>',
-  // A missile silhouette with flared tail fins reads BACKWARDS at 12 px: the eye takes the widest part for the
-  // head, so a missile flying south-west looked like an arrow pointing north-east. On a map where the whole
-  // point is "which way is it going", a shape that can be read the wrong way round is not a style question.
-  // The mass is now at the nose and the tail is a thin shaft — an arrow, unambiguous at every rotation.
-  missile:'<path class="glyph" d="M0-11 L4.6 4.2 L1.5 2.6 L1.5 9.5 L-1.5 9.5 L-1.5 2.6 L-4.6 4.2 Z"/>',
-  // No course in the post = no direction on the map. A pointed glyph would invent one, so a missile reported
-  // without a heading gets a mark with no front: it says "here", and says nothing about where it is going.
-  nodir:'<path class="glyph" d="M0-9 L9 0 L0 9 L-9 0 Z"/><circle cx="0" cy="0" r="2.4" fill="#080b10"/>',
-  // This one was drawn with its spike at the BOTTOM, so once rotated by the reported course it pointed 180°
-  // wrong: a ballistic missile heading north was drawn as an arrow heading south. Nose up, like every other
-  // glyph here, so that rotate(heading) means what it says.
-  ballistic:'<path class="glyph" d="M0-11 L5.5 2 L2 2 L2 11 L-2 11 L-2 2 L-5.5 2 Z"/>',
+  // swept wings: a cruise missile at a glance, and not the same shape as anything else here
+  missile:'<path class="glyph" d="M0-11 L2.3-4.6 L2.3-2.4 L9 4.4 L9 6.4 L2.3 3.2 L2.3 6.4 L4.6 10 L-4.6 10 L-2.3 6.4 L-2.3 3.2 L-9 6.4 L-9 4.4 L-2.3-2.4 L-2.3-4.6 Z"/>',
+  // the S8000 is a small straight-winged airframe with the jet on its back — drawn as such, so it can never
+  // be mistaken for the Kalibr-class shape above
+  banderol:'<rect class="glyph" x="-9.8" y="-1.4" width="19.6" height="2.8" rx="1.3"/><rect class="glyph" x="-5" y="7" width="10" height="2.4" rx="1.1"/><path class="glyph" d="M0-11 L2.3-5 L2.3 10 L-2.3 10 L-2.3-5 Z"/><path class="glyph" d="M-2.5-8.4 h5 a1.8 1.8 0 0 1 1.8 1.8 v2.1 h-8.6 v-2.1 a1.8 1.8 0 0 1 1.8-1.8 Z"/>',
+  ballistic:'<path class="glyph" d="M0-12 L2.1-3.6 L2.1 5.4 L5.8 10.6 L2.1 8.8 L-2.1 8.8 L-5.8 10.6 L-2.1 5.4 L-2.1-3.6 Z"/>',
   bomb:'<circle class="glyph" cx="0" cy="3" r="6"/><path class="glyph" d="M-2-3 L2-3 L2-7 L-2-7 Z"/>',
   unknown:'<path class="glyph tri" d="M0-9 L9 7 L-9 7 Z"/><path d="M0-4 L0 1" stroke="#080b10" stroke-width="2" stroke-linecap="round"/><circle cx="0" cy="4" r="1.2" fill="#080b10"/>',
   down:'<path class="glyph x" d="M-7-7 L7 7 M7-7 L-7 7"/><circle class="glyph ring" cx="0" cy="0" r="9"/>',
@@ -893,6 +916,39 @@ const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4
   lost:'<circle class="glyph ring" cx="0" cy="0" r="8"/><text class="glyph q" x="0" y="3.5" text-anchor="middle">?</text>',
   clear:'<circle class="glyph ring" cx="0" cy="0" r="8"/><path class="glyph x" d="M-4 0 L-1 3 L5-4"/>'};
 let built=new Map(); const homeAlerted=new Set();
+// Outcomes reported for a whole oblast, grouped by oblast id — filled by tick(), drawn by paintOblEvents().
+let OBLEVT={};
+function paintOblEvents(){
+  const g=$('oblevt'); if(!g||!MAP) return;
+  const uids=Object.keys(OBLEVT);
+  if(!uids.length){ if(g.innerHTML) g.innerHTML=''; return; }
+  g.innerHTML=uids.map(uid=>{
+    const o=(MAP.oblasts||[]).find(x=>x.uid===uid); if(!o) return '';
+    const evs=OBLEVT[uid].slice().sort((a,b)=>a.ts<b.ts?1:-1);
+    const n=evs.reduce((s,m)=>s+(m.count||1),0);
+    // the chip is a LABEL for the region, deliberately not shaped like a marker: no pin, no position
+    // the short word: this chip is a region label on a map, not a card — the detail is one tap away
+    const lbl=`${statusIco(evs[0].status)} ${STATUS_W[evs[0].status]||statusName(evs[0].status)}${n>1?' ×'+n:''} · ${t('obl_somewhere')}`;
+    // near the top of the region, like a banner over it — the centre of an oblast is a busy place and a
+    // label sitting exactly on it starts to look like a pin again, which is the whole thing being fixed
+    let y=o.cy; try{const pe=document.querySelector(`#oblastsg .ob[data-o="${uid}"]`); if(pe){const bb=pe.getBBox(); y=bb.y+bb.height*0.17;}}catch(e){}
+    const w=lbl.length*2.15+5;
+    return `<path class="obring" d="${o.path}"/>`
+      +`<g class="oblevtchip" data-o="${uid}"><rect class="obchip" x="${(o.cx-w/2).toFixed(1)}" y="${(y-3.4).toFixed(1)}" width="${w.toFixed(1)}" height="6.6" rx="3.3"/>`
+      +`<text class="obtxt" x="${o.cx.toFixed(1)}" y="${(y+1.3).toFixed(1)}" text-anchor="middle">${esc(lbl)}</text>`
+      +`<rect class="hit" x="${(o.cx-w/2).toFixed(1)}" y="${(y-3.4).toFixed(1)}" width="${w.toFixed(1)}" height="6.6"/></g>`;
+  }).join('');
+  g.querySelectorAll('.oblevtchip').forEach(el=>el.addEventListener('click',()=>oblEventSheet(el.dataset.o)));
+}
+function oblEventSheet(uid){
+  const evs=(OBLEVT[uid]||[]).slice().sort((a,b)=>a.ts<b.ts?1:-1); if(!evs.length) return;
+  $('sheetbody').innerHTML=`<div class="type">${statusIco(evs[0].status)} ${esc(statusName(evs[0].status))} — ${esc(oblFull(uid))}</div>`
+    +`<div class="kv1 muted" style="margin-bottom:8px">${esc(t('obl_noplace'))}</div>`
+    +evs.map(m=>`<div class="card plain"><div class="title">${esc(statusName(m.status))}${m.count>1?' ×'+m.count:''} · ${fmtT(m.ts)}</div>`
+      +`<div class="q" style="margin-top:4px">${esc(ptxt(m).slice(0,220))}</div>`
+      +`<div class="kv1 muted">${esc(CH[m.channel]||m.channel)}</div></div>`).join('');
+  $('tip').hidden=true; $('sheet').classList.add('show');
+}
 // The uncertainty ring has to keep growing between server updates. A ballistic missile adds half a kilometre
 // of doubt every second, so a circle that only moved when new data arrived would sit perfectly still exactly
 // when it matters most — and a still circle reads as a known position, which is the one thing it is not.
@@ -917,22 +973,28 @@ function buildMarker(m){
   const isMsl=/missile/.test(m.type)&&!m.status; if(isMsl) g.classList.add('msl');
   g.innerHTML=`<line class="ahead" x1="0" y1="0" x2="0" y2="0"/><polygon class="cone" points="0,0 0,0 0,0"/><circle class="halo" cx="0" cy="0" r="6"/>${isMsl?'<circle class="halo2" cx="0" cy="0" r="6"/><circle class="reach" cx="0" cy="0" r="0" style="display:none"/>':''}${isNew?`<circle class="spawn" cx="0" cy="0" r="${(10*KPX).toFixed(1)}"/>`:''}
     ${m.type==='drones'&&!m.status?`<g class="orbit"><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="7s" repeatCount="indefinite"/><g class="body"><g class="rot">${glyph}</g></g></g><circle class="loiter" cx="0" cy="0" r="1"/>`:`<g class="body"><g class="rot">${glyph}</g></g>`}
-    <polygon class="hdg" points="0,-4.5 4.5,3 0,1 -4.5,3" style="display:none"/><text class="qm" x="0" y="0">?</text><text class="dn" x="0" y="0">↓</text><g class="cnt" style="display:none"><circle r="6.5"/><text y="3.2">2</text></g><text class="lbl" x="5" y="-4"></text><text class="lbl2" x="5" y="0"></text><circle class="hit" cx="0" cy="0" r="8"/>`;
+    <polygon class="hdg" points="0,-5.2 5.4,3.6 0,1.3 -5.4,3.6" style="display:none"/><text class="qm" x="0" y="0">?</text><text class="dn" x="0" y="0">↓</text><g class="cnt" style="display:none"><circle r="6.5"/><text y="3.2">2</text></g><text class="lbl" x="5" y="-4"></text><text class="lbl2" x="5" y="0"></text><circle class="hit" cx="0" cy="0" r="8"/>`;
   g.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;showTip(m,e);}); g.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;moveTip(e);}); g.addEventListener('pointerleave',()=>{$('tip').hidden=true;});
   const trail=document.createElementNS('http://www.w3.org/2000/svg','line'); trail.setAttribute('class','trail');
   const hist=document.createElementNS('http://www.w3.org/2000/svg','polyline'); hist.setAttribute('class','trail hist');
   return {g,trail,hist,gk};
 }
-// A pointed glyph with nothing to point at is an invented course. Anything but a drone (whose own glyph is
-// drawn orbiting, not aiming) loses its nose when the post gave no direction.
-const noDir=m=>!m.status&&!m.endedBy&&m.heading==null&&m.type!=='drones'&&m.type!=='unknown';
-const glyphKey=m=>m.status?m.status:m.type==='drones'?'drone':m.type==='unknown'?'unknown':noDir(m)?'nodir'
-  :m.type==='ballistic_missiles'?'ballistic':(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?'bomb':'missile';
-// a warning sign and an outcome glyph read the same way at every angle: they never turn
-const upright=m=>(m.status||m.type==='unknown'||noDir(m))?0:(m.heading??0);
+// one weapon, one symbol — and the same symbol whether or not a course was reported
+const glyphKey=m=>m.status?m.status:m.type==='drones'?'drone':m.type==='unknown'?'unknown'
+  :m.type==='banderol_missiles'?'banderol':m.type==='ballistic_missiles'?'ballistic'
+  :(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?'bomb':'missile';
+// Nothing turns. See the note on G above: orientation carries no meaning on this map, the ray does.
+const upright=()=>0;
 function tick(){
   if(!MAP){setTimeout(tick,300);return;}
-  const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?25:ttl));
+  // An explosion is a moment, not a state. Left on the map for 25 minutes it read as "it is still going on
+  // there", and during a raid the map filled with bursts that had already finished. Ten minutes, then it
+  // belongs to the history layer — which is where you go to ask what happened, not what is happening.
+  const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?(m.status==='impact'?10:25):ttl));
+  // "Київщина - вибухи" names no town. Drawn as a pin it claimed the oblast centre, which for Kyiv oblast
+  // is near Vasylkiv — so a report about the whole region read as an explosion in one village. These become
+  // a mark on the region itself, handled below, and never a position.
+  {const g={}; live=live.filter(m=>{ if(m.status&&m.place==='область'&&m.oblast_uid){(g[m.oblast_uid]=g[m.oblast_uid]||[]).push(m);return false;} return true; }); OBLEVT=g;}
   // outcome markers at the same place within 20 min collapse into one (✸ Impact ×3) — one glyph, not a pile
   {const groups={}; for(const m of live){ if(!m.status) continue; const k=m.status+'|'+String(m.place); (groups[k]=groups[k]||[]).push(m);} const drop=new Set();
     for(const arr of Object.values(groups)){ arr.sort((a,b)=>a.ts<b.ts?1:-1); const head=arr[0]; head.cluster=1; for(const o of arr.slice(1)){ if(agoMin(o.ts)-agoMin(head.ts)<=20){drop.add(o.id);head.cluster++;} } }
@@ -946,12 +1008,12 @@ function tick(){
     live=live.filter(m=>!drop.has(m.id));}
   const ids=new Set(live.map(m=>m.id));
   for(const [id,b] of built){ if(!ids.has(id)){b.g.remove();b.trail.remove();b.hist.remove();built.delete(id);} }
-  const edges=[],lblPos=[]; let totShahed=0,totJet=0,totMsl=0,totUnk=0,totStale=0,inboundCount=0, nearest=null, tracked=0, downed=0, homeThreats=0, homeNearest=null;
+  const edges=[],lblPos=[]; let totShahed=0,totJet=0,totMsl=0,totUnk=0,totStale=0,inboundCount=0, nearest=null, tracked=0, downed=0, homeThreats=0, homeNamedN=0, homeNearest=null;
   for(const m of live){
     let b=built.get(m.id); if(!b){b=buildMarker(m);built.set(m.id,b);$('markers').appendChild(b.g);$('trails').appendChild(b.hist);$('trails').appendChild(b.trail);}
     if(m.history&&m.history.length){const [hx,hy]=posOf(m,now); b.hist.setAttribute('points',m.history.map(h=>proj(h.lon,h.lat).map(v=>v.toFixed(1)).join(',')).join(' ')+` ${hx.toFixed(1)},${hy.toFixed(1)}`);}else b.hist.setAttribute('points','');
     const [x,y,x0,y0]=posOf(m,now); const info=inboundInfo(m,x,y); const hi=homeInfo(m,x,y); const age=agoMin(m.ts);
-    b.g.classList.toggle('tohome',hi.inbound||(hi.near&&!m.status&&!m.endedBy)); if(hi.inbound||hi.near){ if(!m.status&&!m.endedBy){ homeThreats++; if(hi.inbound&&(!homeNearest||hi.dist<homeNearest.dist)) homeNearest={...hi,m}; if(!homeAlerted.has(m.id)){homeAlerted.add(m.id); notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start');} } }
+    b.g.classList.toggle('tohome',hi.inbound||(hi.near&&!m.status&&!m.endedBy)); if(hi.inbound||hi.near){ if(!m.status&&!m.endedBy){ homeThreats++; if(hi.named) homeNamedN++; if(hi.inbound&&(!homeNearest||hi.dist<homeNearest.dist)) homeNearest={...hi,m}; if(!homeAlerted.has(m.id)){homeAlerted.add(m.id); notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start');} } }
     const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?1.5:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
     b.g.dataset.tx=x.toFixed(2); b.g.dataset.ty=y.toFixed(2);
     b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);
@@ -960,9 +1022,9 @@ function tick(){
     const orbit=b.g.querySelector('.orbit');
     if(orbit&&!m.endedBy&&!m.stale){ // Shahed: drawn loitering around the reported point (their real path is erratic); the chevron shows the reported heading
       const R=9*KPX; b.g.querySelector('.body').setAttribute('transform',`translate(${R.toFixed(2)} 0)`); b.g.querySelector('.rot').setAttribute('transform',`rotate(180) scale(${(gs*0.85).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r',R.toFixed(2));
-    }else if(orbit){ const at=orbit.querySelector('animateTransform'); if(at) at.remove(); orbit.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright(m)}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
-    else b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright(m)}) scale(${gs.toFixed(2)})`);
-    const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.25*KPX).toFixed(2)})`);}else hdg.style.display='none';
+    }else if(orbit){ const at=orbit.querySelector('animateTransform'); if(at) at.remove(); orbit.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
+    else b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${gs.toFixed(2)})`);
+    const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.55*KPX).toFixed(2)})`);}else hdg.style.display='none';
     paintReach(b,m);          // how far a fast target could have travelled since it was last reported
     const dsc=!!(m.alt&&m.alt.state==='descending')&&!m.status&&!m.endedBy&&!m.stale;
     const altM=(m.alt&&m.alt.m&&!m.status&&!m.endedBy)?m.alt.m:null;
@@ -1023,7 +1085,8 @@ function tick(){
     const anchor=side==='R'?'end':(side==='L'?'start':'middle'); const o=12*KPX; const tx=side==='R'?ex-o:side==='L'?ex+o:ex; const ty=side==='T'?ey+o+4*KPX:side==='B'?ey-o:ey+4*KPX;
     return `<g class="edge ${info.inbound?'inbound':''}"><polygon class="arrow" points="0,-3 6,0 0,3" transform="translate(${ex.toFixed(1)} ${ey.toFixed(1)}) rotate(${ang.toFixed(0)}) scale(${(1.6*KPX).toFixed(2)})"/><text class="etxt" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(txt)}</text></g>`;
   }).join('');
-  const parts=[]; if(tracked){ const tot=[totShahed?`<b>${totShahed}</b> ${t('lb_shahed')}`:'',totJet?`<b>${totJet}</b> ${t('lb_jet')}`:'',totMsl?`<b>${totMsl}</b> ${t('lb_msl')}`:'',totUnk?`<b>${totUnk}</b> ⚠`:'',totStale?`<b>${totStale}</b> ?`:''].filter(Boolean).join(' · '); parts.push(tot||`<b>${tracked}</b> ${t('lb_targets')}`); } if(inboundCount) parts.push(`<b style="color:#ffd9d6">${inboundCount} ${t('lb_tokyiv')}</b>`); if(HOME&&homeThreats) parts.push(`<b style="color:#ffb3c5">${homeThreats} → ${esc(homeName())}</b>`); if(ESTIMATE) parts.push('EST'); 
+  const parts=[]; if(tracked){ const tot=[totShahed?`<b>${totShahed}</b> ${t('lb_shahed')}`:'',totJet?`<b>${totJet}</b> ${t('lb_jet')}`:'',totMsl?`<b>${totMsl}</b> ${t('lb_msl')}`:'',totUnk?`<b>${totUnk}</b> ⚠`:'',totStale?`<b>${totStale}</b> ?`:''].filter(Boolean).join(' · '); parts.push(tot||`<b>${tracked}</b> ${t('lb_targets')}`); } if(inboundCount) parts.push(`<b style="color:#ffd9d6">${inboundCount} ${t('lb_tokyiv')}</b>`); if(HOME&&homeNamedN) parts.push(`<b style="color:#ffb3c5">${homeNamedN} → ${esc(homeName())}</b>`);
+  else if(HOME&&homeThreats) parts.push(`<b style="color:#ffd9d6">${homeThreats} ${t('lb_nearhome',esc(homeName()))}</b>`); if(ESTIMATE) parts.push('EST'); 
   $('livebar').innerHTML=(parts.length?`<span class="chip ${inboundCount||homeThreats?'red':'orange'}">${parts.join(' · ')}</span>`:'')+(typeof IMP_H!=='undefined'&&IMP_H?(()=>{const cl=clusterImpacts(liveImpacts());
       const sum=f=>cl.filter(f).reduce((a,c)=>a+c.n,0);
       const ni=sum(c=>c.m.status==='impact'), nd=sum(c=>c.m.status==='down'), nf=sum(c=>c.m.status==='fire'), ng=sum(c=>c.m.status==='damage');
@@ -1031,6 +1094,7 @@ function tick(){
            + (nf?`<button class="chip fire" id="lbfire">${t('lb_fire',nf)}</button>`:'')
            + (ng?`<button class="chip dmg" id="lbdmg">${t('lb_damage',ng)}</button>`:'')
            + `<span class="chip">${IMP_H} h</span>`;})():'');
+  paintOblEvents();
   declutter();
   scheduleTick();
 }
@@ -1435,7 +1499,7 @@ function render(){
     const hl=hraion==='kyiv-city'?kCity:(maxL(kFill,krst[hraion])||null);
     const live=MK.filter(m=>!m.status&&!m.endedBy).map(m=>{const [x,y]=posOf(m,Date.now());return {m,hi:homeInfo(m,x,y)};}).filter(o=>o.hi.dist!=null).sort((a,b)=>a.hi.dist-b.hi.dist);
     const nearest0=live[0]; const inb=live.filter(o=>o.hi.inbound);
-    const relevant=inb.length>0; hr.hidden=!relevant; hr.className='homerow'+((inb.length||(nearest0&&nearest0.hi.dist<10)||hl==='R')?' danger':'');
+    const relevant=inb.length>0||!!(nearest0&&nearest0.hi.dist<10); hr.hidden=!relevant; hr.className='homerow'+((inb.length||(nearest0&&nearest0.hi.dist<10)||hl==='R')?' danger':'');
     hr.innerHTML=`<b>${esc(homeName())}</b> ${hl==='R'?'🔴':hl==='Y'?'🟡':'🟢'}${inb.length?` · <b style="color:#ffb3c5">${t('hr_heading',inb.length,Math.round(inb[0].hi.dist))}</b>`:nearest0?` · ${t('hr_nearest',Math.round(nearest0.hi.dist),nearest0.m.type==='drones'?t('k_shahed'):THREAT[nearest0.m.type]?.[1],esc(pn(nearest0.m.place)))}`:' · '+t('hr_none')}`;
   } else { hr.hidden=false; hr.className='homerow'; hr.hidden=true; }
   // raion chips + fills (red = red level / full alert, yellow = yellow level)

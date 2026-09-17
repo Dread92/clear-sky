@@ -19,7 +19,27 @@
   - `/api/corpus` and `/api/corpus/review` need `ADMIN_KEY`, like the rest of the dashboard.
   - The terminal `review` still exists and does the same thing; use whichever is in front of you.
 
+### Changed
+- **One weapon, one symbol — and it never turns.** A rotating symbol has to point somewhere, so a target
+  reported with no course forced a choice between inventing a heading and drawing a different icon for the
+  same weapon; the app did both, and a Banderol was an arrow in one place and a diamond in another. Every
+  weapon now has a single silhouette drawn at a fixed angle, and the chevron, ray and cone carry the whole
+  direction story — present when a post gave a course, absent when it did not. The Banderol gets its own
+  straight-winged airframe so it can never be read as a Kalibr.
+
 ### Fixed
+- **An outcome with no place named no longer lands on the oblast centre.** "Київщина - вибухи" was drawn as a
+  pin near Vasylkiv — a report about a whole region shown as an explosion in one village. The region is
+  outlined and labelled instead; a label is not a position and cannot be mistaken for one.
+- **An explosion disappears after 10 minutes, not 25.** A burst still drawn reads as still happening there,
+  and during a raid the map filled with ones that had already finished. A fire keeps its hour.
+- **"Heading to your village" now has to come from the post.** It used to mean "the reported course passes
+  within 25° of it" — from 80 km away that cone is 35 km wide, so the most alarming sentence in the app was
+  being produced by arithmetic. It is said only when the post names that town; otherwise the app shows the
+  distance in kilometres and nothing more.
+- **A missing translation is now a failing test.** 400-odd strings are maintained by hand in three blocks, and
+  a key missing from Ukrainian renders as a blank label on the phone of the person who most depends on it.
+  The new check found one straight away (`u_offline`, the report's offline line, absent in all three).
 - **The direction arrows on the map were wrong — one of them exactly backwards.** The missile glyph was drawn
   with flared tail fins, and at marker size the eye takes the widest part for the head: a missile flying
   south-west read as an arrow pointing north-east. The ballistic glyph was worse — its spike sat at the
