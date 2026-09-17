@@ -184,12 +184,18 @@ damaging a roof, with nothing said about what was intercepted, is damage.
 компенсацію" is a government announcement about insurance. It put a damage marker over Kyiv and — worse —
 **closed a live Shahed track with it**, because anything carrying an outcome was allowed to end a flight.
 
-Two rules now:
+Three rules now:
 
-- **Policy vocabulary disqualifies an outcome entirely.** уряд, кабмін, законопроєкт, страхування, компенсація,
-  відшкодування, бюджет, пільговий кредит, млн/млрд грн — none of these ever appear in somebody reporting what
-  is overhead. Neither does a post of more than 700 characters. Such a post produces no marker and no status,
-  whatever destruction words it contains.
+- **An article produces no outcome of any kind.** Policy vocabulary — уряд, кабмін, законопроєкт, страхування,
+  компенсація, відшкодування, бюджет, пільговий кредит, млн/млрд грн — never appears in somebody reporting what
+  is overhead, and neither does a post of more than 700 characters. Such a post produces no marker and no
+  status, whatever destruction words it contains. The guard covers **every** status: a visit to a new fire
+  station drew a fire marker beside Kyiv because the fire rule ran before the news check.
+- **A fire needs a fire, not a fire station.** The root `пожеж` is in the name of every fire service, engine
+  and brigade in the country, so it cannot by itself mean something is burning. A fire is only drawn when the
+  sentence says one happened — *виникла / сталася / спалахнула пожежа*, *пожежа в …*, *горить*, *займання*. A
+  post that says **"Пожежі попередньо немає"** draws no fire — and still keeps the damage marker its text
+  earns, because rejecting the fire reading falls through to the next rule rather than abandoning the post.
 - **Only an outcome that ends a flight may close a track**: shot down, arrived, lost from tracking, area
   declared clear. **Damage and fire never close anything** — they are what a strike left on the ground, and a
   burning roof says nothing about whether the drone above it is still flying. A live target must never vanish
@@ -207,6 +213,10 @@ Two guards now stand there:
 - When the stem gave up two or more letters, the matched word must still agree with the full name one
   character past the stem. *коломиї* does; *коломак* does not. Alternation spellings (*фастів→фастов*,
   *Київ→києв*) are explicit entries and are trusted as written, so no real declension was lost.
+- **An oblast adjective is not the Kyiv place of the same name.** "Житомирська" is a metro station on Kyiv's
+  red line *and* how every post names Zhytomyr oblast. Read as the station, a forestry post about Olevsk —
+  150 km away — planted a marker 9 km from Kyiv. When an oblast noun follows the word (область, обласна рада,
+  ОВА), the word is the oblast and nothing matches.
 - **A marker's oblast is the oblast of the place it actually matched**, never the one the sentence mentions.
   The Kolomyia marker carried Kharkiv's oblast id and Ivano-Frankivsk's coordinates at once; that contradiction
   was visible inside the app before it was visible on the map.

@@ -339,6 +339,13 @@ def bearing(lon1, lat1, lon2, lat2):
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
 
+# Several Kyiv places share a name with an oblast adjective — "Житомирська" is a metro station on the red
+# line and also the way every post refers to Zhytomyr oblast. Читаючи його як станцію, the app planted a
+# marker 9 km from Kyiv for a post about a forest service in Olevsk, 150 km away. When the oblast noun
+# follows, the word is the oblast.
+_OBLAST_NOUN_RX = re.compile(r"\s*(?:обл\.|област|обласн|ова\b|овадміністрац|рад[аиі]\b|облрад)", re.I)
+
+
 def _uid_for(where, obl):
     """The oblast of the place actually matched; the sentence's oblast only fills a gap it cannot contradict."""
     own = PLACES.get((where or "").replace("\u2192 ", ""), (0, 0, None))[2]
@@ -355,6 +362,8 @@ def _find_places(text, ctx_uid=None):
         for m in rx.finditer(text):
             if not _plausible(m.group(0), name, base):
                 continue
+            if _OBLAST_NOUN_RX.match(text, m.end()) and "трас" not in name.lower():
+                continue          # "Житомирська область" is the oblast, not the Kyiv metro station
             key = (m.start(), m.end())
             spans.setdefault(key, []).append(name)
     # drop spans overlapped by a longer span
@@ -468,7 +477,7 @@ STATUS_RX = [("down", re.compile(r"збит|знищен|мінус|ліквід
              # A fire is not an explosion, and it must not be drawn as one. This sits BELOW "impact" on purpose:
              # "внаслідок влучання виникла пожежа" is an impact that started a fire, and reads as an impact.
              # Only a post that says nothing but fire — "пожежа в Дарницькому районі", "горить склад" — lands here.
-             ("fire", re.compile(r"пожеж|пожар|займанн|загорянн|загорін|горить|горит\b|горіння", re.I)),
+             ("fire", re.compile(r"пожеж|пожар|займанн|загорянн|загорін|горить|горит\b|горіння", re.I)),  # narrowed by FIRE_EVENT_RX
              ("lost", re.compile(r"втрачен|зник|не спостеріга|загубл", re.I)),
              ("clear", re.compile(r"чисто|небо чисте|чист[еиої]\w*\s+небо", re.I))]
 
@@ -482,6 +491,18 @@ GROUND_RX = re.compile(r"склад|будівл|будинк|будинок|с�
                        r"скління|фасад|вікн|дах\b|покрівл|квартир|гуртожит|школ|лікарн|дитсад|садок|"
                        r"інфраструктур|тепломереж|підстанц|азс|заправ|вокзал|депо|elevator|елеватор", re.I)
 DAMAGE_RX = re.compile(r"пошкодж|понівечен|руйнуванн|зруйнован|вибито\s+вікн|вибиті\s+вікн", re.I)
+
+
+# "Оглянули нову пожежну станцію … спеціальне спорядження, пожежна техніка" is a visit to a fire station.
+# The root "пожеж" is in the name of every fire service, engine and brigade in the country, so it cannot by
+# itself mean that something is burning. A fire is only a fire when the sentence says one happened.
+FIRE_EVENT_RX = re.compile(
+    r"(?:виникл|сталас|спалахнул|ліквідов|гасят|гасил|локалізов)\w*\s+пожеж|"
+    r"пожеж[аіуеиї]\s+(?:в|у|на|біля|поблизу)\b|"
+    r"внаслідок\s+\w+\s+пожеж|горить|горит\b|палає|займанн|загорянн|загорін|горіння", re.I)
+# "Пожежі попередньо немає" is a post saying nothing is burning. It used to draw a fire.
+FIRE_NONE_RX = re.compile(r"пожеж\w*\s+(?:попередньо\s+)?(?:немає|не\s+зафіксован|не\s+виявлен)|"
+                          r"без\s+пожеж|загорянь\s+немає|обійшлося\s+без", re.I)
 
 
 def _is_ground_object(t):
@@ -506,15 +527,24 @@ def looks_like_news(t):
 
 
 def _status_of(t):
+    # An article reports no outcome, whatever words it happens to contain. A government programme mentioning
+    # "знищення", a visit to a new fire station, a press release about compensation — all of them used to put
+    # something on the map. This guard covers every status, not just the ones that were caught first.
+    news = looks_like_news(t)
     for name, rx in STATUS_RX:
-        if rx.search(t):
-            if looks_like_news(t) and name in ("down", "impact"):
-                return None          # a press release never reports an outcome, whatever words it contains
-            if name == "down" and _is_ground_object(t):
-                return "damage" if not looks_like_news(t) else None
-            return name
+        if not rx.search(t):
+            continue
+        if news:
+            return None
+        if name == "fire" and (not FIRE_EVENT_RX.search(t) or FIRE_NONE_RX.search(t)):
+            # a fire station, a fire engine, or a post that says there is NO fire. Keep looking: the same
+            # post usually goes on to describe the damage, and "Пожежі немає" must not cost it its marker.
+            continue
+        if name == "down" and _is_ground_object(t):
+            return "damage"
+        return name
     # a damage report with no outcome word of its own — "пошкоджено скління та фасад", "вибито вікна"
-    if DAMAGE_RX.search(t) and GROUND_RX.search(t) and not looks_like_news(t):
+    if DAMAGE_RX.search(t) and GROUND_RX.search(t) and not news:
         return "damage"
     return None
 

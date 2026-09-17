@@ -125,3 +125,58 @@ def test_a_real_report_is_not_caught_by_the_news_filter():
                        ("Горить дах будинку в Оболоні", "fire"),
                        ("Київщина чисто", "clear")]:
         assert st(text) == want, text
+
+
+# -- 6. an article, a fire station, and an oblast that is also a metro station ----------------------
+
+FIRE_STATION = ("Під час робочої поїздки на Олевщину привітав із прийдешнім професійним святом працівників "
+                "обласного комунального підприємства «Житомироблагроліс». В Олевську разом із першим "
+                "заступником Житомирської обласної ради оглянули нову пожежну станцію. Тут є все необхідне "
+                "для роботи — спеціальне спорядження, пожежна техніка, облаштовані приміщення та зона "
+                "відпочинку для працівників. Такі умови дозволяють бути готовими до оперативного реагування "
+                "на пожежі, особливо в умовах великих лісових масивів Олевщини.")
+
+
+def test_a_visit_to_a_new_fire_station_is_not_a_fire():
+    """The root "пожеж" is in the name of every fire service, engine and brigade in the country. On its own
+    it cannot mean something is burning — this post drew a fire marker 9 km from Kyiv."""
+    assert st(FIRE_STATION) is None
+    assert geo.parse_post(FIRE_STATION) == []
+
+
+def test_fire_service_vocabulary_alone_is_never_a_fire():
+    for text in ["Оглянули нову пожежну станцію, пожежна техніка",
+                 "Пожежники працюють у Броварах",
+                 "Прибули пожежні розрахунки ДСНС"]:
+        assert st(text) != "fire", text
+
+
+def test_a_post_saying_there_is_no_fire_does_not_draw_one():
+    """"Пожежі попередньо немає" drew a fire. And it must not cost the post its damage marker either."""
+    text = ("У Дніпровському районі пошкоджені скління та фасад офісної будівлі. У Солом'янському районі "
+            "зруйнована складська будівля. Пожежі попередньо немає.")
+    assert st(text) == "damage"
+
+
+def test_a_real_fire_is_still_a_fire():
+    assert st("Горить дах будинку в Оболоні") == "fire"
+    assert st("Пожежа в Дарницькому районі") == "fire"
+    assert st("Внаслідок влучання виникла пожежа на складі") == "impact"
+
+
+def test_an_oblast_adjective_is_not_the_kyiv_place_of_the_same_name():
+    """"Житомирська" is a metro station on Kyiv's red line and also how every post names Zhytomyr oblast.
+    Read as the station, a forestry post about Olevsk — 150 km away — planted a marker beside Kyiv."""
+    for text in ["Житомирська обласна рада ухвалила рішення", "Житомирська область, відбій тривоги",
+                 "Харківська ОВА повідомляє"]:
+        assert "Житомирська" not in found(text), text
+
+
+def test_the_kyiv_place_still_resolves_when_it_is_actually_meant():
+    assert "Житомирська" in found("БпЛА на Житомирську")
+
+
+def test_an_article_produces_no_status_of_any_kind():
+    """The news guard now covers every status, not only the two that were caught first."""
+    for text in [FIRE_STATION, NEWS]:
+        assert st(text) is None, text[:60]

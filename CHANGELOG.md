@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.9.1 — 2026-09-17
+
+### Fixed (safety)
+Three misreads in one post — an oblast administration's account of a working visit to a forestry enterprise,
+drawn as a **fire, 9 km from Kyiv, at high confidence**.
+
+- **A fire needs a fire, not a fire station.** The post was about a *new fire station* and its *fire engines*.
+  The root `пожеж` is in the name of every fire service, engine and brigade in the country, so it can never by
+  itself mean something is burning. A fire is now only drawn when the sentence says one happened — виникла /
+  сталася / спалахнула пожежа, пожежа в …, горить, займання.
+- **A post that says there is no fire no longer draws one.** "Пожежі попередньо немає" drew a fire. Worse,
+  fixing that naively would have cost the post its damage marker — rejecting the fire reading now falls
+  through to the next rule instead of abandoning the post, so the damage it does report still appears.
+- **The news guard covers every status, not only the two caught first.** The fire rule ran before the check,
+  so a 900-character press release sailed past it.
+- **An oblast adjective is not the Kyiv place of the same name.** "Житомирська" is a metro station on Kyiv's
+  red line *and* how every post names Zhytomyr oblast — which is why a post about Olevsk, 150 km away, planted
+  a marker beside Kyiv. When an oblast noun follows (область, обласна рада, ОВА), the word is the oblast.
+
+All four are in the corpus as verified cases, plus seven hand-written tests. The corpus caught the second one
+by itself: it surfaced as drift on a real post nobody had labelled yet.
+
 ## 1.9.0 — 2026-09-17
 
 ### Added
