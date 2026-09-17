@@ -23,18 +23,34 @@ echo === 3/5 Persistent 1 GB disk for the history ===
 fly volumes list -a %APP% 2>nul | findstr /i "data" >nul || fly volumes create data --size 1 --region ams --yes -a %APP%
 if errorlevel 1 goto fail
 echo.
-echo === 4/5 Access key ===
+echo === 4/5 Dashboard key ===
+echo.
+echo  ADMIN_KEY protects the private dashboard at /admin - the usage figures and the
+echo  readings people flagged as wrong. THE MAP STAYS PUBLIC for everybody.
+echo.
+echo  (Never set ACCESS_KEY on a public app: that one puts a password box in front of
+echo   the whole map, and nobody can read it without the key.)
+echo.
+echo  --- secrets currently set on this app ---
+fly secrets list -a %APP% 2>nul
+echo.
 set KEY=
-set /p KEY=Choose an access key (12+ letters/digits, Enter to keep the existing one): 
-if not "%KEY%"=="" fly secrets set ACCESS_KEY=%KEY% -a %APP% --stage
+set /p KEY=Choose a dashboard key (12+ letters/digits, Enter to keep the current one): 
+if not "%KEY%"=="" fly secrets set ADMIN_KEY=%KEY% -a %APP% --stage
+if not "%KEY%"=="" set SHOWKEY=%KEY%
 echo.
 echo === 5/5 Deploy ===
 fly deploy -a %APP% --ha=false --depot=false
 if errorlevel 1 goto fail
 echo.
 echo ======================================================
-echo  Online: https://%APP%.fly.dev/?key=YOUR_KEY
-echo  (open once per device; then just https://%APP%.fly.dev)
+echo  The map, public - this is the link to share:
+echo    https://%APP%.fly.dev
+echo.
+if not "%SHOWKEY%"=="" echo  Your private dashboard - open it once on each device:
+if not "%SHOWKEY%"=="" echo    https://%APP%.fly.dev/admin?key=%SHOWKEY%
+if "%SHOWKEY%"=="" echo  Private dashboard: https://%APP%.fly.dev/admin?key=YOUR_DASHBOARD_KEY
+echo.
 echo  Update later: run this file again (or: fly deploy -a %APP%)
 echo ======================================================
 pause

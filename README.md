@@ -144,9 +144,16 @@ Everything the page uses is public JSON; you can build your own client on it.
 On a public instance, setting `ACCESS_KEY` is an outage: every reader gets a password box instead of an
 air-raid map. Use `ADMIN_KEY`.
 
+**You do not need a terminal for this.** Double-click `deploy-fly.bat` — step 4 shows the secrets already set
+on the app and asks for a dashboard key, and the last screen prints your `/admin?key=…` link. Press Enter at
+the prompt to keep whatever is already there.
+
+If you do want the commands:
+
 ```bash
 fly secrets set ADMIN_KEY=…        # dashboard only, map stays public
 fly secrets unset ACCESS_KEY       # if it was ever set on a public instance
+fly secrets list                   # names only, never the values
 ```
 
 Then open `https://<your-app>/admin?key=…` once; it remembers you in a cookie that grants the dashboard and

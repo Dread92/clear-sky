@@ -14,10 +14,10 @@
   - With neither key set, the dashboard is not served at all: it cannot be exposed by accident.
   - `tests/test_keys.py` pins every combination, including the one that caused this.
 
-```bash
-fly secrets set ADMIN_KEY=…      # dashboard only, map stays public
-fly secrets unset ACCESS_KEY     # if it was ever set on a public instance
-```
+- **`deploy-fly.bat` was still asking for an ACCESS_KEY** at step 4 — which is where the confusion started,
+  since that prompt is the only place the key is ever entered. It now asks for a **dashboard key**, prints the
+  secrets already set on the app before asking, explains in the prompt itself that the map stays public, and
+  ends by showing the `/admin?key=…` link. No terminal involved: it is the same file that deploys.
 
 ## 1.10.0 — 2026-09-17
 
