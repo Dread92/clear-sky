@@ -117,9 +117,9 @@ svg#map{display:block;width:100%;height:100%}
 .livebar button.chip{pointer-events:auto;cursor:pointer;font-family:var(--mono);text-decoration:underline dotted rgba(255,255,255,.25);text-underline-offset:3px}
 .livebar button.chip:active{background:rgba(40,46,58,.95)}
 button.chip{cursor:pointer;font-family:var(--mono)}button.chip:hover{border-color:var(--ink3)}
-.livebar .chip.fire{color:#ffc48a;border-color:#4a3418}
+.livebar .chip.fire{color:#ffc48a;border-color:#4a3418}.livebar .chip.dmg{color:#f0b8b1;border-color:#4a2420}
 .repwin{display:flex;align-items:center;gap:6px;margin:8px 0}.repwin span{font:600 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-right:auto}
-.grow.rep{cursor:default}.grow.rep.down{border-left-color:#39d98a}.grow.rep.fire{border-left-color:#ff9a3c}
+.grow.rep{cursor:default}.grow.rep.down{border-left-color:#39d98a}.grow.rep.fire{border-left-color:#ff9a3c}.grow.rep.damage{border-left-color:#c2564a}
 .livebar .chip.red{color:#ffd9d6;border-color:#6a2a26}.livebar .chip.orange{color:#ffc9a3}.livebar .chip.green{color:#c9f2da}.livebar .chip.yellow{color:#ffefa8}.livebar .chip.blue{color:#bcd5ff}
 .livebar .chip b{font-weight:600}
 .mapctl{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:4px}
@@ -155,6 +155,11 @@ body.lite .imp .icnt circle{fill:#fff}
 .imp.fire .ir{stroke:#ff9a3c;opacity:.3}.imp.fire .it{fill:#ffd2a1}.imp.fire{opacity:.85}
 .imp.fire .icnt circle{stroke:#ff9a3c}
 body.lite .imp.fire .ig{fill:#fff}
+/* damage on the ground: a struck building. Muted brick, no glow — it is an aftermath, not a live event */
+.imp.dmg .ig{fill:#c2564a;stroke:#1a0c0c;stroke-width:calc(var(--k,1)*.6px);filter:none}
+.imp.dmg .ir{stroke:#c2564a;opacity:.35}.imp.dmg .it{fill:#f0b8b1}.imp.dmg{opacity:.9}
+.imp.dmg .icnt circle{stroke:#c2564a}
+body.lite .imp.dmg .ig{fill:#fff}
 .mapfoot{display:none}
 .tip{position:absolute;z-index:6;max-width:300px;background:rgba(18,21,27,.98);border:1px solid var(--line);border-left:3px solid var(--orange);padding:8px 10px;font-size:12.5px;pointer-events:none}
 .tip b{display:block;font:700 15px/1.1 var(--cond);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}.tip .m{color:var(--ink2);font-family:var(--mono);font-size:11px}.tip .q{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);white-space:pre-wrap}
@@ -489,7 +494,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.7</div>
+    <div class="mi bt" id="buildtag">v1.8</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -843,7 +848,16 @@ function linkStatus(){
     if(best){best.t.endedBy=s; s.closes=best.t.id;}
   }
 }
-const STATUS_EN={down:t('st_down'),impact:t('st_impact'),lost:t('st_lost'),clear:t('st_clear')}; const STATUS_W={down:t('sw_down'),impact:t('sw_impact'),lost:t('sw_lost'),clear:t('sw_clear')};
+const STATUS_EN={down:t('st_down'),impact:t('st_impact'),lost:t('st_lost'),clear:t('st_clear'),damage:t('st_damage'),fire:t('st_fire')};
+const STATUS_W={down:t('sw_down'),impact:t('sw_impact'),lost:t('sw_lost'),clear:t('sw_clear'),damage:t('sw_damage'),fire:t('sw_fire')};
+const STATUS_ICO={down:'\u2715',impact:'\u2738',lost:'?',clear:'\u2713',damage:'\u25a3',fire:'\ud83d\udd25'};
+// A status with no label used to render as the words "undefined undefined" on the card. Whatever the
+// parser invents next, the card now says what it knows and no more.
+const statusName=st=>STATUS_EN[st]||t('k_unknown');
+const statusIco=st=>STATUS_ICO[st]||'\u2022';
+// When the post named a part of the oblast — "на півночі Київщини" — the marker is placed there and says
+// so. Calling it "oblast centre" would throw away a detail the source actually gave.
+const oblWhere=m=>{const q=((m.evidence||{}).position||{}).quad; return q?t('oq_'+q)||t('oblcentre'):t('oblcentre');};
 const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4.5 6.5 L-8.5 6.5 Z"/><path class="glyph" d="M0-9 L0 6" style="fill:none;stroke:#080b10;stroke-width:1.2px"/><g class="jetfx"><path class="flame" d="M-2.5 9 L0 15 L2.5 9 Z"/><path class="flame2" d="M-1.2 9 L0 12.5 L1.2 9 Z"/></g>',
   missile:'<path class="glyph" d="M0-10 L2.5-5 L2.5 4 L5 8 L5 10 L1.5 7.5 L-1.5 7.5 L-5 10 L-5 8 L-2.5 4 L-2.5-5 Z"/>',
   ballistic:'<path class="glyph" d="M0 11 L-5.5-2 L-2-2 L-2-11 L2-11 L2-2 L5.5-2 Z"/>',
@@ -936,11 +950,11 @@ function tick(){
     {const h2=b.g.querySelector('.halo2'); if(h2) h2.setAttribute('r',(17*KPX).toFixed(2));} b.g.querySelector('.hit').setAttribute('r',(18*KPX).toFixed(2));
     b.g.querySelector('.lbl').setAttribute('x',(14*KPX).toFixed(2)); b.g.querySelector('.lbl').setAttribute('y',(-6*KPX).toFixed(2)); b.g.querySelector('.lbl2').setAttribute('x',(14*KPX).toFixed(2)); b.g.querySelector('.lbl2').setAttribute('y',(6*KPX).toFixed(2));
     const kind=(m.type==='drones'?(m.jet?t('k_jet'):t('k_shahed')):m.type==='unknown'?(m.likely==='drones'?'⚠ '+t('unk_likely'):t('k_unknown')):THREAT[m.type]?.[1]||m.type);
-    const name=m.status?({down:t('mk_down'),impact:t('mk_impact'),lost:t('mk_lost'),clear:t('mk_clear')}[m.status]+((m.cluster||1)>1?` ×${m.cluster}`:m.count>1?` ×${m.count}`:'')):kind+((m.csum||m.count||1)>1?` ×${m.csum||m.count}`:'');
+    const name=m.status?(({down:t('mk_down'),impact:t('mk_impact'),lost:t('mk_lost'),clear:t('mk_clear'),damage:t('mk_damage'),fire:t('mk_fire')})[m.status]||statusName(m.status)+((m.cluster||1)>1?` ×${m.cluster}`:m.count>1?` ×${m.count}`:'')):kind+((m.csum||m.count||1)>1?` ×${m.csum||m.count}`:'');
     b.g.querySelector('.lbl').textContent=name;
     const placeEn=m.place==='область'?'':pn(m.place);
     const descTxt=(m.alt&&m.alt.state==='descending'&&!m.status&&!m.endedBy&&!m.stale)?('↓ '+t('alt_desc')+' · '):'';
-    b.g.querySelector('.lbl2').textContent=descTxt+(m._reach>0?`${t('msl_reach',Math.round(m._reach))} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||m.endedBy.status,pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
+    b.g.querySelector('.lbl2').textContent=descTxt+(m._reach>0?`${t('msl_reach',Math.round(m._reach))} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||statusName(m.endedBy.status),pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
     if(m.status){ if(m.status!=='clear') downed++; } else if(!m.endedBy){ tracked++; const c=m.csum||m.count||1; if(m.stale) totStale+=c; else if(m.type==='drones'){ if(m.jet) totJet+=c; else totShahed+=c; } else if(m.type==='unknown') totUnk+=c; else totMsl+=c; if(info.inbound&&!m.stale){inboundCount++; if(!nearest||info.dist<nearest.dist) nearest={...info,m};} }
     if(!m.status&&!m.endedBy&&(x<VB.x||x>VB.x+VB.w||y<VB.y||y>VB.y+VB.h)) edges.push({m,x,y,info,name});
     lblPos.push({b,m,sx:x/KPX,sy:y/KPX});
@@ -980,9 +994,10 @@ function tick(){
   const parts=[]; if(tracked){ const tot=[totShahed?`<b>${totShahed}</b> ${t('lb_shahed')}`:'',totJet?`<b>${totJet}</b> ${t('lb_jet')}`:'',totMsl?`<b>${totMsl}</b> ${t('lb_msl')}`:'',totUnk?`<b>${totUnk}</b> ⚠`:'',totStale?`<b>${totStale}</b> ?`:''].filter(Boolean).join(' · '); parts.push(tot||`<b>${tracked}</b> ${t('lb_targets')}`); } if(inboundCount) parts.push(`<b style="color:#ffd9d6">${inboundCount} ${t('lb_tokyiv')}</b>`); if(HOME&&homeThreats) parts.push(`<b style="color:#ffb3c5">${homeThreats} → ${esc(homeName())}</b>`); if(ESTIMATE) parts.push('EST'); 
   $('livebar').innerHTML=(parts.length?`<span class="chip ${inboundCount||homeThreats?'red':'orange'}">${parts.join(' · ')}</span>`:'')+(typeof IMP_H!=='undefined'&&IMP_H?(()=>{const cl=clusterImpacts(liveImpacts());
       const sum=f=>cl.filter(f).reduce((a,c)=>a+c.n,0);
-      const ni=sum(c=>c.m.status==='impact'), nd=sum(c=>c.m.status==='down'), nf=sum(c=>c.m.status==='fire');
+      const ni=sum(c=>c.m.status==='impact'), nd=sum(c=>c.m.status==='down'), nf=sum(c=>c.m.status==='fire'), ng=sum(c=>c.m.status==='damage');
       return `<button class="chip red" id="lbexp">✸ ${tn('lb_expl',ni)}</button><button class="chip green" id="lbdown">✕ ${t('lb_down',nd)}</button>`
            + (nf?`<button class="chip fire" id="lbfire">${t('lb_fire',nf)}</button>`:'')
+           + (ng?`<button class="chip dmg" id="lbdmg">${t('lb_damage',ng)}</button>`:'')
            + `<span class="chip">${IMP_H} h</span>`;})():'');
   declutter();
   scheduleTick();
@@ -1046,12 +1061,12 @@ function evRow(label,e,fallback){ if(!e) return `<span>${label}</span><b style="
 function showTip(m,e){
   const cur=MK.find(x=>x.id===m.id)||m; const [x,y]=posOf(cur,Date.now()); const info=inboundInfo(cur,x,y);
   const th=THREAT[cur.type]||THREAT.unknown;
-  const title=cur.status?`${{down:'✕',impact:'✸',lost:'?',clear:'✓'}[cur.status]} ${STATUS_EN[cur.status]}`:`${th[0]} ${cur.type==='drones'&&cur.jet?t('k_jet'):th[1]}${cur.count>1?' ×'+cur.count:''}`;
-  const where=cur.place==='область'?t('oblcentre'):pn(cur.place);
+  const title=cur.status?`${statusIco(cur.status)} ${statusName(cur.status)}`:`${th[0]} ${cur.type==='drones'&&cur.jet?t('k_jet'):th[1]}${cur.count>1?' ×'+cur.count:''}`;
+  const where=cur.place==='область'?oblWhere(cur):pn(cur.place);
   const ev=cur.evidence||{};
   $('tip').innerHTML=`<b>${title}</b><div class="m">${cur.status?t('tp_reported'):t('tp_spotted')} ${t('tp_near')} <b style="display:inline">${esc(where)}</b> · ${fmtT(cur.ts)} (${t('tp_ago',Math.round(agoMin(cur.ts)))}) · ${esc(CH[cur.channel]||cur.channel)}</div>
     ${cur.status?'':`<div class="m">${t('tp_heading')} ${cur.heading==null?t('tp_nr'):dirName(cur.heading)+' ('+cur.heading+'°)'}${cur.target?' → '+esc(cur.target==='область'?t('tp_nextobl'):pn(cur.target)):''}${info.inbound?` · <span style="color:#ffb3b5">${t('tp_tokyiv')}</span>`:''}</div>`}
-    ${cur.endedBy?`<div class="m" style="color:#a8f0cf">${STATUS_EN[cur.endedBy.status]} ${t('tp_near')} ${esc(pn(cur.endedBy.place))} ${t('tp_at')} ${fmtT(cur.endedBy.ts)}</div>`:''}
+    ${cur.endedBy?`<div class="m" style="color:#a8f0cf">${statusName(cur.endedBy.status)} ${t('tp_near')} ${esc(pn(cur.endedBy.place))} ${t('tp_at')} ${fmtT(cur.endedBy.ts)}</div>`:''}
     ${cur.history&&cur.history.length?`<div class="m">${t('tp_reports',cur.history.length+1)}: ${cur.history.map(h=>pn(h.place||'?')+' '+fmtT(h.ts)).join(' → ')} → ${esc(where)}</div>`:''}
     ${ev.position?`<div class="m">${t('tp_pos')}: ${esc(ev.position.method)} · ${cf(ev.position.confidence)} ${t('tp_conf')}</div>`:''}
     <div class="q">${esc(ptxt(cur).slice(0,260))}</div><div class="m" style="margin-top:4px">${t('tp_click')}</div>`;
@@ -1077,7 +1092,7 @@ function moveTip(e){const w=$('mapwrap').getBoundingClientRect(); const tip=$('t
   tip.style.top=Math.max(4,Math.min(y,Math.max(4,w.height-th-4)))+'px';}
 function openSheet(id){
   const m=MK.find(x=>x.id===id); if(!m) return; $('tip').hidden=true; const [x,y,x0,y0]=posOf(m,Date.now()); const info=inboundInfo(m,x,y);
-  const th=THREAT[m.type]||THREAT.unknown; const placeEn=m.place==='область'?t('oblcentre'):pn(m.place);
+  const th=THREAT[m.type]||THREAT.unknown; const placeEn=m.place==='область'?oblWhere(m):pn(m.place);
   const kind=m.status?`${{down:'✕',impact:'✸',lost:'?',clear:'✓'}[m.status]} ${STATUS_EN[m.status]}`:`${m.type==='drones'&&m.jet?t('k_jet'):m.type==='drones'?t('k_shahed'):m.type==='unknown'?'⚠ '+t('th_unknown2'):th[1]}`;
   const ev=m.evidence||{}; const cor=corroboration(m); const closer=m.endedBy; const closed=m.closes?MK.find(o=>o.id===m.closes):null;
   const overall=ev.position?.confidence==='high'&&(m.status||ev.heading?.confidence==='high'||ev.heading?.confidence==='medium')?'high':ev.position?.confidence==='high'?'medium':'low';
@@ -1222,10 +1237,11 @@ function packImpacts(cl){
 function drawImpacts(){
   const g=$('impactsg'); if(!IMP_H){g.innerHTML='';return;}
   const now=Date.now();
-  g.innerHTML=packImpacts(clusterImpacts(liveImpacts())).map(({m,n,ids,places})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const fire=m.status==='fire'; const cls=h>48?'d2':h>24?'d1':''; const IZ=impScale(); const s=((fire?0.95:dn?1.1:1.35)*KPX*IZ).toFixed(2); const more=places.size-1;
+  g.innerHTML=packImpacts(clusterImpacts(liveImpacts())).map(({m,n,ids,places})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const fire=m.status==='fire'; const dmg=m.status==='damage'; const cls=h>48?'d2':h>24?'d1':''; const IZ=impScale(); const s=((fire?0.95:dmg?1.0:dn?1.1:1.35)*KPX*IZ).toFixed(2); const more=places.size-1;
     // a fire is a small flame, drawn quietly: it is a consequence someone reported, not a strike of its own
-    const glyph=fire?`<path class="ig" d="M0-8 C3-4.5 5.5-2.5 5.5 1.2 C5.5 4.6 3 7 0 7 C-3 7 -5.5 4.6 -5.5 1.2 C-5.5 -1.4 -4 -2.6 -2.6 -4.6 C-2.2 -2.4 -1.2 -1.4 0 -1 C0.6 -3.2 0.4 -5.6 0-8 Z"/>`:dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
-    return `<g class="imp ${cls} ${fire?'fire':dn?'dn':'im'} ${(!dn&&!fire&&h<1.5)?'fresh':''}${n>1?' grp':''}" data-id="${esc(m.id)}" data-ids="${esc(ids.join('~'))}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${((n>1?11:9)*KPX*IZ).toFixed(2)}"/>${(!dn&&!fire&&h<1.5)?`<circle class="sw" r="${(11*KPX*IZ).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX*IZ).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${more>0?` +${more}`:``}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX*IZ).toFixed(2)} ${(-8*KPX*IZ).toFixed(2)}) scale(${(KPX*Math.max(IZ,.8)).toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
+    // damage on the ground: a struck building, not a target. Never the green tick, never the red starburst.
+    const glyph=dmg?`<path class="ig" d="M-6 6 L-6-2 L0-6.5 L6-2 L6 6 Z"/><path d="M-1.5-4 L0.8-0.8 L-1.2 0.4 L1.6 4.4" stroke="#1a0c0c" stroke-width="1.5" fill="none" stroke-linecap="round"/>`:fire?`<path class="ig" d="M0-8 C3-4.5 5.5-2.5 5.5 1.2 C5.5 4.6 3 7 0 7 C-3 7 -5.5 4.6 -5.5 1.2 C-5.5 -1.4 -4 -2.6 -2.6 -4.6 C-2.2 -2.4 -1.2 -1.4 0 -1 C0.6 -3.2 0.4 -5.6 0-8 Z"/>`:dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
+    return `<g class="imp ${cls} ${dmg?'dmg':fire?'fire':dn?'dn':'im'} ${(!dn&&!fire&&!dmg&&h<1.5)?'fresh':''}${n>1?' grp':''}" data-id="${esc(m.id)}" data-ids="${esc(ids.join('~'))}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${((n>1?11:9)*KPX*IZ).toFixed(2)}"/>${(!dn&&!fire&&!dmg&&h<1.5)?`<circle class="sw" r="${(11*KPX*IZ).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX*IZ).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${more>0?` +${more}`:``}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX*IZ).toFixed(2)} ${(-8*KPX*IZ).toFixed(2)}) scale(${(KPX*Math.max(IZ,.8)).toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
   $('imph').textContent=IMP_H?IMP_H+'h':''; $('impbtn').classList.toggle('on',!!IMP_H);
 }
 function fmtD(ts){const d=new Date(ts);const tm=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ});const today=new Date().toLocaleDateString('en-GB',{timeZone:TZ})===d.toLocaleDateString('en-GB',{timeZone:TZ});return today?tm:d.toLocaleDateString(LOCALE(),{day:'2-digit',month:'short',timeZone:TZ})+' '+tm;}
@@ -1252,7 +1268,8 @@ async function impactReport(h){
   catch(e){ rows=null; }
   finally{ REP_BUSY=false; }
   if(rows===null){ $('sheetbody').innerHTML=head+`<div class="kv1">${esc(t('u_offline')||'—')}</div>`; wire(); return; }
-  const kinds=[['impact','rep_expl','#ffb3ad','✸'],['down','rep_down','#a8f0cf','✕'],['fire','rep_fire','#ffc48a','🔥']];
+  const kinds=[['impact','rep_expl','#ffb3ad','✸'],['down','rep_down','#a8f0cf','✕'],
+               ['damage','rep_damage','#f0b8b1','▣'],['fire','rep_fire','#ffc48a','🔥']];
   const tot=k=>rows.filter(m=>m.status===k).length;
   const totals=`<div class="wtab">${kinds.map(([k,lbl,c,ic])=>
      `<div class="srow"><span>${ic} ${esc(t(lbl))}</span><b style="color:${c}">${tot(k)}</b></div>`).join('')}</div>`;
@@ -1262,7 +1279,7 @@ async function impactReport(h){
     const c=by.get(k); if(c){ c.n++; if(m.ts>c.ts) c.ts=m.ts; } else by.set(k,{status:m.status,place:m.place,n:1,ts:m.ts}); }
   const list=[...by.values()].sort((a,b)=>b.n-a.n||b.ts.localeCompare(a.ts));
   const shown=list.slice(0,40);
-  const icon={impact:'✸',down:'✕',fire:'🔥'};
+  const icon={impact:'✸',down:'✕',damage:'▣',fire:'🔥'};
   const body=shown.length?`<div class="slbl">${esc(t('rep_places'))}</div><div class="glist">${shown.map(r=>
       `<div class="grow rep ${esc(r.status)}"><span class="gp">${esc(icon[r.status]||'')} ${esc(r.place==='область'?t('oblcentre'):pn(r.place))}</span>
        <span class="gt">×${r.n}</span><span class="gc">${esc(t('rep_last',fmtD(r.ts)))}</span></div>`).join('')}</div>
@@ -1483,7 +1500,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.7';
+const APP_VERSION='1.8';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
@@ -1623,7 +1640,7 @@ function helpSheet(){
     <div style="margin-top:10px;text-align:right"><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
   $('sheet').classList.add('show'); }
 // the livebar is rebuilt on every render, so the chips are handled by one delegated listener
-$('livebar').addEventListener('click',e=>{ const b=e.target.closest('#lbexp,#lbdown,#lbfire'); if(!b) return;
+$('livebar').addEventListener('click',e=>{ const b=e.target.closest('#lbexp,#lbdown,#lbfire,#lbdmg'); if(!b) return;
   e.stopPropagation(); impactReport(); });
 $('helpbtn').onclick=()=>{$('menu').hidden=true;helpSheet();};
 $('geobtn').onclick=()=>{$('menu').hidden=true;geoSheet();};

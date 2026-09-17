@@ -169,6 +169,38 @@ history to find what is flying now. Longer windows — 24 h, 72 h, 7 days — li
 chips, grouped by place: "Kyiv ×12, last at 03:41" says what two hundred dots were trying to say. The report
 repeats, under its own figures, that they count posts and not events.
 
+## What was destroyed decides what it means
+
+"Склад гуманітарного фонду … знищено" is a warehouse on the ground. Read as a shoot-down it became a green
+tick over a strike site — the opposite of what happened — and it padded the interception count with somebody's
+ruined building. A destruction word only reads as a shoot-down when the sentence is about something that was
+flying (`ціль`, `БпЛА`, `шахед`, `ракета`). Otherwise it is **damage on the ground**: its own muted marker, its
+own column, never added to shoot-downs. "Збито 5 БпЛА, уламки пошкодили будинок" is still a shoot-down; debris
+damaging a roof, with nothing said about what was intercepted, is damage.
+
+## A name that merely starts the same is not a match
+
+Stemming strips trailing vowels, so *Коломия* was indexed as `колом` — which quietly swallowed **Коломак**, a
+different town 700 km east. Five Shaheds were drawn over Ivano-Frankivshchyna from a post about Kharkiv oblast.
+Two guards now stand there:
+
+- When the stem gave up two or more letters, the matched word must still agree with the full name one
+  character past the stem. *коломиї* does; *коломак* does not. Alternation spellings (*фастів→фастов*,
+  *Київ→києв*) are explicit entries and are trusted as written, so no real declension was lost.
+- **A marker's oblast is the oblast of the place it actually matched**, never the one the sentence mentions.
+  The Kolomyia marker carried Kharkiv's oblast id and Ivano-Frankivsk's coordinates at once; that contradiction
+  was visible inside the app before it was visible on the map.
+
+## A stated part of an oblast is not the oblast centre
+
+"Реактивні БпЛА **на півночі** … Київщини" was dropped on the oblast centre, which for Kyiv oblast sits near
+Vasylkiv — in the south, on the wrong side of the city from the reported drones. When a post names a part of an
+oblast, the marker goes there and the card says *north of the oblast* instead of *oblast centre*. The
+confidence stays **low**, because a quadrant is still not a position.
+
+Only locative phrasing counts. "У західному напрямку" is a course, not a place, and never moves a marker —
+discarding a stated quadrant and inventing one are the same failure in opposite directions.
+
 ## Nothing is drawn where the source said it is clear
 
 Posts mix an all-clear and a warning in one breath: "Чисте небо Київська область та Київ. Васильків увага ‼️".

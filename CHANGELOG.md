@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.8.0 — 2026-09-17
+
+Four misreads spotted on the live map, all the same failure underneath: the app stated more than its source
+supported. All four are pinned in `tests/test_misreads.py`.
+
+### Fixed (safety)
+- **A destroyed building was drawn as a target shot down.** "Склад гуманітарного фонду … знищено" put a green
+  interception tick over a strike site — the opposite meaning — and padded the shoot-down count with somebody's
+  ruined warehouse. A destruction word now only reads as a shoot-down when the sentence is about something that
+  was flying. Otherwise it is **damage on the ground**: its own muted brick marker, its own column, never added
+  to shoot-downs. "Збито 5 БпЛА, уламки пошкодили будинок" is still a shoot-down.
+- **Five Shaheds were drawn 700 km from where they were.** Stemming cut *Коломия* to `колом`, which swallowed
+  **Коломак** — another town, another oblast. Two guards now: an over-stemmed name must still agree with the
+  full name one character past the stem, and **a marker's oblast is the oblast of the place it matched**, never
+  the one the sentence mentions. That contradiction — Kharkiv's oblast id with Ivano-Frankivsk's coordinates —
+  was visible inside the app before it was visible on the map. No real declension was lost; the whole list is
+  tested.
+- **"На півночі Київщини" was drawn at the oblast centre**, which sits near Vasylkiv, in the south. A stated
+  part of an oblast now places the marker there and the card says *north of the oblast*. Confidence stays low —
+  a quadrant is not a position — and course words ("у західному напрямку") still never move anything.
+- **A status with no label printed the words "undefined undefined"** on the card. Every status now has a name
+  in all three languages, and an unknown one falls back to a plain label instead of leaking a variable.
+
+### Added
+- **Damage** as a first-class outcome: `▣` marker, own chip, own column in the report and the statistics,
+  labels in EN / UA / FR.
+
 ## 1.7.0 — 2026-09-17
 
 ### Added

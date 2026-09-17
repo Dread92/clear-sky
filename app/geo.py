@@ -308,8 +308,29 @@ for name in PLACES:
     for s in stems:
         if len(s.replace("\\", "")) < 4 and "\\b" not in s:
             continue
-        _INDEX.append((re.compile(r"(?<![а-яіїєґ'\-])" + s + r"[а-яіїєґ']{0,3}(?![а-яіїєґ'\-])"), name))
+        base = s.replace("\\", "") if "[" not in s else ""
+        _INDEX.append((re.compile(r"(?<![а-яіїєґ'\-])" + s + r"[а-яіїєґ']{0,3}(?![а-яіїєґ'\-])"), name, base))
 _INDEX.sort(key=lambda t: -len(t[0].pattern))
+
+
+def _plausible(token, name, base):
+    """Is this matched word a form of that place's name, or merely something that starts like it?
+
+    Stemming strips trailing vowels, so "Коломия" is indexed as "колом" — and "колом" plus up to three
+    letters happily swallows "Коломак", a different town 700 km away in another oblast. Whenever the stem is
+    a genuine prefix of the name, the matched word has to keep agreeing with the name one character past the
+    stem: "коломиї" does, "коломак" does not. Alternation variants (фастів→фастов, Київ→києв) are not
+    prefixes of the name, so they are trusted as written — that is what they exist for.
+    """
+    if not base or " " in base:
+        return True
+    n = _norm(name)
+    if not n.startswith(base) or len(base) >= len(n) - 1:
+        # an alternation, an explicit alias, or a stem that gave up at most one letter: the stem is evidence
+        # enough, and the ending is free to inflect ("Бровари" → "Броварах")
+        return True
+    need = min(len(n), len(base) + 1)    # two or more letters stripped: the word must still agree one further
+    return token[:need] == n[:need]
 
 
 def bearing(lon1, lat1, lon2, lat2):
@@ -318,12 +339,22 @@ def bearing(lon1, lat1, lon2, lat2):
     return (math.degrees(math.atan2(y, x)) + 360) % 360
 
 
+def _uid_for(where, obl):
+    """The oblast of the place actually matched; the sentence's oblast only fills a gap it cannot contradict."""
+    own = PLACES.get((where or "").replace("\u2192 ", ""), (0, 0, None))[2]
+    if own:
+        return own
+    return obl[1] if obl else None
+
+
 def _find_places(text, ctx_uid=None):
     """Return list of (start, end, name) for places mentioned in text, non-overlapping.
     Ambiguous names (same stem in several oblasts) are resolved with ctx_uid, else the plain (unparenthesised) entry."""
     spans = {}
-    for rx, name in _INDEX:
+    for rx, name, base in _INDEX:
         for m in rx.finditer(text):
+            if not _plausible(m.group(0), name, base):
+                continue
             key = (m.start(), m.end())
             spans.setdefault(key, []).append(name)
     # drop spans overlapped by a longer span
@@ -347,6 +378,40 @@ def _find_places(text, ctx_uid=None):
         found.append((k[0], k[1], pick))
     found.sort()
     return found
+
+
+# "Реактивні БпЛА на півночі Київщини" says where in the oblast, and the app used to drop the marker on the
+# oblast centre anyway — which for Kyiv oblast lands near Vasylkiv, in the south. A quadrant the post states
+# is information, and dropping it is the same failure as inventing one. This matches only LOCATION phrasing:
+# "у західному напрямку" is a course, not a place, and must never move the marker.
+OBL_QUAD_RX = re.compile(
+    r"(?:на|у|в)\s+(північн|східн|західн|південн)\w*\s*(?:-\s*(східн|західн)\w*)?\s*(?:частин|краю|межах)"
+    r"|(?:на)\s+(півноч|сход|заход|півдн)і(?!\w*\s+напрям)"
+    r"|(північ|схід|захід|південь)\s+(?:області|облісті)", re.I)
+_QUAD_D = {"північн": (0, 1), "півноч": (0, 1), "північ": (0, 1),
+           "південн": (0, -1), "півдн": (0, -1), "південь": (0, -1),
+           "східн": (1, 0), "сход": (1, 0), "схід": (1, 0),
+           "західн": (-1, 0), "заход": (-1, 0), "захід": (-1, 0)}
+# roughly half an oblast: far enough that "north" is visibly north, short enough to stay inside the oblast
+QUAD_DLON, QUAD_DLAT = 0.85, 0.55
+
+
+def oblast_quadrant(text):
+    """(dlon, dlat, key) for a stated part of an oblast, or None. Never derived from a course word."""
+    m = OBL_QUAD_RX.search(text)
+    if not m:
+        return None
+    parts = [g for g in m.groups() if g]
+    dx = dy = 0
+    for g in parts:
+        d = _QUAD_D.get(g.lower())
+        if d:
+            dx += d[0]
+            dy += d[1]
+    if not dx and not dy:
+        return None
+    key = ("n" if dy > 0 else "s" if dy < 0 else "") + ("e" if dx > 0 else "w" if dx < 0 else "")
+    return (dx * QUAD_DLON, dy * QUAD_DLAT, key)
 
 
 def _find_oblasts_all(text):
@@ -408,10 +473,31 @@ STATUS_RX = [("down", re.compile(r"збит|знищен|мінус|ліквід
              ("clear", re.compile(r"чисто|небо чисте|чист[еиої]\w*\s+небо", re.I))]
 
 
+# What was destroyed matters as much as the word "destroyed". "Знищено склад фонду" is a warehouse on the
+# ground; read as a shoot-down it becomes a green tick over a strike site — the opposite of what happened —
+# and it inflates the interception count with somebody's ruined building. So a destruction word only reads as
+# a shoot-down when the sentence is about something that was flying.
+AIR_TARGET_RX = re.compile(r"ціл[ьія]|бпла|шахед|дрон|безпілотн|ракет|каб|мопед|герань|повітрян[аоу]\s+ціл", re.I)
+GROUND_RX = re.compile(r"склад|будівл|будинк|будинок|споруд|ангар|підприємств|цех|магазин|офіс|автівк|автомобіл|"
+                       r"скління|фасад|вікн|дах\b|покрівл|квартир|гуртожит|школ|лікарн|дитсад|садок|"
+                       r"інфраструктур|тепломереж|підстанц|азс|заправ|вокзал|депо|elevator|елеватор", re.I)
+DAMAGE_RX = re.compile(r"пошкодж|понівечен|руйнуванн|зруйнован|вибито\s+вікн|вибиті\s+вікн", re.I)
+
+
+def _is_ground_object(t):
+    """The sentence is about something on the ground, and nothing in it was flying."""
+    return bool(GROUND_RX.search(t)) and not AIR_TARGET_RX.search(t)
+
+
 def _status_of(t):
     for name, rx in STATUS_RX:
         if rx.search(t):
+            if name == "down" and _is_ground_object(t):
+                return "damage"
             return name
+    # a damage report with no outcome word of its own — "пошкоджено скління та фасад", "вибито вікна"
+    if DAMAGE_RX.search(t) and GROUND_RX.search(t):
+        return "damage"
     return None
 
 
@@ -615,7 +701,14 @@ def parse_post(text):
             lon, lat = obl[2], obl[3]
             where = "область"
             origin_end = obl[0]
-            ev["position"] = {"matched": seg[obl[0]:obl[0] + 14].strip(), "place": "oblast", "method": "oblast centre (no town named)", "confidence": "low"}
+            q = oblast_quadrant(seg) or oblast_quadrant(t)
+            if q:
+                lon, lat = lon + q[0], lat + q[1]
+                quad = q[2]
+                ev["position"] = {"matched": seg[obl[0]:obl[0] + 14].strip(), "place": "oblast", "quad": quad,
+                                  "method": "the part of the oblast the post named (no town given)", "confidence": "low"}
+            else:
+                ev["position"] = {"matched": seg[obl[0]:obl[0] + 14].strip(), "place": "oblast", "method": "oblast centre (no town named)", "confidence": "low"}
         approaching = False
         if lon is None and target and cm:
             tn = target[0][2]
@@ -679,7 +772,11 @@ def parse_post(text):
         markers.append({"type": mtype, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None if heading is None else round(heading),
                         "place": where, "target": tgt_name, "count": cnt, "jet": bool(re.search(r"реактив|jet", seg)),
                         "alt": alt, "likely": likely,
-                        "oblast_uid": obl[1] if obl else PLACES.get(where.replace("→ ", ""), (0, 0, None))[2] if where else None,
+                        # The oblast the sentence names and the oblast the gazetteer has for the town must
+                        # agree. When they do not, the town was matched wrong — that is exactly how
+                        # "Харківщина: … Коломак" once drew five Shaheds over Kolomyia, 700 km west. The
+                        # gazetteer's own oblast for the place it actually found always wins.
+                        "oblast_uid": _uid_for(where, obl),
                         "evidence": ev})
     return markers
 
