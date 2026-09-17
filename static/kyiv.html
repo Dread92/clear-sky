@@ -494,7 +494,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.8</div>
+    <div class="mi bt" id="buildtag">v1.8.1</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -832,8 +832,12 @@ function inboundInfo(m,x,y){ // reported heading pointing at Kyiv centre (0,0)?
 // Link "down / lost / impact / clear" reports to the track they most plausibly close:
 // same family, reported after the track, within 40 min, within 60 km of the reported position and
 // (when a heading is known) roughly ahead of it. Nothing is invented: both ends come from posts.
+// Damage and fire are what a strike left on the ground. They do not mean the target is gone, so they must
+// never close a live track — a burning roof once "closed" a Shahed that was still flying. Only an outcome
+// that ends a flight can: shot down, arrived, lost from tracking, or the area declared clear.
+const CLOSING_STATUS=new Set(['down','impact','lost','clear']);
 function linkStatus(){
-  const st=MK.filter(m=>m.status); const tr=MK.filter(m=>!m.status);
+  const st=MK.filter(m=>m.status&&CLOSING_STATUS.has(m.status)); const tr=MK.filter(m=>!m.status);
   for(const t of tr) t.endedBy=null;
   for(const s of st){
     const [sx,sy]=proj(s.lon,s.lat); let best=null;
@@ -1093,13 +1097,13 @@ function moveTip(e){const w=$('mapwrap').getBoundingClientRect(); const tip=$('t
 function openSheet(id){
   const m=MK.find(x=>x.id===id); if(!m) return; $('tip').hidden=true; const [x,y,x0,y0]=posOf(m,Date.now()); const info=inboundInfo(m,x,y);
   const th=THREAT[m.type]||THREAT.unknown; const placeEn=m.place==='область'?oblWhere(m):pn(m.place);
-  const kind=m.status?`${{down:'✕',impact:'✸',lost:'?',clear:'✓'}[m.status]} ${STATUS_EN[m.status]}`:`${m.type==='drones'&&m.jet?t('k_jet'):m.type==='drones'?t('k_shahed'):m.type==='unknown'?'⚠ '+t('th_unknown2'):th[1]}`;
+  const kind=m.status?`${statusIco(m.status)} ${statusName(m.status)}`:`${m.type==='drones'&&m.jet?t('k_jet'):m.type==='drones'?t('k_shahed'):m.type==='unknown'?'⚠ '+t('th_unknown2'):th[1]}`;
   const ev=m.evidence||{}; const cor=corroboration(m); const closer=m.endedBy; const closed=m.closes?MK.find(o=>o.id===m.closes):null;
   const overall=ev.position?.confidence==='high'&&(m.status||ev.heading?.confidence==='high'||ev.heading?.confidence==='medium')?'high':ev.position?.confidence==='high'?'medium':'low';
   const src=`${esc(CH[m.channel]||'@'+m.channel)} · ${fmtT(m.ts)} (${t('tp_ago',Math.round(agoMin(m.ts)))})`;
   // one-line situation
   const where=[esc(placeEn), m.status?'':(m.heading==null?t('sh_hnr'):`→ ${dirName(m.heading)}${m.target?' '+t('sh_towards')+' '+esc(m.target==='область'?t('tp_nextobl'):pn(m.target)):''}`), `${t('sh_fromkyiv',Math.round(info.dist))}${info.inbound&&!m.stale&&!closer?` · <b style="color:#ffb3b5">${t('tp_tokyiv')}</b>`:''}`].filter(Boolean).join(' · ');
-  const state=closer?`<div class="kv1 green">✕ ${STATUS_EN[closer.status]} ${t('tp_near')} ${esc(pn(closer.place))} ${t('tp_at')} ${fmtT(closer.ts)} (${esc(CH[closer.channel]||closer.channel)})</div>`
+  const state=closer?`<div class="kv1 green">✕ ${statusName(closer.status)} ${t('tp_near')} ${esc(pn(closer.place))} ${t('tp_at')} ${fmtT(closer.ts)} (${esc(CH[closer.channel]||closer.channel)})</div>`
     :m.stale&&!m.status?`<div class="kv1 yellow">${t('sh_stale',m.stale,esc(placeEn),fmtT(m.ts))}</div>`
     :closed?`<div class="kv1 green">${t('sh_closes',closed.type==='drones'?(closed.jet?t('k_jet_l'):t('k_shahed')):THREAT[closed.type]?.[1],esc(pn(closed.place)),fmtT(closed.ts))}</div>`:'';
   const merged=m.cids&&m.cids.length?`<div class="kv1 muted">${t('sh_merged',m.cids.length+1,m.csum)}</div>`:''; const track=m.history&&m.history.length?`<div class="kv1">${t('sh_track',m.history.length+1)}: ${m.history.length>3?'… → ':''}${m.history.slice(-3).map(h=>`${esc(pn(h.place||'?'))} ${fmtT(h.ts)}`).join(' → ')} → <b>${esc(placeEn)} ${fmtT(m.ts)}</b></div>`:'';
@@ -1500,7 +1504,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.8';
+const APP_VERSION='1.8.1';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
@@ -1577,7 +1581,7 @@ async function copyText(txt,btn,okLabel){
     document.body.appendChild(ta); ta.select(); try{document.execCommand('copy');}catch(_){} ta.remove(); }
   if(btn){const o=btn.textContent; btn.textContent=okLabel||t('share_copied'); setTimeout(()=>btn.textContent=o,1600);} }
 function markerText(m){
-  const kind=m.status?STATUS_EN[m.status]:(m.type==='drones'?(m.jet?t('k_jet'):t('k_shahed')):THREAT[m.type]?.[1]||m.type);
+  const kind=m.status?statusName(m.status):(m.type==='drones'?(m.jet?t('k_jet'):t('k_shahed')):THREAT[m.type]?.[1]||m.type);
   const n=(m.csum||m.count||1)>1?` ×${m.csum||m.count}`:'';
   const place=m.place==='область'?t('oblcentre'):pn(m.place);
   const L=[`Clear Sky · ${kind}${n} — ${place} · ${fmtT(m.ts)}`];

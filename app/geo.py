@@ -489,14 +489,32 @@ def _is_ground_object(t):
     return bool(GROUND_RX.search(t)) and not AIR_TARGET_RX.search(t)
 
 
+# A government press release is not an observation of the sky. "Уряд розширив програму страхування воєнних
+# ризиків … за пошкодження або знищення якого можна отримати компенсацію" put a damage marker over Kyiv and
+# closed a live Shahed track with it. None of these words ever appear in somebody reporting what is overhead.
+NEWS_RX = re.compile(
+    r"уряд\w*\s|кабмін|прем\W?єр|міністерств|законопроєкт|законопроект|постанов[аиуою]\b|"
+    r"страхуванн|страхов\w*\s+премі|компенсац|відшкодуван|субсиді|дотац|"
+    r"бюджет|оборотн\w*\s+капітал|пільгов\w*\s+кредит|ставк\w*\s+банку|млрд\s+грн|млн\s+грн|"
+    r"меморандум|угод[ауи]\s+про|засіданн|指", re.I)
+NEWS_MAX_CHARS = 700
+
+
+def looks_like_news(t):
+    """Policy, money and programmes — a press release, whatever destruction words it happens to contain."""
+    return bool(NEWS_RX.search(t)) or len(t) > NEWS_MAX_CHARS
+
+
 def _status_of(t):
     for name, rx in STATUS_RX:
         if rx.search(t):
+            if looks_like_news(t) and name in ("down", "impact"):
+                return None          # a press release never reports an outcome, whatever words it contains
             if name == "down" and _is_ground_object(t):
-                return "damage"
+                return "damage" if not looks_like_news(t) else None
             return name
     # a damage report with no outcome word of its own — "пошкоджено скління та фасад", "вибито вікна"
-    if DAMAGE_RX.search(t) and GROUND_RX.search(t):
+    if DAMAGE_RX.search(t) and GROUND_RX.search(t) and not looks_like_news(t):
         return "damage"
     return None
 

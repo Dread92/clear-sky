@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.8.1 — 2026-09-17
+
+### Fixed (safety)
+- **A government press release removed a live Shahed from the map.** "Уряд розширив програму страхування
+  воєнних ризиків … за пошкодження або знищення якого можна отримати компенсацію" — an announcement about
+  business insurance — was read as damage on the ground, drawn over Kyiv, and then **closed a live drone track
+  with it**. Two rules now stand there:
+  - Policy vocabulary (уряд, кабмін, законопроєкт, страхування, компенсація, відшкодування, бюджет, пільговий
+    кредит, млн/млрд грн) or a post longer than 700 characters disqualifies an outcome entirely. No marker, no
+    status, whatever destruction words the text happens to contain.
+  - **Only an outcome that ends a flight may close a track** — shot down, arrived, lost, area clear. Damage and
+    fire never close anything: they are what a strike left on the ground, and a burning roof says nothing about
+    whether the drone above it is still flying.
+  The second rule is the important one. A missed damage marker costs some information; a live target removed
+  from the map by a press release is the failure the safety doctrine exists to prevent.
+- **The last two "undefined" leaks** — the detail sheet's title and the share text — now use the same labelled
+  fallback as the card. Every status, including any added later, has a name.
+
 ## 1.8.0 — 2026-09-17
 
 Four misreads spotted on the live map, all the same failure underneath: the app stated more than its source

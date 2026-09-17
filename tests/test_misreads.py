@@ -92,3 +92,36 @@ def test_a_course_word_never_moves_the_marker():
 def test_the_quadrant_keeps_its_low_confidence():
     m = [x for x in geo.parse_post("БпЛА на сході Харківщини") if x["place"] == "область"][0]
     assert m["evidence"]["position"]["confidence"] == "low"
+
+
+# -- 5. a press release is not an observation of the sky -------------------------------------------
+
+NEWS = ("Уряд розширив існуючу програму страхування воєнних ризиків для бізнесу та спростив отримання "
+        "компенсацій. Росія щодня цілеспрямовано атакує цивільні підприємства, складські та логістичні "
+        "потужності. Бізнес зазнає значних втрат і потребує підтримки для швидкого відновлення. Розширюємо "
+        "перелік майна, за пошкодження або знищення якого можна отримати компенсацію. Збільшуємо максимальну "
+        "компенсацію страхової премії з 3 до 5 млн грн на рік для одного підприємства. Пільгові кредити тепер "
+        "можна буде залучати для відновлення паливної та складської інфраструктури.")
+
+
+def test_a_government_announcement_never_becomes_a_marker():
+    """This one put "damage on the ground" over Kyiv and closed a live Shahed track with it. It is a policy
+    announcement about insurance — the words "пошкодження" and "знищення" in it are about compensation."""
+    assert st(NEWS) is None
+    assert geo.parse_post(NEWS) == []
+
+
+def test_policy_vocabulary_alone_disqualifies_an_outcome():
+    for text in ["Уряд ухвалив постанову про компенсацію за знищене житло",
+                 "Кабмін збільшив бюджет на відшкодування за пошкоджені підприємства"]:
+        assert st(text) is None, text
+
+
+def test_a_real_report_is_not_caught_by_the_news_filter():
+    """The filter must not cost a single real observation."""
+    for text, want in [("Збито ціль над Києвом", "down"),
+                       ("Вибух у Києві", "impact"),
+                       ("У Дніпровському районі пошкоджено скління та фасад офісної будівлі", "damage"),
+                       ("Горить дах будинку в Оболоні", "fire"),
+                       ("Київщина чисто", "clear")]:
+        assert st(text) == want, text

@@ -178,6 +178,26 @@ flying (`ціль`, `БпЛА`, `шахед`, `ракета`). Otherwise it is *
 own column, never added to shoot-downs. "Збито 5 БпЛА, уламки пошкодили будинок" is still a shoot-down; debris
 damaging a roof, with nothing said about what was intercepted, is damage.
 
+## A press release is not an observation of the sky
+
+"Уряд розширив програму страхування воєнних ризиків … за **пошкодження** або **знищення** якого можна отримати
+компенсацію" is a government announcement about insurance. It put a damage marker over Kyiv and — worse —
+**closed a live Shahed track with it**, because anything carrying an outcome was allowed to end a flight.
+
+Two rules now:
+
+- **Policy vocabulary disqualifies an outcome entirely.** уряд, кабмін, законопроєкт, страхування, компенсація,
+  відшкодування, бюджет, пільговий кредит, млн/млрд грн — none of these ever appear in somebody reporting what
+  is overhead. Neither does a post of more than 700 characters. Such a post produces no marker and no status,
+  whatever destruction words it contains.
+- **Only an outcome that ends a flight may close a track**: shot down, arrived, lost from tracking, area
+  declared clear. **Damage and fire never close anything** — they are what a strike left on the ground, and a
+  burning roof says nothing about whether the drone above it is still flying. A live target must never vanish
+  from the map because of something that happened underneath it.
+
+The second rule matters more than the first. A missed damage marker costs a user some information; a live
+target removed from the map by a press release is the failure this whole document exists to prevent.
+
 ## A name that merely starts the same is not a match
 
 Stemming strips trailing vowels, so *Коломия* was indexed as `колом` — which quietly swallowed **Коломак**, a
