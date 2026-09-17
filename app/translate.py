@@ -297,7 +297,10 @@ _PROMO = re.compile(
     r"реклама\s*:|співпраця\s*:|"
     r"підтримати\s+канал|донат|банка\s*:|monobank|приватбанк|"
     r"поширюємо\s+інформацію|детальніше\s+читайте|читати\s+більше|"
-    r"⚡️?\s*перегляньте,?\s+що\s+летить"
+    r"⚡️?\s*перегляньте,?\s+що\s+летить|"
+    # the Odesa live channels sign every post with a promo line; one of them is profane, and none of it
+    # belongs in a warning read by somebody deciding whether to go to a shelter
+    r"[\u2693\ufe0f\s]*х[уy]\w*\s+одесса\s*\||\blive\s+афиша\b|присла(?:ть|ти)\s+новость|надіслати\s+новость"
     r").*$", re.I | re.S)
 _TAIL_JUNK = re.compile(r"(?:\s*[|·•/]\s*)?(?:[\u2190-\u27bf\U0001f000-\U0001faff\ufe0f\u2600-\u26ff\s]|@[\w_]+)+$")
 

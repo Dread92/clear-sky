@@ -473,7 +473,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.5.1</div>
+    <div class="mi bt" id="buildtag">v1.6</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -570,11 +570,11 @@ function setLang(l){ if(!LANGS[l]||l===LANG) return; try{localStorage.setItem('l
 document.getElementById('langbtn').onclick=()=>{const ks=Object.keys(LANGS); setLang(ks[(ks.indexOf(LANG)+1)%ks.length]);};
 document.getElementById('dlang').innerHTML=Object.entries(LANGS).map(([k,v])=>`<button type="button" class="tgl ${k===LANG?'on':''}" data-l="${k}" style="padding:4px 7px;font-size:11px">${LFLAG[k]} ${LCODE[k]}</button>`).join('');
 document.querySelectorAll('#dlang button').forEach(b=>b.onclick=()=>setLang(b.dataset.l));
-const CH=LANG==='uk'?{kyiv_airdef:'ППО Київ',kpszsu:'Повітряні сили',povitryanatrivogaaa:'Мапа тривог',war_monitor:'монітор',monitor_ukr:'монітор UA',kyivoda:'КОВА',KyivCityOfficial:'КМДА',demo:'демо',
+const CH=LANG==='uk'?{kyiv_airdef:'ППО Київ',xydessa_live:'Одеса наживо',kpszsu:'Повітряні сили',povitryanatrivogaaa:'Мапа тривог',war_monitor:'монітор',monitor_ukr:'монітор UA',kyivoda:'КОВА',KyivCityOfficial:'КМДА',demo:'демо',
   UkraineAlarmSignal:'єТривога',cherkasy_alerts:'Черкаси тривоги',cherkasy_monitor:'Черкаси наживо',poltavskaODA:'Полтавська ОВА',zhytomyrskaODA:'Житомирська ОВА',chernihiv_alert:'Чернігів сирена',Zhytomyr_alert:'Житомир сирена',sumy_alert:'Суми сирена',sumy_alerts:'Суми наживо',eRadarrua:'єРадар',kyiv_times_official:'Kyiv Times'}
- :LANG==='fr'?{kyiv_airdef:'DCA Kyiv',kpszsu:'Forces aériennes',povitryanatrivogaaa:'Carte des alertes',war_monitor:'monitor',monitor_ukr:'monitor UA',kyivoda:'Adm. oblast Kyiv',KyivCityOfficial:'Mairie de Kyiv',demo:'démo',
+ :LANG==='fr'?{kyiv_airdef:'DCA Kyiv',xydessa_live:'Odessa direct',kpszsu:'Forces aériennes',povitryanatrivogaaa:'Carte des alertes',war_monitor:'monitor',monitor_ukr:'monitor UA',kyivoda:'Adm. oblast Kyiv',KyivCityOfficial:'Mairie de Kyiv',demo:'démo',
   UkraineAlarmSignal:'єТривога',cherkasy_alerts:'Alertes Tcherkassy',cherkasy_monitor:'Tcherkassy direct',poltavskaODA:'Adm. Poltava',zhytomyrskaODA:'Adm. Jytomyr',chernihiv_alert:'Sirène Tchernihiv',Zhytomyr_alert:'Sirène Jytomyr',sumy_alert:'Sirène Soumy',sumy_alerts:'Soumy direct',eRadarrua:'єРадар',kyiv_times_official:'Kyiv Times'}
- :{kyiv_airdef:'AirDef live',kpszsu:'Air Force',povitryanatrivogaaa:'Alert map',war_monitor:'monitor',monitor_ukr:'monitor UA',kyivoda:'Kyiv Oblast Admin',KyivCityOfficial:'City Admin',demo:'demo',
+ :{kyiv_airdef:'AirDef live',xydessa_live:'Odesa live',kpszsu:'Air Force',povitryanatrivogaaa:'Alert map',war_monitor:'monitor',monitor_ukr:'monitor UA',kyivoda:'Kyiv Oblast Admin',KyivCityOfficial:'City Admin',demo:'demo',
   UkraineAlarmSignal:'єТривога',cherkasy_alerts:'Cherkasy alerts',cherkasy_monitor:'Cherkasy live',poltavskaODA:'Poltava Admin',zhytomyrskaODA:'Zhytomyr Admin',chernihiv_alert:'Chernihiv siren',Zhytomyr_alert:'Zhytomyr siren',sumy_alert:'Sumy siren',sumy_alerts:'Sumy live',eRadarrua:'єРадар',kyiv_times_official:'Kyiv Times'};
 const RAION=Object.fromEntries(Object.keys(RAION_N).map(r=>[r,raionName(r)]));
 const RAION_STEM=[['бровар','brovary'],['бориспіл','boryspil'],['бучан','bucha'],['вишгород','vyshhorod'],['обухів','obukhiv'],['білоцерків','bila-tserkva'],['фастів','fastiv']];
@@ -1409,7 +1409,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.5.1';
+const APP_VERSION='1.6';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

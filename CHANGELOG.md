@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.6.0 — 2026-09-17
+
+### Added
+- **Odesa live tracking — @xydessa_live.** A local channel that posts the way people watching the sky actually
+  write: a bare district name, a count, *реактивний* for a jet Shahed, half of it in Russian, and `-1` when one
+  comes down. It is registered as a live-position channel for Odesa oblast, with the safety rules that implies:
+  - a **bare district name is a position, never a threat type** — it draws the amber *type not stated* triangle,
+    with "most likely a drone" carried separately as a guess;
+  - **Russian spellings resolve to the same place** (черноморск → Чорноморськ, Аркадия → Аркадія, поскот →
+    Селище Котовського), because half the posts are in Russian;
+  - **`-1` is never read as anything.** It means one was brought down, but with no place attached — and a
+    shoot-down drawn at a guessed position is worse than no shoot-down at all;
+  - the channel's promo tail (one of the two lines is profane) is stripped before anything reaches a warning.
+- **Nine Odesa places in the gazetteer**, coordinates from GeoNames: Пересип, Лузанівка, Селище Котовського,
+  Аркадія, Хаджибейський лиман, Санжійка, Татарбунари, Тузли, Маяки.
+- `tests/test_odesa.py` — 14 tests pinning all of the above, including what must *not* be concluded.
+
+### Changed
+- **MiG-31K is recognised however the channel declines it** — "Мігну31к в небе" is the same warning as
+  "МіГ-31К". The pattern stays tight (міг/миг/mig, then 31 within three letters) because it raises the loudest
+  banner in the app; ordinary words like *мігрант* and *мигдаль* are tested not to.
+- Kalibrs are recognised in the Russian spelling as well (*калибы*).
+
+### Known gaps in Odesa coverage
+- **Південне is deliberately not matched.** It is both a town near Odesa and the adjective *southern*, and the
+  channel uses both. Until a post can be told apart from "курс південний", neither draws a marker: a wrong pin
+  30 km up the coast is worse than a missing one.
+- **Слобідка, Іллічанка, Латівка and Паланка are not in the gazetteer** — no authoritative coordinate was
+  found for them. Their posts stay in the feed with no marker until someone supplies one.
+
 ## 1.5.1 — 2026-09-17
 
 ### Fixed

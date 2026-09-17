@@ -146,8 +146,9 @@ def norm_uk(s):
 FEED_TAGS = [
     ("drones", re.compile(r"бпла|шахед|дрон|безпілотн|мопед|реактив|\bбп\b", re.I)),
     ("ballistic_missiles", re.compile(r"баліст|іскандер|кінжал|kn-?23|балістич", re.I)),
-    ("cruise_missiles", re.compile(r"крилат|калібр|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|ракет", re.I)),
-    ("mig31k_departure", re.compile(r"міг-?31|миг-?31|mig-?31", re.I)),
+    ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|ракет", re.I)),
+    # the channels decline it and drop the hyphen ("Мігну31к в небе"), so міг/миг/mig then 31 within three letters
+    ("mig31k_departure", re.compile(r"м[іи]г\w{0,3}\s?-?\s?31|mig\w{0,3}\s?-?\s?31", re.I)),
     ("strategic_aircraft_activity", re.compile(r"ту-?95|ту-?160|ту-?22|стратегічн", re.I)),
     ("tactic_aircraft_activity", re.compile(r"тактичн|су-?34|су-?35|су-?25|су-?24", re.I)),
     ("guided_aerial_bombs", re.compile(r"каб|керован.*бомб", re.I)),

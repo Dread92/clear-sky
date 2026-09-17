@@ -149,6 +149,14 @@ PLACES = {
     "Затока": (30.47, 46.07, "18"), "Арциз": (29.42, 45.99, "18"), "Ананьїв": (29.97, 47.72, "18"),
     "Любашівка": (30.26, 47.84, "18"), "Кодима": (29.13, 48.09, "18"), "Роздільна": (30.08, 46.84, "18"),
     "Березівка": (30.91, 47.20, "18"), "Ширяєве": (30.19, 47.38, "18"), "Овідіополь": (30.44, 46.25, "18"),
+    # Odesa city sections and the coastal villages the local live-tracking channels name post after post.
+    # Coordinates from GeoNames; a city section is a centroid, good to about a kilometre — which is the same
+    # precision as "somewhere over Peresyp", the claim the post is actually making.
+    "Пересип": (30.727, 46.535, "18"), "Лузанівка": (30.769, 46.557, "18"),
+    "Селище Котовського": (30.804, 46.581, "18"), "Аркадія": (30.764, 46.436, "18"),
+    "Хаджибейський лиман": (30.600, 46.617, "18"),
+    "Санжійка": (30.609, 46.229, "18"), "Татарбунари": (29.611, 45.839, "18"),
+    "Тузли": (30.098, 45.865, "18"), "Маяки": (30.267, 46.412, "18"),
     # Kirovohrad / Cherkasy
     "Олександрія": (33.12, 48.67, "15"), "Світловодськ": (33.24, 49.05, "15"), "Знам'янка": (32.67, 48.72, "15"),
     "Новоукраїнка": (31.53, 48.32, "15"), "Долинська": (32.77, 48.11, "15"), "Гайворон": (29.87, 48.34, "15"),
@@ -220,8 +228,11 @@ COMPASS = [
 
 TYPE_RX = [
     ("ballistic_missiles", re.compile(r"баліст|іскандер|кінжал|швидкісн[а-яіїє]*\s+ціл", re.I)),
-    ("mig31k_departure", re.compile(r"міг-?31|миг-?31", re.I)),
-    ("cruise_missiles", re.compile(r"крилат|калібр|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|\bракет", re.I)),
+    # "Мігну31к в небе", "міг 31", "миг31к": the channels decline it and drop the hyphen. The word still has
+    # to start with міг/миг and be followed by 31 within three letters — loose enough for their spelling,
+    # tight enough that no ordinary word raises the loudest banner in the app.
+    ("mig31k_departure", re.compile(r"м[іи]г\w{0,3}\s?-?\s?31", re.I)),
+    ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|\bракет", re.I)),
     ("guided_aerial_bombs", re.compile(r"\bкаб", re.I)),
     ("strategic_aircraft_activity", re.compile(r"ту-?95|ту-?160|ту-?22|стратегічн", re.I)),
     ("tactic_aircraft_activity", re.compile(r"тактичн", re.I)),
@@ -263,7 +274,15 @@ ALT = {"Київ": ["києв"], "Львів": ["львов"], "Харків": [
        "Канівське водосховище": ["канівськ[а-яіїє]* водосховищ[а-яіїє]*\\b", "канівськ"],
        "Київське водосховище": ["київськ[а-яіїє]* водосховищ[а-яіїє]*\\b"], "Дністровське водосховище": ["дністровськ[а-яіїє]* водосховищ[а-яіїє]*\\b", "дністровськ"],
        "Черкаське водосховище": ["черкаськ[а-яіїє]* водосховищ[а-яіїє]*\\b"], "Азовське море": ["азовськ"], "Чорне море": ["чорного мор", "чорне мор", "чорним мор", "чорному мор"],
-       "Запорізька АЕС": ["заес"], "Рівненська АЕС": ["раес"], "Хмельницька АЕС": ["хаес"], "Дніпровська ГЕС": ["дніпрогес"]}
+       "Запорізька АЕС": ["заес"], "Рівненська АЕС": ["раес"], "Хмельницька АЕС": ["хаес"], "Дніпровська ГЕС": ["дніпрогес"],
+       # The Odesa channels write half in Russian, so the Russian spelling has to resolve to the same place.
+       # "Південне" is deliberately NOT an alias of Yuzhne: it is also the adjective "southern", and
+       # "курс південний" must never become a marker over the town of Pivdenne.
+       "Пересип": ["пересып"], "Лузанівка": ["лузановк"], "Аркадія": ["аркадия"],
+       "Селище Котовського": ["поскот", "посёлок котовского", "поселок котовского", "селище котовськ"],
+       "Хаджибейський лиман": ["хаджибе"], "Чорноморськ": ["черноморск"],
+       "Санжійка": ["санжейк"], "Татарбунари": ["татарбунар"], "Овідіополь": ["овидиополь"],
+       "Білгород-Дністровський": ["белгород-днестровск", "бєлгород-днєстровськ"]}
 
 _INDEX = []  # (stem regex, name)
 for name in PLACES:
@@ -849,7 +868,8 @@ def parse_eradar(text):
 
 
 CHANNEL_PARSER = {"povitryanatrivogaaa": parse_arrows, "kyiv_airdef": parse_kyiv_airdef, "eRadarrua": parse_eradar,
-                  "cherkasy_monitor": lambda t: _parse_live(t, "24"), "sumy_alerts": lambda t: _parse_live(t, "20")}
+                  "cherkasy_monitor": lambda t: _parse_live(t, "24"), "sumy_alerts": lambda t: _parse_live(t, "20"),
+                  "xydessa_live": lambda t: _parse_live(t, "18")}
 
 
 def parse_for_channel(channel, text):
