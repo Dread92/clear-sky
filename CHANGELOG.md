@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.6.1 — 2026-09-17
+
+### Changed
+- **"Confirmed shot down: 310" was claiming more than the app can know.** It counts the monitoring posts the
+  parser could read and tie to a named town — every shoot-down never posted, posted without a place, or
+  written in a form the parser missed is missing from it. The two figures are now **Explosion reports** and
+  **Shoot-down reports**, with the caveat directly under the numbers instead of in a footnote at the bottom
+  of the panel: what this app read, not official totals, and the real numbers are higher, never lower. The
+  Air Force summary table below them is unchanged — those *are* counts of targets. The map chips say
+  "reported" too. A floor presented as a total is false precision in the same family as an invented
+  trajectory, and `docs/SAFETY.md` now says so.
+
 ## 1.6.0 — 2026-09-17
 
 ### Added

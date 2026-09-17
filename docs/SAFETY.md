@@ -180,6 +180,14 @@ heading and count were read, each with a confidence. If a value has no evidence,
 In the statistics, **launches** (from Air Force summaries) and **reports** (a count of posts) are
 never mixed and never added together. A number that counts posts is labelled as counting posts.
 
+That labelling is not cosmetic. "Confirmed shot down: 310" reads as *310 things were shot down*, which the
+app has no way to know: it counts the monitoring posts it could parse and tie to a named town. Every
+shoot-down that was never posted, posted without a place, or written in a form the parser missed is absent
+from it. So these figures are named **explosion reports** and **shoot-down reports**, and the caveat sits
+directly under the numbers rather than in a footnote at the bottom of the panel: what the app read, not
+official totals, and the real numbers are higher — never lower. A floor presented as a total is a false
+precision in the same family as an invented trajectory.
+
 ## Operational security
 
 The app does not encourage publishing air-defence positions or explosion locations during an

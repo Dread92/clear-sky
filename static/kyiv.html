@@ -50,6 +50,9 @@ body.lite .ticker .tki{color:#fff}
 .slbl{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:12px}
 .srow{display:flex;gap:10px;font:500 12.5px var(--sans);padding:3px 0;border-bottom:1px solid var(--line)}.srow span{flex:1}.srow b{min-width:44px;text-align:right}
 .sfoot{font:11.5px var(--sans);color:var(--muted);margin-top:10px;line-height:1.35}
+/* a number the app counted is not a number of things that happened; the caveat sits under the figures,
+   not at the bottom of a panel nobody scrolls to */
+.sfoot.warn{border-left:2px solid var(--ua-yellow);padding-left:8px;margin:6px 0 2px;color:#c9c3a8}
 .sbars .sb2{flex:1;min-width:2px;display:flex;align-items:flex-end;gap:1px;height:100%}.sbars .sb2 i{flex:1;display:block;border-radius:1px 1px 0 0;opacity:.9}
 .wtab .srow b{text-align:right;min-width:56px}.wtab .srow span{font-weight:500;flex:1.6}
 .wtab .srow.hd{border-bottom:1px solid var(--line)}.wtab .srow.hd b{color:var(--ink3);font:600 10px var(--mono);letter-spacing:.08em;text-transform:uppercase}
@@ -473,7 +476,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.6</div>
+    <div class="mi bt" id="buildtag">v1.6.1</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -1385,7 +1388,8 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
   // explosions and shoot-downs: read from monitoring posts, so only over the window that parsing covers
   const impTable=`<div class="wtab">${head(['24 h','72 h'])}
     ${row('✸ '+esc(t('st_expl')),[(IW['1']||{}).impacts,(IW['3']||{}).impacts],'#ffb3ad')}
-    ${row('✕ '+esc(t('st_downs')),[(IW['1']||{}).down,(IW['3']||{}).down],'#a8f0cf')}</div>`;
+    ${row('✕ '+esc(t('st_downs')),[(IW['1']||{}).down,(IW['3']||{}).down],'#a8f0cf')}</div>
+    <div class="sfoot warn">${esc(t('st_rep_note'))}</div>`;
   // launches: the Air Force morning summaries, the only source that counts targets rather than posts
   const hasAF=!!((W['30']||{}).summaries);
   const afTable=hasAF?`<div class="wtab">${head([t('s_w1'),t('s_w7'),t('s_w30')])}
@@ -1409,7 +1413,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.6';
+const APP_VERSION='1.6.1';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
