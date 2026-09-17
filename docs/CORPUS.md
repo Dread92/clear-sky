@@ -59,7 +59,7 @@ The corpus file ships inside the deployed image and cannot be written from a mac
 verdicts are stored on the volume and come home with:
 
 ```bash
-python scripts/corpus.py pull      # merge the verdicts into tests/corpus/cases.jsonl
+python scripts/corpus.py pull      # merge the verdicts into data/corpus.jsonl
 python scripts/corpus.py replay
 ```
 

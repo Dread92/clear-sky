@@ -9,6 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY static ./static
+# The regression corpus: the server serves it to the review panel on /admin, so it has to be in the image.
+COPY data ./data
 
 # The database lives on the mounted volume, never in the image.
 ENV PORT=8080 \

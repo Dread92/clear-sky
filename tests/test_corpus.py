@@ -71,3 +71,33 @@ def test_the_corpus_file_is_well_formed():
             assert c["id"] == corpus.case_id(c["channel"], c["text"]), f"line {n}: id does not match its text"
             assert c["id"] not in seen, f"line {n}: duplicate {c['id']}"
             seen.add(c["id"])
+
+
+# -- the corpus has to reach the running app -------------------------------------------------------
+
+def test_the_corpus_lives_where_the_deployed_server_looks_for_it():
+    """It sat under tests/, which .dockerignore excludes, so the review panel on a deployed machine said
+    "nothing left to review" while 259 cases waited in the repo. The file is app data now, not a fixture."""
+    assert corpus.CORPUS.replace("\\", "/").endswith("data/corpus.jsonl")
+    assert os.path.exists(corpus.CORPUS)
+
+
+def test_the_image_actually_copies_it():
+    """A guard against the same failure coming back through the Dockerfile rather than the code."""
+    docker = os.path.join(ROOT, "Dockerfile")
+    ignore = os.path.join(ROOT, ".dockerignore")
+    body = open(docker, encoding="utf-8").read()
+    assert "COPY data" in body, "the corpus directory is not copied into the image"
+    if os.path.exists(ignore):
+        for line in open(ignore, encoding="utf-8"):
+            line = line.strip()
+            if line and not line.startswith("#") and not line.startswith("!"):
+                assert not line.rstrip("/*").endswith("data"), f".dockerignore excludes the corpus: {line}"
+
+
+def test_the_server_resolves_the_same_path():
+    """server.py computes the path itself; if the two ever disagree the panel goes quiet with no error."""
+    import server
+    served = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(server.__file__))),
+                          "data", "corpus.jsonl")
+    assert os.path.normpath(served) == os.path.normpath(corpus.CORPUS)

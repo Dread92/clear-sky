@@ -3,6 +3,11 @@
 ## 1.11.0 — 2026-09-17
 
 ### Added
+- **Confidence now says how sharp the reading is.** "High confidence" on its own told nobody how far off the
+  marker could be. Each method's tolerance is stated beside the word: a named town is **±5 km**, an oblast
+  name is **anywhere in the oblast**, a bearing between two named places is **±10°**, a compass word **±30°**.
+  These are the app's reading tolerances, not a probability that the report is true — no channel publishes
+  such a number and this app does not invent one.
 - **Reviewing the corpus from `/admin`, not from a terminal.** 260 captured cases were sitting there readable
   only by `corpus.py review` on a command line — the third feature in two days whose capture step assumed a
   keyboard that is not where the work happens. **Review readings** shows one post, what this build makes of
@@ -15,6 +20,36 @@
   - The terminal `review` still exists and does the same thing; use whichever is in front of you.
 
 ### Fixed
+- **The direction arrows on the map were wrong — one of them exactly backwards.** The missile glyph was drawn
+  with flared tail fins, and at marker size the eye takes the widest part for the head: a missile flying
+  south-west read as an arrow pointing north-east. The ballistic glyph was worse — its spike sat at the
+  bottom, so once rotated by the reported course it pointed a clean 180° the wrong way. Both now carry their
+  mass at the nose.
+- **A target with no reported course no longer points north.** It was drawn pointing up, which reads as a
+  heading and is an invented one. It now gets a mark with no front, and grows a nose the moment a post gives
+  it a course.
+- **"Бандероль" is its own weapon.** Added ahead of cruise missiles in the type table, with its own icon,
+  name and speed. A bare 🚀 now means "a missile", not "a ballistic missile" — reading an emoji as ballistic
+  handed the loudest treatment in the app (white spike, one-second refresh) to a piece of punctuation.
+- **An oblast heading was drawn as a sighting.** "🛵 Київщина" over a list of towns put a phantom marker on
+  the oblast centre — near Vasylkiv, 100 km from the Chornobyl zone the next line was about. A line that is
+  only an oblast name, with lines under it, now sets the context and draws nothing. "КАБи на Сумщину та
+  Донеччину" is still two reports: a heading has to be a whole line.
+- **The weapon type leaked across a post.** It was resolved once over the whole text, so one word anywhere
+  retyped every line: a jet drone over Kaharlyk was drawn as a Banderol because another line mentioned one.
+  Each line is typed from its own words; only a line that names no weapon inherits the post's.
+- **"Далі Київщина" was read as a position.** It is the next leg of the route. Three Banderols reported
+  north of Nizhyn were also drawn at the centre of Kyiv oblast, 150 km away — one flight, two markers, the
+  second over a region nothing had been reported in. An oblast introduced by далі / потім / згодом / надалі /
+  курсом на is where it is going, never where it is.
+- **The destination oblast is named.** "Neighbouring oblast" hid the one thing the channel had been precise
+  about; the card now says *towards Kyiv oblast* (in Ukrainian, in the genitive).
+- **A side of an oblast in an arrow line is no longer its centre.** "Одещина: ➡️Південь/Одеса" landed on the
+  oblast centre, 90 km north of the south the channel named, and every line of that shape piled onto the same
+  pixel. Only exact compass words count — Південне is a town, not "the south".
+- **A morning tally is no longer drawn as a live sky.** "В ніч на 17.09 … противник застосував … 8×
+  балістичних ракет по Києву" counts what was fired last night; it was drawn as eight ballistic missiles over
+  Kyiv for as long as the post stayed in the feed.
 - **The device counter inflated itself at every restart.** The daily salt and the set of hashes seen under it
   were rebuilt in memory at every process start, so each deploy, crash and auto-stop counted every returning
   reader as somebody new — 62 "devices" for a handful of people. Both now live on the volume, keyed by day, and
@@ -93,7 +128,7 @@ by itself: it surfaced as drift on a real post nobody had labelled yet.
 ## 1.9.0 — 2026-09-17
 
 ### Added
-- **A regression corpus** (`scripts/corpus.py`, `tests/corpus/cases.jsonl`, `docs/CORPUS.md`). Real posts plus
+- **A regression corpus** (`scripts/corpus.py`, `data/corpus.jsonl`, `docs/CORPUS.md`). Real posts plus
   the parse they must produce, replayed on every test run. The parser is patterns over free text in two
   languages with declensions; it produces a steady trickle of misreads, and until now every one of them was
   found by a person looking at the map — a detection method that does not work at three in the morning during

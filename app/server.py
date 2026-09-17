@@ -146,6 +146,7 @@ def norm_uk(s):
 FEED_TAGS = [
     ("drones", re.compile(r"бпла|шахед|дрон|безпілотн|мопед|реактив|\bбп\b", re.I)),
     ("ballistic_missiles", re.compile(r"баліст|іскандер|кінжал|kn-?23|балістич", re.I)),
+    ("banderol_missiles", re.compile(r"бандерол", re.I)),
     ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|ракет", re.I)),
     # the channels decline it and drop the hyphen ("Мігну31к в небе"), so міг/миг/mig then 31 within three letters
     ("mig31k_departure", re.compile(r"м[іи]г\w{0,3}\s?-?\s?31|mig\w{0,3}\s?-?\s?31", re.I)),
@@ -160,7 +161,8 @@ FEED_TAGS = [
 THREAT_TAGS = {n for n, _ in FEED_TAGS}
 
 
-LIVE_TAGS = {"drones", "ballistic_missiles", "cruise_missiles", "mig31k_departure", "strategic_aircraft_activity", "tactic_aircraft_activity", "guided_aerial_bombs", "clear"}
+LIVE_TAGS = {"drones", "ballistic_missiles", "cruise_missiles", "banderol_missiles", "unspecified_missiles",
+             "mig31k_departure", "strategic_aircraft_activity", "tactic_aircraft_activity", "guided_aerial_bombs", "clear"}
 NEWS_CHANNELS = {"kyiv_times_official", "eRadarrua"}   # big mixed channels: only short live-threat posts are kept
 
 
@@ -1042,7 +1044,7 @@ class State:
     def _missile_active(self):
         fav = set(self.cfg.get("favourites") or [])
         bal = {"ballistic_missiles"}
-        kinds = {"ballistic_missiles", "cruise_missiles", "mig31k_departure"}
+        kinds = {"ballistic_missiles", "cruise_missiles", "banderol_missiles", "mig31k_departure"}
         level = self.MSL_NONE
         with self.lock:
             for a in self.active.values():
@@ -1896,7 +1898,7 @@ class Handler(BaseHTTPRequestHandler):
         if cls._corpus_cache is None:
             cases = []
             path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "tests", "corpus", "cases.jsonl")
+                                "data", "corpus.jsonl")
             try:
                 with open(path, encoding="utf-8") as f:
                     for line in f:

@@ -17,7 +17,7 @@ en:{
   d_p2:'🚨 <b>Main rule:</b> Always rely on city sirens and the official «Air Raid Alert» app. If an alert sounds — <b>proceed to shelter immediately</b>. Do not use this map to decide whether it is safe outside.',
   d_p3:'🛑 Under no circumstances share footage of air defence operations or precise impact locations during an attack, if any occurred.',
   d_ok:'I understand',d_lang:'Language',d_obl:'SELECT REGION (for status bar and notifications)',d_home:'SPECIFY CITY / DISTRICT (optional)',d_home_btn:'Select…',d_home_set:'Watching',
-  th_drones:'Strike drones (Shahed)',th_bal:'Ballistic missiles',th_cruise:'Cruise missiles',th_msl:'Missiles',th_mig:'MiG-31K airborne',th_strat:'Strategic aviation',th_tac:'Tactical aviation / KAB',th_kab:'Guided bombs (KAB)',th_ad:'Air defence active',th_kyiv:'Kyiv',th_clear:'All clear',th_official:'Official',th_geo:'Geo',th_unknown:'?',
+  th_drones:'Strike drones (Shahed)',th_bal:'Ballistic missiles',th_band:'Banderol (jet missile from a drone)',th_cruise:'Cruise missiles',th_msl:'Missiles',th_mig:'MiG-31K airborne',th_strat:'Strategic aviation',th_tac:'Tactical aviation / KAB',th_kab:'Guided bombs (KAB)',th_ad:'Air defence active',th_kyiv:'Kyiv',th_clear:'All clear',th_official:'Official',th_geo:'Geo',th_unknown:'?',
   at_air_raid:'Air raid',at_art:'Artillery shelling',at_urban:'Urban fights',at_chem:'Chemical',at_nuc:'Nuclear',at_info:'Info',
   st_damage:'Damage on the ground',st_fire:'Fire reported',sw_damage:'damaged',sw_fire:'on fire',mk_damage:'▣ Damage',mk_fire:'🔥 Fire',st_damage_note:'A building or vehicle reported damaged — not a target shot down, and never counted as one.',lb_damage:'🟥 {0} damage reports',rep_damage:'Damage reports',st_down:'Confirmed shot down',st_impact:'Explosion (impact or interception — not known which)',st_lost:'Lost from tracking',st_clear:'Area reported clear',
   sw_down:'shot down',sw_impact:'explosion',sw_lost:'lost',sw_clear:'clear',
@@ -33,6 +33,7 @@ en:{
   sh_details:'Details — full post, how it was read',ev_type:'Type',ev_pos:'Position',ev_hdg:'Heading',ev_count:'Count',ev_count_fb:'not stated (shown as 1)',ev_others:'Others',ev_within:'(within 25 km / 15 min)',ev_nomatch:'nothing matched',
   sh_note:'Machine-read — always check the sentence. Positions are where the post said, not radar. A target not re-reported within {0} min turns grey (?), fades, and disappears after 15 min or when its oblast\'s alert ends.',
   conf_high:'high',conf_medium:'medium',conf_low:'low',conf_none:'—',
+  pa_hi:'±5 km',pa_md:'±25 km',pa_lo:'±60 km',pa_obl:'anywhere in the oblast',ha_hi:'±10°',ha_md:'±30°',ha_lo:'±60°',
   po_title:'My oblast',po_desc:'The status band and the 🔔 alerts follow this oblast. Kyiv keeps its city + raion detail.',
   cz_1:'Crimea · temporarily occupied',cz_2:'The Cossacks will return 🇺🇦',
   im_grp:'{0} reports grouped here',im_grp_note:'Close together on the map at this zoom — zoom in to separate them. Tap one for its source.',im_grp_zoom:'Zoom in',
@@ -98,7 +99,7 @@ en:{
   m_unit:'m',alt_likely:'A stated height almost always means a drone — the monitors call heights for them.',
   sup_free:'Free to use. Any support for hosting & development and NGO 07300 volunteer work is deeply appreciated.',
   sup_hosting:'Hosting & development',sup_ngo:'NGO 07300 — volunteer work',sup_community:'Community & feedback',sup_ver:'version',
-  msl_seen:'last seen {0} at {1}',msl_seen_np:'last seen at {0}',msl_reach:'could be anywhere within {0} km',msl_note:'A missile at this speed covers {0} km a minute. This circle is where it could have reached since the last report — not where it is. Take cover on the official alert, not on this map.',msl_bal:'Ballistic — arcs down from above, minutes from launch to impact',msl_cru:'Cruise — flies a route, can turn, can be re-reported',
+  msl_seen:'last seen {0} at {1}',msl_seen_np:'last seen at {0}',msl_reach:'could be anywhere within {0} km',msl_note:'A missile at this speed covers {0} km a minute. This circle is where it could have reached since the last report — not where it is. Take cover on the official alert, not on this map.',msl_bal:'Ballistic — arcs down from above, minutes from launch to impact',msl_cru:'Cruise — flies a route, can turn, can be re-reported',msl_band:'Banderol — a jet missile launched from a drone: slower than a cruise missile, and not one',
   c_kyiv:'Kyiv',u_upd:'upd',u_updating:'updating…',u_live:'LIVE',d_h:'h',d_min:'min'
 },
 uk:{
@@ -116,7 +117,7 @@ uk:{
   d_p2:'🚨 <b>Головне правило:</b> Завжди орієнтуйтеся на міські сирени та офіційний застосунок «Повітряна тривога». Якщо лунає тривога — <b>негайно прямуйте в укриття</b>. Не використовуйте цю карту, щоб вирішувати, чи безпечно зараз на вулиці.',
   d_p3:'🛑 Ні в якому разі не поширюйте кадрів роботи ППО та даних про точні місця влучань під час атаки, якщо такі були.',
   d_ok:'Зрозуміло',d_lang:'Мова',d_obl:'ОБРАТИ ОБЛАСТЬ (для сповіщень та статусу)',d_home:'УТОЧНИТИ МІСТО / РАЙОН (необов\'язково)',d_home_btn:'Обрати…',d_home_set:'Відстежується',
-  th_drones:'Ударні дрони (Shahed)',th_bal:'Балістичні ракети',th_cruise:'Крилаті ракети',th_msl:'Ракети',th_mig:'МіГ-31К у повітрі',th_strat:'Стратегічна авіація',th_tac:'Тактична авіація / КАБ',th_kab:'Керовані авіабомби (КАБ)',th_ad:'Працює ППО',th_kyiv:'Київ',th_clear:'Відбій',th_official:'Офіційне',th_geo:'Гео',th_unknown:'?',
+  th_drones:'Ударні дрони (Shahed)',th_bal:'Балістичні ракети',th_band:'Бандероль (реактивна ракета з безпілотника)',th_cruise:'Крилаті ракети',th_msl:'Ракети',th_mig:'МіГ-31К у повітрі',th_strat:'Стратегічна авіація',th_tac:'Тактична авіація / КАБ',th_kab:'Керовані авіабомби (КАБ)',th_ad:'Працює ППО',th_kyiv:'Київ',th_clear:'Відбій',th_official:'Офіційне',th_geo:'Гео',th_unknown:'?',
   at_air_raid:'Повітряна тривога',at_art:'Артобстріл',at_urban:'Вуличні бої',at_chem:'Хімічна',at_nuc:'Радіаційна',at_info:'Інфо',
   st_damage:'Пошкодження на землі',st_fire:'Повідомляли про пожежу',sw_damage:'пошкоджено',sw_fire:'горить',mk_damage:'▣ Пошкодження',mk_fire:'🔥 Пожежа',st_damage_note:'Повідомляють про пошкоджену будівлю чи автівку — це не збита ціль і ніколи не рахується як збиття.',lb_damage:'🟥 повідомлень про пошкодження: {0}',rep_damage:'Повідомлень про пошкодження',st_down:'Збито / Приземлено',st_impact:'Вибух (влучання або перехоплення — невідомо)',st_lost:'Локаційно втрачено',st_clear:'Повідомлено: у районі чисто',
   sw_down:'збито',sw_impact:'вибух',sw_lost:'втрачено',sw_clear:'чисто',
@@ -132,6 +133,7 @@ uk:{
   sh_details:'Деталі — повний допис, як його зчитано',ev_type:'Тип',ev_pos:'Позиція',ev_hdg:'Курс',ev_count:'Кількість',ev_count_fb:'не вказано (показано як 1)',ev_others:'Інші',ev_within:'(у межах 25 км / 15 хв)',ev_nomatch:'нічого не знайдено',
   sh_note:'Зчитано автоматично — завжди перевіряйте саме речення. Позиція — там, де вказав допис, а не дані радара. Якщо цілі немає в нових дописах {0} хв, позначка не фіксується: сіріє, тьмяніє і зникає через 15 хв або після відбою в її області.',
   conf_high:'висока',conf_medium:'середня',conf_low:'низька',conf_none:'—',
+  pa_hi:'±5 км',pa_md:'±25 км',pa_lo:'±60 км',pa_obl:'будь-де в області',ha_hi:'±10°',ha_md:'±30°',ha_lo:'±60°',
   po_title:'Моя область',po_desc:'Смуга стану та 🔔 сповіщення йдуть за цією областю. Для Києва залишається деталізація місто + райони.',
   cz_1:'Крим · тимчасово окупований',cz_2:'Козаки повернуться 🇺🇦',
   im_grp:'Тут згруповано дописів: {0}',im_grp_note:'На цьому масштабі вони накладаються — наблизьте, щоб розділити. Натисніть на будь-який, щоб побачити джерело.',im_grp_zoom:'Наблизити',
@@ -196,7 +198,7 @@ uk:{
   m_unit:'м',alt_likely:'Вказана висота майже завжди означає дрон — саме для них монітори називають висоту.',
   sup_free:'Користуйтеся безкоштовно. Будь-яка підтримка хостингу й розробки та волонтерської роботи ГО 07300 буде дуже вдячно прийнята.',
   sup_hosting:'Хостинг і розробка',sup_ngo:'ГО 07300 — волонтерська робота',sup_community:'Спільнота та відгуки',sup_ver:'версія',
-  msl_seen:'востаннє {0} о {1}',msl_seen_np:'востаннє о {0}',msl_reach:'може бути будь-де в межах {0} км',msl_note:'Ракета на такій швидкості долає {0} км за хвилину. Це коло — куди вона могла долетіти від останнього допису, а не де вона є. Ховайтеся за офіційною тривогою, а не за цією мапою.',msl_bal:'Балістична — заходить згори, від пуску до влучання кілька хвилин',msl_cru:'Крилата — летить маршрутом, може змінити курс, її можуть помітити знову',
+  msl_seen:'востаннє {0} о {1}',msl_seen_np:'востаннє о {0}',msl_reach:'може бути будь-де в межах {0} км',msl_note:'Ракета на такій швидкості долає {0} км за хвилину. Це коло — куди вона могла долетіти від останнього допису, а не де вона є. Ховайтеся за офіційною тривогою, а не за цією мапою.',msl_bal:'Балістична — заходить згори, від пуску до влучання кілька хвилин',msl_cru:'Крилата — летить маршрутом, може змінити курс, її можуть помітити знову',msl_band:'Бандероль — реактивна ракета з безпілотника: повільніша за крилату, але це не крилата',
   c_kyiv:'Київ',u_upd:'онов.',u_updating:'оновлення…',u_live:'НАЖИВО',d_h:'год',d_min:'хв'
 },
 fr:{
@@ -214,7 +216,7 @@ fr:{
   d_p2:"🚨 <b>Règle principale :</b> Fiez-vous toujours aux sirènes de la ville et à l'application officielle « Повітряна тривога ». Si une alerte retentit — <b>rejoignez immédiatement un abri</b>. N'utilisez pas cette carte pour décider s'il est sûr de sortir.",
   d_p3:"🛑 Ne partagez en aucun cas des images du travail de la DCA ni les lieux précis des impacts pendant une attaque, s'il y en a eu.",
   d_ok:"J'ai compris",d_lang:'Langue',d_obl:"CHOISIR L'OBLAST (pour le bandeau d'état et les notifications)",d_home:'PRÉCISER LA VILLE / LE QUARTIER (facultatif)',d_home_btn:'Choisir…',d_home_set:'Surveillé',
-  th_drones:'Drones d\'attaque (Shahed)',th_bal:'Missiles balistiques',th_cruise:'Missiles de croisière',th_msl:'Missiles',th_mig:'MiG-31K en vol',th_strat:'Aviation stratégique',th_tac:'Aviation tactique / KAB',th_kab:'Bombes guidées (KAB)',th_ad:'DCA active',th_kyiv:'Kyiv',th_clear:'Fin d\'alerte',th_official:'Officiel',th_geo:'Géo',th_unknown:'?',
+  th_drones:'Drones d\'attaque (Shahed)',th_bal:'Missiles balistiques',th_band:'Banderol (missile à réaction lancé par drone)',th_cruise:'Missiles de croisière',th_msl:'Missiles',th_mig:'MiG-31K en vol',th_strat:'Aviation stratégique',th_tac:'Aviation tactique / KAB',th_kab:'Bombes guidées (KAB)',th_ad:'DCA active',th_kyiv:'Kyiv',th_clear:'Fin d\'alerte',th_official:'Officiel',th_geo:'Géo',th_unknown:'?',
   at_air_raid:'Alerte aérienne',at_art:'Tirs d\'artillerie',at_urban:'Combats urbains',at_chem:'Chimique',at_nuc:'Nucléaire',at_info:'Info',
   st_damage:'Dégâts au sol',st_fire:'Incendie signalé',sw_damage:'endommagé',sw_fire:'en feu',mk_damage:'▣ Dégâts',mk_fire:'🔥 Incendie',st_damage_note:"Bâtiment ou véhicule signalé endommagé — ce n'est pas une cible abattue, et ce n'est jamais compté comme telle.",lb_damage:'🟥 {0} dégâts signalés',rep_damage:'Dégâts signalés',st_down:'Abattu confirmé',st_impact:'Explosion (impact ou interception — inconnu)',st_lost:'Perdu du suivi',st_clear:'Zone signalée dégagée',
   sw_down:'abattu',sw_impact:'explosion',sw_lost:'perdu',sw_clear:'dégagé',
@@ -230,6 +232,7 @@ fr:{
   sh_details:'Détails — publication complète, comment elle a été lue',ev_type:'Type',ev_pos:'Position',ev_hdg:'Cap',ev_count:'Nombre',ev_count_fb:'non indiqué (affiché comme 1)',ev_others:'Autres',ev_within:'(à moins de 25 km / 15 min)',ev_nomatch:'rien trouvé',
   sh_note:'Lecture automatique — vérifiez toujours la phrase. Les positions sont celles indiquées par la publication, pas un radar. Une cible non re-signalée sous {0} min passe en gris (?), s\'estompe et disparaît après 15 min ou à la fin de l\'alerte de son oblast.',
   conf_high:'élevée',conf_medium:'moyenne',conf_low:'faible',conf_none:'—',
+  pa_hi:'±5 km',pa_md:'±25 km',pa_lo:'±60 km',pa_obl:'n\'importe où dans l\'oblast',ha_hi:'±10°',ha_md:'±30°',ha_lo:'±60°',
   po_title:'Mon oblast',po_desc:'Le bandeau d\'état et les 🔔 alertes suivent cet oblast. Kyiv garde son détail ville + raions.',
   cz_1:'Crimée · temporairement occupée',cz_2:'Les Cosaques reviendront 🇺🇦',
   im_grp:'{0} rapports groupés ici',im_grp_note:"À ce niveau de zoom ils se superposent — zoomez pour les séparer. Touchez-en un pour voir sa source.",im_grp_zoom:'Zoomer',
@@ -294,7 +297,7 @@ fr:{
   m_unit:'m',alt_likely:"Une altitude annoncée signifie presque toujours un drone — c'est pour eux que les moniteurs donnent la hauteur.",
   sup_free:"Gratuit à l'usage. Tout soutien à l'hébergement, au développement et au travail bénévole de l'ONG 07300 est très apprécié.",
   sup_hosting:'Hébergement et développement',sup_ngo:'ONG 07300 — travail bénévole',sup_community:'Communauté et retours',sup_ver:'version',
-  msl_seen:'vu pour la dernière fois {0} à {1}',msl_seen_np:'vu pour la dernière fois à {0}',msl_reach:'peut être n\'importe où dans un rayon de {0} km',msl_note:"Un missile à cette vitesse parcourt {0} km par minute. Ce cercle est la zone qu'il a pu atteindre depuis le dernier rapport — pas l'endroit où il est. Mettez-vous à l'abri sur l'alerte officielle, pas sur cette carte.",msl_bal:"Balistique — plonge depuis la haute altitude, quelques minutes entre le tir et l'impact",msl_cru:'De croisière — suit une route, peut virer, peut être re-signalé',
+  msl_seen:'vu pour la dernière fois {0} à {1}',msl_seen_np:'vu pour la dernière fois à {0}',msl_reach:'peut être n\'importe où dans un rayon de {0} km',msl_note:"Un missile à cette vitesse parcourt {0} km par minute. Ce cercle est la zone qu'il a pu atteindre depuis le dernier rapport — pas l'endroit où il est. Mettez-vous à l'abri sur l'alerte officielle, pas sur cette carte.",msl_bal:"Balistique — plonge depuis la haute altitude, quelques minutes entre le tir et l'impact",msl_cru:'De croisière — suit une route, peut virer, peut être re-signalé',msl_band:"Banderol — missile à réaction lancé par drone : plus lent qu'un missile de croisière, et ce n'en est pas un",
   c_kyiv:'Kyiv',u_upd:'màj',u_updating:'mise à jour…',u_live:'DIRECT',d_h:'h',d_min:'min'
 }};
 function t(k,...a){let s=(I18N[LANG]&&I18N[LANG][k]);if(s==null)s=I18N.en[k];if(s==null)return k;return a.length?s.replace(/\{(\d)\}/g,(_,i)=>a[+i]??''):s;}
@@ -307,6 +310,9 @@ const LI=()=>LANG==='uk'?1:LANG==='fr'?2:0;
 const oblName=uid=>(OBL_N[uid]||[uid,uid,uid])[LI()];
 // "<name> oblast" in the current language (uk adds the adjective form + область; fr "oblast de X")
 const oblFull=uid=>uid==='31'?oblName('31'):LANG==='uk'?oblName(uid)+' область':LANG==='fr'?'oblast de '+oblName(uid):oblName(uid)+' oblast';
+// "towards <oblast>" needs the genitive in Ukrainian: «у бік Київської області», not «у бік Київська область».
+// Every oblast adjective ends in -ська/-цька, so one ending does the whole list; Крим and Київ are not adjectives.
+const oblFullGen=uid=>LANG!=='uk'?oblFull(uid):uid==='31'||uid==='29'||uid==='30'?oblName(uid):oblName(uid).replace(/ька$/,'\u044c\u043a\u043e\u0457')+' \u043e\u0431\u043b\u0430\u0441\u0442\u0456';
 const RAION_N={bucha:['Bucha','Буча','Boutcha'],vyshhorod:['Vyshhorod','Вишгород','Vychhorod'],brovary:['Brovary','Бровари','Brovary'],boryspil:['Boryspil','Бориспіль','Boryspil'],obukhiv:['Obukhiv','Обухів','Obukhiv'],'bila-tserkva':['Bila Tserkva','Біла Церква','Bila Tserkva'],fastiv:['Fastiv','Фастів','Fastiv'],'kyiv-city':['Kyiv city','Київ','Kyiv (ville)']};
 const raionName=r=>(RAION_N[r]||[r,r,r])[LI()];
 // major map towns in Ukrainian (map labels switch to Cyrillic in UK)

@@ -180,3 +180,140 @@ def test_an_article_produces_no_status_of_any_kind():
     """The news guard now covers every status, not only the two that were caught first."""
     for text in [FIRE_STATION, NEWS]:
         assert st(text) is None, text[:60]
+
+
+# -- 7. a Banderol is not a Kalibr, and a rocket emoji is not a ballistic missile -------------------
+
+def kinds(text):
+    return [m.get("type") for m in (geo.parse_post(text) or [])]
+
+
+def test_banderol_is_its_own_weapon():
+    """The S8000 "Бандероль" is a small jet missile launched from an Orion drone. It was drawn as a cruise
+    missile, which folds away a distinction the source made and gives it a Kalibr's speed on the map."""
+    assert kinds("Бандероль курсом на Конотоп") == ["banderol_missiles"]
+    assert kinds("Бандероль 🚀 →Конотоп/р-н (Сумщина)") == ["banderol_missiles"]
+
+
+def test_a_bare_rocket_emoji_is_a_missile_not_a_ballistic_one():
+    """🚀 alone means "a missile" on these channels. Read as ballistic it handed the loudest treatment in the
+    app — white spike, one-second refresh — to an emoji."""
+    assert kinds("🚀 на Суми") == ["unspecified_missiles"]
+
+
+def test_the_named_missiles_are_untouched():
+    assert kinds("Крилаті ракети курсом на Одесу") == ["cruise_missiles"]
+    assert kinds("Балістика на Київ") == ["ballistic_missiles"]
+
+
+def test_the_feed_tag_and_the_marker_agree_about_a_banderol():
+    """They disagreed before: the tag said cruise while the marker said ballistic, from the same post."""
+    import server
+    text = "Бандероль 🚀 →Конотоп/р-н (Сумщина)"
+    assert "banderol_missiles" in server.tag_feed_text(text, "povitryanatrivogaaa")
+    assert kinds(text) == ["banderol_missiles"]
+
+
+# -- 8. where it IS versus where it is GOING ---------------------------------------------------------
+
+def one(text, channel=None):
+    ms = geo.parse_for_channel(channel, text) if channel else geo.parse_post(text)
+    assert len(ms) == 1, [m.get("place") for m in (ms or [])]
+    return ms[0]
+
+
+def test_the_next_oblast_on_the_route_is_not_a_position():
+    """"3х мгКР Бандероль у напрямку Ніжин. Далі Київщина" — the post says the missiles are heading for
+    Nizhyn and will go on into Kyiv oblast. Reading "Київщина" as their position drew a second marker at
+    the centre of Kyiv oblast, 150 km from the only place the post actually named."""
+    m = one("3х мгКР Бандероль у напрямку Ніжин. Далі Київщина")
+    assert (m["lon"], m["lat"]) != (30.3, 50.2)
+    assert m["place"] != "область"
+    assert "Ніжин" in str(m["place"]) or m.get("target") == "Ніжин"
+
+
+def test_an_oblast_stated_plainly_is_still_a_position():
+    """The guard must only fire on a continuation word — an oblast named on its own still places."""
+    m = one("Шахеди на Чернігівщині")
+    assert m["place"] == "область"
+    assert m["oblast_uid"] == "25"
+
+
+def test_the_destination_oblast_is_named_not_left_as_neighbouring():
+    m = one('🚀 Баражуючий боєприпас "Бандероль" в районі н.п. Бахмач на Чернігівщині, курсом на Київщину.')
+    assert m["place"] == "Бахмач" and m["target"] == "область"
+    assert m["target_uid"] == "14"          # the map can now say "Kyiv oblast" instead of "neighbouring oblast"
+
+
+def test_a_side_of_the_oblast_in_an_arrow_line_is_not_the_oblast_centre():
+    """"Одещина: ➡️Південь/Одеса" was drawn at the centre of Odesa oblast — 90 km north of the south the
+    channel had named, and on the same pixel as every other line of the same shape."""
+    m = one("Одещина: ➡️Південь/Одеса", "povitryanatrivogaaa")
+    assert m["place"] == "область"
+    assert m["evidence"]["position"]["quad"] == "s"
+    assert m["lat"] < 46.7 - 0.3
+
+
+def test_a_town_whose_name_starts_like_a_compass_word_is_not_a_side():
+    """Південне is a town, not "the south". Only exact compass words move the marker."""
+    m = one("Одещина: ➡️Південне/Одеса", "povitryanatrivogaaa")
+    assert m["evidence"]["position"].get("quad") is None
+
+
+def test_the_arrow_line_keeps_its_oblast_when_it_shares_the_line():
+    """The oblast used to count only when it sat on a line of its own ending in ":"."""
+    assert geo.parse_for_channel("povitryanatrivogaaa", "Чернігівщина: ➡️Схід/Ніжин")
+
+
+# -- 9. a heading is not a sighting, and a type belongs to its line ----------------------------------
+
+def places(text, channel=None):
+    ms = geo.parse_for_channel(channel, text) if channel else geo.parse_post(text)
+    return [(m.get("type"), m.get("place")) for m in (ms or [])]
+
+
+ERADAR = """🛵 Київщина
+- реактивний на Кагарлик
+- 7 бандеролей на зону ЧАЕС повз Остер/Десна
+🛵 Полтавщина
+- реактивний Ромодан"""
+
+
+def test_an_oblast_heading_does_not_become_a_marker():
+    """"🛵 Київщина" on its own line introduces the lines under it. Drawn as a sighting it put a marker on
+    the oblast centre — for Kyiv oblast that is near Vasylkiv, 100 km south of the Chornobyl zone the very
+    next line was actually about."""
+    ms = geo.parse_for_channel("eRadarrua", ERADAR)
+    assert not [m for m in ms if m["place"] == "область" and m["oblast_uid"] == "14"]
+    # the Poltava line names a town the gazetteer does not have, so ITS oblast fallback is legitimate
+    assert [m["oblast_uid"] for m in ms if m["place"] == "область"] == ["19"]
+
+
+def test_the_weapon_belongs_to_the_line_that_names_it():
+    """One "бандеролей" in the post used to retype every line: the jet drone over Kaharlyk became a
+    Banderol, which is a different weapon at a different speed."""
+    got = dict((p, ty) for ty, p in places(ERADAR, "eRadarrua"))
+    assert got["Кагарлик"] == "drones"
+    assert got["Остер"] == "banderol_missiles"
+
+
+def test_a_line_that_names_no_weapon_still_inherits_the_post():
+    assert places("БпЛА:\n- на Ніжин\n- на Козелець") == [("drones", "Ніжин"), ("drones", "Козелець")]
+
+
+def test_two_oblasts_in_one_sentence_are_two_reports_not_a_heading():
+    """"КАБи на Сумщину та Донеччину" is a list. Its second half is a report, not a heading over anything."""
+    assert len(places("🚀КАБи на Сумщину та Донеччину.")) == 2
+
+
+def test_an_oblast_alone_in_a_post_is_still_the_report():
+    assert places("🛵 Київщина") == [("drones", "область")]
+
+
+def test_the_morning_tally_is_never_a_live_position():
+    """"В ніч на 17.09 … противник застосував … 8× балістичних ракет по Києву" counts what was fired last
+    night. It was drawn as eight ballistic missiles over Kyiv for as long as the post stayed in the feed."""
+    assert geo.parse_post(
+        "📡 В ніч на 17.09.26 за приблизними оцінками противник застосував для атаки:\n"
+        "☄ 8× балістичних ракет по Києву.\n#зведення") == []
+    assert places("Балістика на Київ") == [("ballistic_missiles", "Київ")]   # a live report is untouched

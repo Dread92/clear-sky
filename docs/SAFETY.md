@@ -231,6 +231,73 @@ confidence stays **low**, because a quadrant is still not a position.
 Only locative phrasing counts. "У західному напрямку" is a course, not a place, and never moves a marker —
 discarding a stated quadrant and inventing one are the same failure in opposite directions.
 
+Some channels write that part where the town would go: "Одещина: ➡️**Південь**/Одеса". With no town to match,
+the line landed on the oblast centre — 90 km north of the south the channel had named, and on the same pixel as
+every other line of that shape during a raid. Those lines now place in the named part. Only exact compass words
+count: **Південне is a town**, not "the south", and a name that merely begins like a direction never moves a
+marker.
+
+## Where it is, and where it is going, are different facts
+
+"3х мгКР Бандероль у напрямку Ніжин. **Далі Київщина**" says the missiles are heading for Nizhyn and will carry
+on into Kyiv oblast. Reading "Київщина" as their position put a second marker at the centre of Kyiv oblast,
+150 km from the only place the post actually named — one flight drawn twice, the second time over a region
+nothing had been reported in. An oblast introduced by *далі / потім / згодом / надалі / курсом на* is the route
+ahead and never a position.
+
+The reverse also holds: when the post does name the oblast it is heading for, the card says which one. Writing
+"neighbouring oblast" threw away the one thing the channel had been precise about.
+
+## A glyph points where the post said, or it does not point at all
+
+The missile glyph was drawn with flared tail fins, and at marker size the eye takes the widest part for the
+head: a missile flying south-west read as an arrow pointing north-east. The ballistic glyph was worse — its
+spike was at the bottom, so once rotated by the reported course it pointed a clean 180° wrong. Both now carry
+their mass at the nose, so `rotate(heading)` means what it says.
+
+A target reported with **no course at all** gets a mark with no front. A pointed glyph left at 0° reads as
+"heading north", which is an invented heading — the one thing this app must never publish.
+
+## A heading over a list is not a sighting
+
+The monitoring channels write a region on a line of its own and the sightings under it:
+
+    🛵 Київщина
+    - реактивний на Кагарлик
+    - 7 бандеролей на зону ЧАЕС повз Остер/Десна
+
+The heading was being drawn as a report of its own, on the oblast centre — for Kyiv oblast that is near
+Vasylkiv, 100 km south of the Chornobyl zone the very next line was actually about. Every post of this shape
+produced one phantom marker in the middle of the region. A line that is **nothing but an oblast name, with
+lines under it**, now sets the context and draws nothing.
+
+It has to be a whole line with something under it: "КАБи на Сумщину **та** Донеччину" is a list of two places,
+and its second half is a report in its own right.
+
+## The weapon belongs to the line that names it
+
+The threat type used to be resolved once for the whole post and applied to every line in it, so one word
+anywhere coloured everything: in the post above, the jet drone over Kaharlyk was drawn as a Banderol — a
+different weapon, at a different speed, with a different uncertainty ring. Each line is typed from its own
+words, and only a line that names no weapon inherits the post's.
+
+## A tally of the night is not a sky
+
+"В ніч на 17.09.26 … противник застосував … 8× балістичних ракет по Києву" counts what was fired **last
+night**. It was being drawn as eight ballistic missiles over Kyiv, right now, for the whole time the post
+stayed in the feed. A retrospective summary produces no markers at all — same rule as a press release, for the
+same reason.
+
+## "High confidence" says how sharply it was read, not that it is true
+
+Confidence used to be one word with no stated meaning. Each reading method has a known sharpness, and the app
+now spells it out beside the word: a named town pins a position to **±5 km**, an oblast name pins it to nothing
+smaller than **the whole oblast**, a bearing between two named places is good to about **±10°**, a compass word
+to about **±30°**.
+
+These are the app's own reading tolerances. They are **not** a probability that the report is true: no channel
+publishes such a number, and this app does not invent one.
+
 ## Nothing is drawn where the source said it is clear
 
 Posts mix an all-clear and a warning in one breath: "Чисте небо Київська область та Київ. Васильків увага ‼️".

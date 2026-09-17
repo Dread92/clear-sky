@@ -232,19 +232,25 @@ TYPE_RX = [
     # to start with міг/миг and be followed by 31 within three letters — loose enough for their spelling,
     # tight enough that no ordinary word raises the loudest banner in the app.
     ("mig31k_departure", re.compile(r"м[іи]г\w{0,3}\s?-?\s?31", re.I)),
+    # The S8000 "Бандероль" is a small jet-powered missile launched from an Orion drone: cruise-like in what
+    # it does, but slower and smaller than a Kalibr, and the channels name it by its own name. Folding it into
+    # "cruise missiles" throws away a distinction the source made, and it would be drawn with a Kalibr's speed.
+    ("banderol_missiles", re.compile(r"бандерол", re.I)),
     ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|\bракет", re.I)),
     ("guided_aerial_bombs", re.compile(r"\bкаб", re.I)),
     ("strategic_aircraft_activity", re.compile(r"ту-?95|ту-?160|ту-?22|стратегічн", re.I)),
     ("tactic_aircraft_activity", re.compile(r"тактичн", re.I)),
     ("drones", re.compile(r"бпла|шахед|дрон|безпілотн|мопед|герань|реактив|\d+\s*звичайн", re.I)),
-    ("ballistic_missiles", re.compile(r"\U0001f680", re.I)),                                   # 🚀
+    # A bare rocket emoji means "a missile" on these channels, not "a ballistic missile". Reading it as
+    # ballistic gave the loudest treatment in the app — white spike, one-second refresh — to an emoji.
+    ("unspecified_missiles", re.compile(r"\U0001f680", re.I)),                                 # 🚀
     ("guided_aerial_bombs", re.compile(r"\U0001f4a3", re.I)),                                  # 💣
     ("drones", re.compile(r"[\U0001f6f8\U0001f6f5\U0001f3cd\U0001f6f5\U0001f681]|\U0001f17f", re.I)),   # 🛸 🛵 🏍 🚁 🅿 — the channels' shorthand for a strike drone
 ]
 CLEAR_RX = re.compile(r"відбій|загроза минула|небезпека минула|зникл", re.I)
 ALERT_MSG_RX = re.compile(r"повітрян[а-яіїє]* тривог|відбій|рівень (тривоги|небезпеки)|загроза застосування|(прямуйте|перейдіть|пройдіть) (в|до) укритт|небезпека минула|оголошен[оа] тривог", re.I)
 MOVE_RX = re.compile(r"курс|напрям|летить|летять|летіла|рухаєт|у бік|в бік|пролітає|проходить|заходить|повз |\bнад\s|поблизу|в районі|\bбіля|з боку|зі сторони|→|➡", re.I)
-COUNT_RX = re.compile(r"(\d{1,3})\s*(?:х|x|×)\b|(\d{1,3})\s+(?:ударн\w*\s+|реактивн\w*\s+|звичайн\w*\s+)*(?:бпла|шахед|дрон|ракет|каб|реактив)", re.I)
+COUNT_RX = re.compile(r"(\d{1,3})\s*(?:х|x|×)\b|(\d{1,3})\s+(?:ударн\w*\s+|реактивн\w*\s+|звичайн\w*\s+)*(?:бпла|шахед|дрон|ракет|каб|реактив|бандерол)", re.I)
 GROUP_RX = re.compile(r"\bгруп", re.I)
 
 VOWELS = "аяуюоеиіїєь"
@@ -405,6 +411,36 @@ _QUAD_D = {"північн": (0, 1), "півноч": (0, 1), "північ": (0,
 QUAD_DLON, QUAD_DLAT = 0.85, 0.55
 
 
+# Some channels write the "A/B" pair with a compass word where the town would go: "Одещина: ➡️Південь/Одеса"
+# means the south of Odesa oblast, heading for Odesa. With no town to match, the marker used to land on the
+# oblast centre — so a drone the channel had placed in the south was drawn 90 km north of it, and every such
+# line in a raid piled up on the same pixel. Only these exact forms count: "південне" is a town, not a side.
+_QUAD_EXACT = {
+    "пн": (0, 1), "північ": (0, 1), "півночі": (0, 1), "північна": (0, 1), "північну": (0, 1), "північно": (0, 1),
+    "пд": (0, -1), "південь": (0, -1), "півдня": (0, -1), "півдні": (0, -1), "південна": (0, -1), "південно": (0, -1),
+    "сх": (1, 0), "схід": (1, 0), "сходу": (1, 0), "східна": (1, 0), "східно": (1, 0),
+    "зх": (-1, 0), "зах": (-1, 0), "захід": (-1, 0), "заходу": (-1, 0), "західна": (-1, 0), "західно": (-1, 0),
+}
+
+
+def bare_quadrant(seg):
+    """(dlon, dlat, key) when a segment is NOTHING BUT a compass word (or two), else None."""
+    toks = [x for x in re.split(r"[^а-яіїєґ']+", seg.lower()) if x]
+    if not toks or len(toks) > 2:
+        return None
+    dx = dy = 0
+    for tk in toks:
+        d = _QUAD_EXACT.get(tk)
+        if not d:
+            return None
+        dx += d[0]
+        dy += d[1]
+    if not dx and not dy:
+        return None
+    key = ("n" if dy > 0 else "s" if dy < 0 else "") + ("e" if dx > 0 else "w" if dx < 0 else "")
+    return (dx * QUAD_DLON, dy * QUAD_DLAT, key)
+
+
 def oblast_quadrant(text):
     """(dlon, dlat, key) for a stated part of an oblast, or None. Never derived from a course word."""
     m = OBL_QUAD_RX.search(text)
@@ -423,20 +459,37 @@ def oblast_quadrant(text):
     return (dx * QUAD_DLON, dy * QUAD_DLAT, key)
 
 
-def _find_oblasts_all(text):
+# "Далі Київщина" / "потім Чернігівщина" — the monitors write the CONTINUATION of the route this way. The
+# oblast after such a word is where the target is going next, never where it is now. Reading it as a position
+# is how three Banderols reported north of Nizhyn were also drawn at the centre of Kyiv oblast, 150 km away:
+# one flight, two markers, and the second one over a region nothing had been reported in.
+_ONWARD_RX = re.compile(r"(?:дал[іе]|пот[іи]м|згодом|надал[іі]|наступн\w*|прямує\s+(?:до|в|у)|курс\w*\s+на)\W{0,4}$")
+
+
+def _onward(text, pos):
+    """Is the oblast that starts at `pos` introduced as the NEXT area rather than the current one?"""
+    return bool(_ONWARD_RX.search(text[max(0, pos - 24):pos]))
+
+
+def _find_oblasts_all(text, positional=False):
     res = []
     for stem, uid, lon, lat in OBLAST_ADJ:
         for m in re.finditer(stem, text):
+            if positional and _onward(text, m.start()):
+                continue
             res.append((m.start(), uid, lon, lat))
     return sorted(res)
 
 
-def _find_oblast(text):
+def _find_oblast(text, positional=False):
     best = None
     for stem, uid, lon, lat in OBLAST_ADJ:
-        m = re.search(stem, text)
-        if m and (best is None or m.start() < best[0]):
-            best = (m.start(), uid, lon, lat)
+        for m in re.finditer(stem, text):
+            if positional and _onward(text, m.start()):
+                continue
+            if best is None or m.start() < best[0]:
+                best = (m.start(), uid, lon, lat)
+            break
     return best
 
 
@@ -521,9 +574,22 @@ NEWS_RX = re.compile(
 NEWS_MAX_CHARS = 700
 
 
+# The morning tally: "В ніч на 17.09.26 … противник застосував … 8× балістичних ракет по Києву". It is a
+# count of what was fired LAST NIGHT, and it was being drawn as eight ballistic missiles on Kyiv right now,
+# for the 45 minutes the post stayed in the feed. Nothing in a retrospective summary is a live position.
+SUMMARY_RX = re.compile(
+    r"застосував|випустив|за\s+минул\w*\s+добу|минул[ої]\W*\s*ноч|в\s+ніч\s+на\s+\d|"
+    r"протягом\s+ноч|за\s+ніч\b|#зведення|за\s+приблизними\s+оцінками|загалом\s+(?:випущ|застосов)", re.I)
+
+
+def looks_like_summary(t):
+    """A count of what was fired earlier — never a position, never a marker."""
+    return bool(SUMMARY_RX.search(t))
+
+
 def looks_like_news(t):
     """Policy, money and programmes — a press release, whatever destruction words it happens to contain."""
-    return bool(NEWS_RX.search(t)) or len(t) > NEWS_MAX_CHARS
+    return bool(NEWS_RX.search(t)) or len(t) > NEWS_MAX_CHARS or looks_like_summary(t)
 
 
 def _status_of(t):
@@ -556,7 +622,7 @@ def _status_markers(t, status):
         if rx.search(t):
             mtype = name
             break
-    obl = _find_oblast(t)
+    obl = _find_oblast(t, positional=True)
     places = _find_places(t, obl[1] if obl else None)
     cnt = None
     mc = COUNT_RX.search(t)
@@ -649,6 +715,20 @@ def _drop_clear_sentences(t):
     return " ".join(kept) if kept else t
 
 
+_OBL_STEMS = tuple(sorted({a[0] for a in OBLAST_ADJ}, key=len, reverse=True))
+_OBL_FILLER = {"область", "обл", "області", "обл-ть", "регіон"}
+
+
+def _hdr_line(seg):
+    return seg.strip().strip(":-\u2013\u2014\u2022 \t").strip()
+
+
+def _is_oblast_header(seg):
+    """True when a segment is nothing but an oblast name — a heading over the lines that follow."""
+    toks = [w for w in re.findall(r"[а-яіїєґa-z']+", seg.lower()) if w not in _OBL_FILLER]
+    return bool(toks) and all(w.startswith(_OBL_STEMS) for w in toks)
+
+
 def parse_post(text):
     """Return a list of marker dicts for one post (may be empty)."""
     t = _norm(text)
@@ -658,6 +738,9 @@ def parse_post(text):
     # alert announcements ("відбій … ракетна загроза", "повітряна тривога! дронова загроза", "загроза застосування
     # балістики") describe an ALERT, not a target position — never a marker unless the sentence says where it flies
     if ALERT_MSG_RX.search(t) and not MOVE_RX.search(t):
+        return []
+    # a retrospective tally of the night is a report, not a sky: no live markers, at all
+    if looks_like_summary(t):
         return []
     st = _status_of(t)
     if st and not re.search(r"курс|у бік|напрям|летить|летять|перелітає", t):
@@ -683,12 +766,33 @@ def parse_post(text):
     segs = [s.strip() for s in re.split(r"\n|;|\bтакож\b|(?<=[а-яіїє.])\s+та\s+(?=[а-яіїє])", t) if s.strip()]
     # a clause that starts a new oblast (", на Одещині біля …") is its own report — one marker, one justification
     segs = [x.strip() for s_ in segs for x in _OBL_CLAUSE.split(s_) if x.strip()]
+    lines = {_hdr_line(x) for x in re.split(r"\n|;", t)}
     markers = []
-    ctx_obl = _find_oblast(t)
+    ctx_obl = _find_oblast(t, positional=True)
+    cur_obl = ctx_obl
+    post_type, post_type_ev = mtype, type_ev
     for seg in segs:
         if ALERT_MSG_RX.search(seg) and not MOVE_RX.search(seg):
             continue
-        obl = _find_oblast(seg) or ctx_obl
+        seg_obl = _find_oblast(seg, positional=True)
+        # "🛵 Київщина" on a line of its own introduces the lines under it — it is a heading, not a sighting.
+        # Drawing it put a marker on the oblast centre (for Kyiv oblast, 100 km south of the Chornobyl zone
+        # the very next line was talking about) every single time one of these posts came in.
+        # It must be a WHOLE LINE with something under it: "КАБи на Сумщину та Донеччину" is a list of two
+        # places, and its second half is a report in its own right, not a heading over anything.
+        if seg_obl and len(segs) > 1 and _hdr_line(seg) in lines and _is_oblast_header(seg):
+            cur_obl = seg_obl
+            continue
+        obl = seg_obl or cur_obl
+        # The type belongs to the line, not to the post. Resolving it once over the whole text meant one word
+        # anywhere coloured everything: "Київщина - реактивний на Кагарлик - 7 бандеролей на зону ЧАЕС" drew
+        # the jet drone over Kaharlyk as a Banderol. A line that names no weapon still inherits the post's.
+        mtype, type_ev = post_type, post_type_ev
+        for name, rx in TYPE_RX:
+            sm_ = rx.search(seg)
+            if sm_:
+                mtype, type_ev = name, {"matched": sm_.group(0), "method": "keyword"}
+                break
         places = _find_places(seg, obl[1] if obl else None)
         # split at course keyword
         cm = re.search(r"(?:від|з)\s+[а-яіїє'\- ]{3,40}?\s+(на\s+)", seg)
@@ -768,6 +872,7 @@ def parse_post(text):
             continue
         heading = None
         tgt_name = None
+        tgt_uid = None
         if cm:
             after = seg[cpos:]
             tobl = None
@@ -784,7 +889,11 @@ def parse_post(text):
             elif approaching:
                 tgt_name = target[0][2]
             elif tobl:
+                # "Далі Київщина" — the app knows exactly which oblast was named, so it says so. Showing
+                # "neighbouring oblast" threw that away and left the reader guessing at the one thing the
+                # post was clear about.
                 tgt_name = "область"
+                tgt_uid = tobl[1]
                 heading = bearing(lon, lat, tobl[2], tobl[3])
                 ev["heading"] = {"matched": seg[cpos:cpos + tobl[0] + 14].strip(), "method": "bearing toward the named oblast's centre", "confidence": "medium"}
             if heading is None:
@@ -818,7 +927,7 @@ def parse_post(text):
         if alt:
             ev["altitude"] = {"matched": alt["matched"], "method": "stated in the post", "confidence": "high"}
         markers.append({"type": mtype, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None if heading is None else round(heading),
-                        "place": where, "target": tgt_name, "count": cnt, "jet": bool(re.search(r"реактив|jet", seg)),
+                        "place": where, "target": tgt_name, "target_uid": tgt_uid, "count": cnt, "jet": bool(re.search(r"реактив|jet", seg)),
                         "alt": alt, "likely": likely,
                         # The oblast the sentence names and the oblast the gazetteer has for the town must
                         # agree. When they do not, the town was matched wrong — that is exactly how
@@ -850,7 +959,7 @@ def parse_arrows(text):
             if ch in line:
                 cur_type = ty
         head = re.sub(r"[→➡].*", "", line)
-        o = _find_oblast(head)
+        o = _find_oblast(head, positional=True)
         if o and line.rstrip().endswith(":") or (o and "→" not in line and "➡" not in line):
             cur_obl = o
             cur_head = line.strip()
@@ -869,12 +978,18 @@ def parse_arrows(text):
         pl = _find_places(parts[0])
         lon = lat = None
         where = None
-        obl = _find_oblast(parts[0]) or cur_obl
+        quad = None
+        # "Одещина: ➡️Південь/Одеса" puts the oblast and the arrow on ONE line. Only a line ending in ":" used
+        # to set the context, so this shape lost its oblast entirely and the whole line was dropped.
+        obl = _find_oblast(parts[0], positional=True) or o or cur_obl
         if pl:
             lon, lat, _ = PLACES[pl[0][2]]
             where = pl[0][2]
         elif obl:
             lon, lat, where = obl[2], obl[3], "область"
+            q = bare_quadrant(parts[0])
+            if q:
+                lon, lat, quad = lon + q[0], lat + q[1], q[2]
         if lon is None:
             continue
         heading = None
@@ -893,7 +1008,9 @@ def parse_arrows(text):
             elif "р-н" in parts[1] or "район" in parts[1]:
                 tgt = None
         ev = {"segment": (cur_head + " " + line.strip()).strip(), "type": {"matched": [c for c in ARROW_TYPE if c in line][:1] or ["✈️ default"], "method": "channel icon convention (✈️ = strike UAV)"},
-              "position": {"matched": parts[0], "place": where, "method": "town in gazetteer" if pl else "oblast centre (town not in gazetteer)", "confidence": "high" if pl else "low"},
+              "position": dict({"matched": parts[0], "place": where,
+                                "method": "town in gazetteer" if pl else "the part of the oblast the channel named (no town given)" if quad else "oblast centre (town not in gazetteer)",
+                                "confidence": "high" if pl else "low"}, **({"quad": quad} if quad else {})),
               "heading": ({"matched": "→ " + parts[1], "method": "bearing from first to second place of the 'A/B' pair", "confidence": "high"} if heading is not None else {"matched": None, "method": "single place, no direction pair", "confidence": "none"}),
               "count": ({"matched": mc.group(0), "method": "number in brackets"} if mc else None)}
         out.append({"type": cur_type, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None if heading is None else round(heading),

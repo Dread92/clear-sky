@@ -43,7 +43,9 @@ sys.path.insert(0, os.path.join(ROOT, "app"))
 import geo  # noqa: E402
 import server  # noqa: E402
 
-CORPUS = os.path.join(ROOT, "tests", "corpus", "cases.jsonl")
+# Not under tests/: that directory is excluded from the deployed image, and the server serves this file to
+# the review panel. A corpus the running app cannot read is a review page that says "nothing to review".
+CORPUS = os.path.join(ROOT, "data", "corpus.jsonl")
 MAX_TEXT = 1200
 
 

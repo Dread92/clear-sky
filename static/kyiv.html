@@ -569,7 +569,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 
 <script src="/static/i18n.js"></script>
 <script>
-const THREAT={drones:['🛸',t('th_drones')],ballistic_missiles:['🚀',t('th_bal')],cruise_missiles:['🎯',t('th_cruise')],unspecified_missiles:['🎯',t('th_msl')],
+const THREAT={drones:['🛸',t('th_drones')],ballistic_missiles:['🚀',t('th_bal')],cruise_missiles:['🎯',t('th_cruise')],banderol_missiles:['🛩',t('th_band')],unspecified_missiles:['🎯',t('th_msl')],
   mig31k_departure:['✈️',t('th_mig')],strategic_aircraft_activity:['🛩️',t('th_strat')],tactic_aircraft_activity:['🛩️',t('th_tac')],
   guided_aerial_bombs:['💣',t('th_kab')],air_defense:['🛡️',t('th_ad')],kyiv:['📍',t('th_kyiv')],clear:['✅',t('th_clear')],official:['🏛️',t('th_official')],geo:['🗺️',t('th_geo')],unknown:['⚠️',t('th_unknown2')]};
 const ATYPE={air_raid:t('at_air_raid'),artillery_shelling:t('at_art'),urban_fights:t('at_urban'),chemical:t('at_chem'),nuclear:t('at_nuc'),info:t('at_info')};
@@ -609,7 +609,12 @@ const SPEED=m=>m.type==='drones'?(m.jet?6.5:2.7):(m.type==='cruise_missiles'||m.
 // now be anywhere within N km". These numbers are what the app is willing to assume, and nothing more:
 //   cruise  ~13 km/min (Kalibr, Kh-101): flies a route, can turn, can be tracked and re-reported
 //   ballistic ~35 km/min (Iskander, Kinzhal): arcs above everything, minutes from launch to impact
-const MSL={cruise_missiles:{v:13,valid:2.5},unspecified_missiles:{v:13,valid:2.5},ballistic_missiles:{v:35,valid:1.5}};
+// km a minute, and how long the reported point is still worth a point. The Banderol is a small jet missile
+// launched from an Orion drone — reported around 500-560 km/h, so roughly 9-10 km a minute against a
+// Kalibr's 13. The HIGHER end is used on purpose: if the real speed is above this number the circle is too
+// small, and somebody outside it believes they are clear. Too big only costs a wider warning.
+const MSL={cruise_missiles:{v:13,valid:2.5},unspecified_missiles:{v:13,valid:2.5},
+           banderol_missiles:{v:10,valid:3},ballistic_missiles:{v:35,valid:1.5}};
 const mslKind=m=>MSL[m.type];
 const REACH_CAP=260;                       // beyond this the circle covers half the country and says nothing
 const CAPMIN=m=>m.type==='drones'?45:8;
@@ -864,10 +869,23 @@ const statusName=st=>STATUS_EN[st]||t('k_unknown');
 const statusIco=st=>STATUS_ICO[st]||'\u2022';
 // When the post named a part of the oblast — "на півночі Київщини" — the marker is placed there and says
 // so. Calling it "oblast centre" would throw away a detail the source actually gave.
+// The post named the oblast it is heading for — "Далі Київщина". Saying "neighbouring oblast" hid the one
+// thing the channel was precise about, so the name is used whenever the server sent its id.
+const tgtName=m=>m.target==='\u043e\u0431\u043b\u0430\u0441\u0442\u044c'?(m.target_uid?oblFullGen(m.target_uid):t('tp_nextobl')):pn(m.target);
 const oblWhere=m=>{const q=((m.evidence||{}).position||{}).quad; return q?t('oq_'+q)||t('oblcentre'):t('oblcentre');};
 const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4.5 6.5 L-8.5 6.5 Z"/><path class="glyph" d="M0-9 L0 6" style="fill:none;stroke:#080b10;stroke-width:1.2px"/><g class="jetfx"><path class="flame" d="M-2.5 9 L0 15 L2.5 9 Z"/><path class="flame2" d="M-1.2 9 L0 12.5 L1.2 9 Z"/></g>',
-  missile:'<path class="glyph" d="M0-10 L2.5-5 L2.5 4 L5 8 L5 10 L1.5 7.5 L-1.5 7.5 L-5 10 L-5 8 L-2.5 4 L-2.5-5 Z"/>',
-  ballistic:'<path class="glyph" d="M0 11 L-5.5-2 L-2-2 L-2-11 L2-11 L2-2 L5.5-2 Z"/>',
+  // A missile silhouette with flared tail fins reads BACKWARDS at 12 px: the eye takes the widest part for the
+  // head, so a missile flying south-west looked like an arrow pointing north-east. On a map where the whole
+  // point is "which way is it going", a shape that can be read the wrong way round is not a style question.
+  // The mass is now at the nose and the tail is a thin shaft — an arrow, unambiguous at every rotation.
+  missile:'<path class="glyph" d="M0-11 L4.6 4.2 L1.5 2.6 L1.5 9.5 L-1.5 9.5 L-1.5 2.6 L-4.6 4.2 Z"/>',
+  // No course in the post = no direction on the map. A pointed glyph would invent one, so a missile reported
+  // without a heading gets a mark with no front: it says "here", and says nothing about where it is going.
+  nodir:'<path class="glyph" d="M0-9 L9 0 L0 9 L-9 0 Z"/><circle cx="0" cy="0" r="2.4" fill="#080b10"/>',
+  // This one was drawn with its spike at the BOTTOM, so once rotated by the reported course it pointed 180°
+  // wrong: a ballistic missile heading north was drawn as an arrow heading south. Nose up, like every other
+  // glyph here, so that rotate(heading) means what it says.
+  ballistic:'<path class="glyph" d="M0-11 L5.5 2 L2 2 L2 11 L-2 11 L-2 2 L-5.5 2 Z"/>',
   bomb:'<circle class="glyph" cx="0" cy="3" r="6"/><path class="glyph" d="M-2-3 L2-3 L2-7 L-2-7 Z"/>',
   unknown:'<path class="glyph tri" d="M0-9 L9 7 L-9 7 Z"/><path d="M0-4 L0 1" stroke="#080b10" stroke-width="2" stroke-linecap="round"/><circle cx="0" cy="4" r="1.2" fill="#080b10"/>',
   down:'<path class="glyph x" d="M-7-7 L7 7 M7-7 L-7 7"/><circle class="glyph ring" cx="0" cy="0" r="9"/>',
@@ -894,7 +912,7 @@ function growReach(){ if(document.hidden) return;
 setInterval(growReach,1000);
 function buildMarker(m){
   const g=document.createElementNS('http://www.w3.org/2000/svg','g'); g.setAttribute('class',`mk ${m.type} ${m.jet?'jet':''} ${m.status?'st st-'+m.status:''}`); g.dataset.id=m.id;
-  const glyph=m.status?G[m.status]:(m.type==='drones'?G.drone:m.type==='unknown'?G.unknown:m.type==='ballistic_missiles'?G.ballistic:(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?G.bomb:G.missile);
+  const gk=glyphKey(m), glyph=G[gk];
   const isNew=!seenMk.has(m.id); seenMk.add(m.id);
   const isMsl=/missile/.test(m.type)&&!m.status; if(isMsl) g.classList.add('msl');
   g.innerHTML=`<line class="ahead" x1="0" y1="0" x2="0" y2="0"/><polygon class="cone" points="0,0 0,0 0,0"/><circle class="halo" cx="0" cy="0" r="6"/>${isMsl?'<circle class="halo2" cx="0" cy="0" r="6"/><circle class="reach" cx="0" cy="0" r="0" style="display:none"/>':''}${isNew?`<circle class="spawn" cx="0" cy="0" r="${(10*KPX).toFixed(1)}"/>`:''}
@@ -903,10 +921,15 @@ function buildMarker(m){
   g.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;showTip(m,e);}); g.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;moveTip(e);}); g.addEventListener('pointerleave',()=>{$('tip').hidden=true;});
   const trail=document.createElementNS('http://www.w3.org/2000/svg','line'); trail.setAttribute('class','trail');
   const hist=document.createElementNS('http://www.w3.org/2000/svg','polyline'); hist.setAttribute('class','trail hist');
-  return {g,trail,hist};
+  return {g,trail,hist,gk};
 }
+// A pointed glyph with nothing to point at is an invented course. Anything but a drone (whose own glyph is
+// drawn orbiting, not aiming) loses its nose when the post gave no direction.
+const noDir=m=>!m.status&&!m.endedBy&&m.heading==null&&m.type!=='drones'&&m.type!=='unknown';
+const glyphKey=m=>m.status?m.status:m.type==='drones'?'drone':m.type==='unknown'?'unknown':noDir(m)?'nodir'
+  :m.type==='ballistic_missiles'?'ballistic':(m.type==='guided_aerial_bombs'||m.type==='tactic_aircraft_activity')?'bomb':'missile';
 // a warning sign and an outcome glyph read the same way at every angle: they never turn
-const upright=m=>(m.status||m.type==='unknown')?0:(m.heading??0);
+const upright=m=>(m.status||m.type==='unknown'||noDir(m))?0:(m.heading??0);
 function tick(){
   if(!MAP){setTimeout(tick,300);return;}
   const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?25:ttl));
@@ -932,6 +955,8 @@ function tick(){
     const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?1.5:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
     b.g.dataset.tx=x.toFixed(2); b.g.dataset.ty=y.toFixed(2);
     b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);
+    // a later post can add the course that the first one lacked: swap the blind mark for a pointed one
+    {const gk=glyphKey(m); if(b.gk!==gk){b.gk=gk; b.g.querySelector('.rot').innerHTML=G[gk];}}
     const orbit=b.g.querySelector('.orbit');
     if(orbit&&!m.endedBy&&!m.stale){ // Shahed: drawn loitering around the reported point (their real path is erratic); the chevron shows the reported heading
       const R=9*KPX; b.g.querySelector('.body').setAttribute('transform',`translate(${R.toFixed(2)} 0)`); b.g.querySelector('.rot').setAttribute('transform',`rotate(180) scale(${(gs*0.85).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r',R.toFixed(2));
@@ -1062,9 +1087,18 @@ function corroboration(m){ // other reports of the same family within 25 km and 
     .sort((a,b)=>new Date(b.ts)-new Date(a.ts));
 }
 const CONF={high:['green',t('conf_high')],medium:['yellow',t('conf_medium')],low:['red',t('conf_low')],none:['','—']}; const cf=c=>CONF[c]?CONF[c][1]:'—';
-function evRow(label,e,fallback){ if(!e) return `<span>${label}</span><b style="color:var(--muted);font-weight:500">${fallback||'—'}</b>`;
+// "high confidence" on its own tells nobody how far off the marker can be. Every reading method has a known
+// sharpness — a named town pins a position to a few kilometres, an oblast name pins it to nothing smaller
+// than the oblast — so the app spells that out next to the word. It is the app's own reading tolerance, not
+// a probability that the post is true: no channel publishes such a number and this app never invents one.
+const POSACC={high:'pa_hi',medium:'pa_md',low:'pa_lo'}, HDGACC={high:'ha_hi',medium:'ha_md',low:'ha_lo'};
+function accTxt(kind,e,m){ if(!e||!e.confidence||e.confidence==='none') return '';
+  if(kind==='pos') return (m&&m.place==='область')?t('pa_obl'):(t(POSACC[e.confidence])||'');
+  return t(HDGACC[e.confidence])||''; }
+const cfa=(kind,e,m)=>{const a=accTxt(kind,e,m); return cf(e&&e.confidence)+(a?` (${a})`:'');};
+function evRow(label,e,fallback,acc){ if(!e) return `<span>${label}</span><b style="color:var(--muted);font-weight:500">${fallback||'—'}</b>`;
   const c=CONF[e.confidence]||['','']; const q=e.matched?`“${esc(SHOW_UA?e.matched:(e.matched_en||e.matched))}”`:`<i>${t('ev_nomatch')}</i>`;
-  return `<span>${label}</span><b style="font-weight:500">${q}<div style="color:var(--muted);font-size:12px">${esc(e.method||'')}${e.confidence?` · <span class="chip ${c[0]}" style="padding:0 6px;font-size:10.5px">${c[1]} ${t('tp_conf')}</span>`:''}</div></b>`; }
+  return `<span>${label}</span><b style="font-weight:500">${q}<div style="color:var(--muted);font-size:12px">${esc(e.method||'')}${e.confidence?` · <span class="chip ${c[0]}" style="padding:0 6px;font-size:10.5px">${c[1]} ${t('tp_conf')}${acc?' · '+esc(acc):''}</span>`:''}</div></b>`; }
 function showTip(m,e){
   const cur=MK.find(x=>x.id===m.id)||m; const [x,y]=posOf(cur,Date.now()); const info=inboundInfo(cur,x,y);
   const th=THREAT[cur.type]||THREAT.unknown;
@@ -1072,10 +1106,10 @@ function showTip(m,e){
   const where=cur.place==='область'?oblWhere(cur):pn(cur.place);
   const ev=cur.evidence||{};
   $('tip').innerHTML=`<b>${title}</b><div class="m">${cur.status?t('tp_reported'):t('tp_spotted')} ${t('tp_near')} <b style="display:inline">${esc(where)}</b> · ${fmtT(cur.ts)} (${t('tp_ago',Math.round(agoMin(cur.ts)))}) · ${esc(CH[cur.channel]||cur.channel)}</div>
-    ${cur.status?'':`<div class="m">${t('tp_heading')} ${cur.heading==null?t('tp_nr'):dirName(cur.heading)+' ('+cur.heading+'°)'}${cur.target?' → '+esc(cur.target==='область'?t('tp_nextobl'):pn(cur.target)):''}${info.inbound?` · <span style="color:#ffb3b5">${t('tp_tokyiv')}</span>`:''}</div>`}
+    ${cur.status?'':`<div class="m">${t('tp_heading')} ${cur.heading==null?t('tp_nr'):dirName(cur.heading)+' ('+cur.heading+'°)'}${cur.target?' → '+esc(tgtName(cur)):''}${info.inbound?` · <span style="color:#ffb3b5">${t('tp_tokyiv')}</span>`:''}</div>`}
     ${cur.endedBy?`<div class="m" style="color:#a8f0cf">${statusName(cur.endedBy.status)} ${t('tp_near')} ${esc(pn(cur.endedBy.place))} ${t('tp_at')} ${fmtT(cur.endedBy.ts)}</div>`:''}
     ${cur.history&&cur.history.length?`<div class="m">${t('tp_reports',cur.history.length+1)}: ${cur.history.map(h=>pn(h.place||'?')+' '+fmtT(h.ts)).join(' → ')} → ${esc(where)}</div>`:''}
-    ${ev.position?`<div class="m">${t('tp_pos')}: ${esc(ev.position.method)} · ${cf(ev.position.confidence)} ${t('tp_conf')}</div>`:''}
+    ${ev.position?`<div class="m">${t('tp_pos')}: ${esc(ev.position.method)} · ${cf(ev.position.confidence)} ${t('tp_conf')}${accTxt('pos',ev.position,cur)?' · '+esc(accTxt('pos',ev.position,cur)):''}</div>`:''}
     <div class="q">${esc(ptxt(cur).slice(0,260))}</div><div class="m" style="margin-top:4px">${t('tp_click')}</div>`;
   $('tip').hidden=false; moveTip(e);
 }
@@ -1105,12 +1139,12 @@ function openSheet(id){
   const overall=ev.position?.confidence==='high'&&(m.status||ev.heading?.confidence==='high'||ev.heading?.confidence==='medium')?'high':ev.position?.confidence==='high'?'medium':'low';
   const src=`${esc(CH[m.channel]||'@'+m.channel)} · ${fmtT(m.ts)} (${t('tp_ago',Math.round(agoMin(m.ts)))})`;
   // one-line situation
-  const where=[esc(placeEn), m.status?'':(m.heading==null?t('sh_hnr'):`→ ${dirName(m.heading)}${m.target?' '+t('sh_towards')+' '+esc(m.target==='область'?t('tp_nextobl'):pn(m.target)):''}`), `${t('sh_fromkyiv',Math.round(info.dist))}${info.inbound&&!m.stale&&!closer?` · <b style="color:#ffb3b5">${t('tp_tokyiv')}</b>`:''}`].filter(Boolean).join(' · ');
+  const where=[esc(placeEn), m.status?'':(m.heading==null?t('sh_hnr'):`→ ${dirName(m.heading)}${m.target?' '+t('sh_towards')+' '+esc(tgtName(m)):''}`), `${t('sh_fromkyiv',Math.round(info.dist))}${info.inbound&&!m.stale&&!closer?` · <b style="color:#ffb3b5">${t('tp_tokyiv')}</b>`:''}`].filter(Boolean).join(' · ');
   const state=closer?`<div class="kv1 green">✕ ${statusName(closer.status)} ${t('tp_near')} ${esc(pn(closer.place))} ${t('tp_at')} ${fmtT(closer.ts)} (${esc(CH[closer.channel]||closer.channel)})</div>`
     :m.stale&&!m.status?`<div class="kv1 yellow">${t('sh_stale',m.stale,esc(placeEn),fmtT(m.ts))}</div>`
     :closed?`<div class="kv1 green">${t('sh_closes',closed.type==='drones'?(closed.jet?t('k_jet_l'):t('k_shahed')):THREAT[closed.type]?.[1],esc(pn(closed.place)),fmtT(closed.ts))}</div>`:'';
   const merged=m.cids&&m.cids.length?`<div class="kv1 muted">${t('sh_merged',m.cids.length+1,m.csum)}</div>`:''; const track=m.history&&m.history.length?`<div class="kv1">${t('sh_track',m.history.length+1)}: ${m.history.length>3?'… → ':''}${m.history.slice(-3).map(h=>`${esc(pn(h.place||'?'))} ${fmtT(h.ts)}`).join(' → ')} → <b>${esc(placeEn)} ${fmtT(m.ts)}</b></div>`:'';
-  const conf=`${t('sh_conf',cf(ev.position?.confidence))}${m.status?'':` · ${t('sh_hconf',cf(ev.heading?.confidence))}`}${ev.count?' · '+t('sh_cnttext'):''}${cor.length?` · ${tn('sh_others',cor.length)}`:''}`;
+  const conf=`${t('sh_conf',cfa('pos',ev.position,m))}${m.status?'':` · ${t('sh_hconf',cfa('hdg',ev.heading,m))}`}${ev.count?' · '+t('sh_cnttext'):''}${cor.length?` · ${tn('sh_others',cor.length)}`:''}`;
   const mk=(!m.status&&!m.endedBy)?mslKind(m):null;
   const alt=m.alt&&!m.status?m.alt:null;
   const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
@@ -1119,13 +1153,13 @@ function openSheet(id){
     <div class="kv1 muted">${src} · <a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">${t('sh_post')}</a></div>
     <div class="kv1">${where}</div>${state}${merged}${track}
     ${m.type==='unknown'&&!m.status?`<div class="kv1 yellow">${esc(t('unk_note'))}${m.likely==='drones'?' '+esc(m.alt&&m.alt.m?t('alt_likely'):t('unk_likely_l')):''}</div>`:''}
-    ${mk?`<div class="kv1 muted" style="font-size:12px">${esc(m.type==='ballistic_missiles'?t('msl_bal'):t('msl_cru'))}</div>`:''}
+    ${mk?`<div class="kv1 muted" style="font-size:12px">${esc(m.type==='ballistic_missiles'?t('msl_bal'):m.type==='banderol_missiles'?t('msl_band'):t('msl_cru'))}</div>`:''}
     ${(m._reach>0)?`<div class="kv1 yellow"><b>${esc(t('msl_reach',Math.round(m._reach)))}</b> — ${esc(t('msl_seen',placeEn,fmtT(m.ts)))}<div style="color:var(--muted);font-size:11.5px;margin-top:3px">${esc(t('msl_note',mk.v))}</div></div>`:''}
     <div class="txt" style="border-left-color:var(--orange);margin-top:8px">${esc(showUA()?(ev.segment||m.text):(ev.segment_en||ev.segment||m.text_en||m.text))}</div>
     <div class="kv1 muted" style="font-size:11.5px">${conf}</div>
     <details style="margin-top:6px"><summary style="font:12px var(--mono);color:var(--muted);cursor:pointer">${t('sh_details')}</summary>
       ${(ev.segment&&ev.segment.trim().length<(m.text||'').trim().length-8)?`<div class="txt" style="margin-top:6px">${esc(ptxt(m))}</div>`:''}
-      <div class="kv" style="margin-top:6px">${evRow(t('ev_type'),ev.type)}${evRow(t('ev_pos'),ev.position)}${m.status?'':evRow(t('ev_hdg'),ev.heading,t('tp_nr'))}${evRow(t('ev_count'),ev.count,t('ev_count_fb'))}
+      <div class="kv" style="margin-top:6px">${evRow(t('ev_type'),ev.type)}${evRow(t('ev_pos'),ev.position,null,accTxt('pos',ev.position,m))}${m.status?'':evRow(t('ev_hdg'),ev.heading,t('tp_nr'),accTxt('hdg',ev.heading,m))}${evRow(t('ev_count'),ev.count,t('ev_count_fb'))}
       ${cor.length?`<span>${t('ev_others')}</span><b style="font-weight:500">${cor.map(o=>`${esc(CH[o.channel]||o.channel)} ${fmtT(o.ts)}`).join(', ')} ${t('ev_within')}</b>`:''}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">${t('sh_note',STALE)}</div>
     </details>
