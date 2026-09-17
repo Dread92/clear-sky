@@ -46,6 +46,9 @@
     "31",
     "14"
   ],
+  "_keys": "ADMIN_KEY protects only /admin and its APIs; the map stays public. ACCESS_KEY locks the WHOLE app behind a login form — for a private deployment only. Set them as environment variables or here.",
+  "admin_key": "",
+  "access_key": "",
   "poll_alerts_seconds": 15,
   "poll_ubilling_seconds": 30,
   "poll_telegram_seconds": 30,

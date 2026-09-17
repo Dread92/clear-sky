@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.10.1 — 2026-09-17
+
+### Fixed (outage)
+- **`ACCESS_KEY` locks the whole app, not just the dashboard.** Setting it on a public instance puts a
+  password box in front of an air-raid map for every reader — police, military, anyone. That is what happened
+  here, on my advice, and it is the worst thing this server can do during a raid.
+  - **`ADMIN_KEY` is new**: it protects `/admin`, `/api/usage` and `/api/flags`, and nothing else. The map
+    stays public. This is what a public deployment should set.
+  - `ACCESS_KEY` keeps its old meaning — a login form in front of everything — for a genuinely private
+    deployment, and it still opens the dashboard on its own so existing installs keep working.
+  - The dashboard cookie (`uadm`) grants the dashboard only; it is never a way past the app-wide gate.
+  - With neither key set, the dashboard is not served at all: it cannot be exposed by accident.
+  - `tests/test_keys.py` pins every combination, including the one that caused this.
+
+```bash
+fly secrets set ADMIN_KEY=…      # dashboard only, map stays public
+fly secrets unset ACCESS_KEY     # if it was ever set on a public instance
+```
+
 ## 1.10.0 — 2026-09-17
 
 ### Added

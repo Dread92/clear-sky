@@ -1859,6 +1859,28 @@ class Handler(BaseHTTPRequestHandler):
                                 "reason": reason, "note": data.get("note"), "day_hash": day_hash, "text": text})
         return self._json({"ok": bool(ok)})
 
+    # TWO DIFFERENT KEYS, and confusing them takes the map away from everybody.
+    #
+    #   ACCESS_KEY  locks the WHOLE app behind a login form. It exists for a private deployment — a unit, a
+    #               closed group. On a public instance it is an outage: every reader gets the form instead of
+    #               the map, which during a raid is the worst thing this server can do.
+    #   ADMIN_KEY   locks only /admin, /api/usage and /api/flags. The map stays open to everyone. This is what
+    #               a public deployment wants, and it is what the dashboard needs.
+    #
+    # ADMIN_KEY falls back to ACCESS_KEY so an existing private deployment keeps working unchanged.
+    def _admin_key(self):
+        return (self.state.cfg.get("admin_key") or os.environ.get("ADMIN_KEY")
+                or self.state.cfg.get("access_key") or os.environ.get("ACCESS_KEY") or "")
+
+    def _admin_ok(self, q):
+        key = self._admin_key()
+        if not key:
+            return False               # no key configured: the dashboard does not exist, it is never open
+        if q.get("key", [None])[0] == key:
+            return True
+        cookie = self.headers.get("Cookie") or ""
+        return any(c.strip() in (f"uadm={key}", f"uak={key}") for c in cookie.split(";"))
+
     def _authorized(self, u, q):
         key = self.state.cfg.get("access_key") or os.environ.get("ACCESS_KEY") or ""
         if not key:
@@ -1907,9 +1929,14 @@ class Handler(BaseHTTPRequestHandler):
             # The dashboard is yours alone: it needs ACCESS_KEY, and it refuses to serve anything when no key
             # is configured, so an open deployment can never expose it by accident.
             if u.path in ("/api/usage", "/admin"):
-                if not (st.cfg.get("access_key") or os.environ.get("ACCESS_KEY")):
-                    return self._json({"error": "set ACCESS_KEY to enable the dashboard"}, 403)
+                if not self._admin_ok(q):
+                    return self._json({"error": "set ADMIN_KEY and open /admin?key=… — ADMIN_KEY protects only "
+                                                "the dashboard; ACCESS_KEY would lock the whole map"}, 403)
                 if u.path == "/admin":
+                    if q.get("key", [None])[0]:       # remember it so the page's own fetches are authorised
+                        self.send_response(302); self.send_header("Location", "/admin")
+                        self.send_header("Set-Cookie", f"uadm={q['key'][0]}; Path=/; Max-Age=31536000; SameSite=Lax")
+                        self.end_headers(); return
                     return self._file("admin.html", "text/html; charset=utf-8")
                 usage = getattr(st, "usage", None)
                 return self._json(usage.report(int(q.get("days", ["30"])[0])) if usage else {"days": []})
@@ -1941,8 +1968,8 @@ class Handler(BaseHTTPRequestHandler):
             # Flagged readings are yours alone, on the same terms as the dashboard: they quote posts and
             # somebody's opinion of them, and neither belongs on an open endpoint.
             if u.path == "/api/flags":
-                if not (st.cfg.get("access_key") or os.environ.get("ACCESS_KEY")):
-                    return self._json({"error": "set ACCESS_KEY to read flagged readings"}, 403)
+                if not self._admin_ok(q):
+                    return self._json({"error": "set ADMIN_KEY to read flagged readings"}, 403)
                 return self._json({"flags": st.store.flags(int(q.get("limit", ["200"])[0]),
                                                            include_done=q.get("done", ["0"])[0] == "1")})
             if u.path == "/api/stream":

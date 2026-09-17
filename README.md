@@ -134,6 +134,24 @@ Everything the page uses is public JSON; you can build your own client on it.
 | `GET /healthz` | Liveness. |
 | `POST /api/push/{subscribe,unsubscribe,test}` | Web Push subscriptions. |
 
+## The two keys
+
+| | what it protects | who can read the map |
+|---|---|---|
+| `ADMIN_KEY` | `/admin`, `/api/usage`, `/api/flags` | **everyone** — this is what a public deployment wants |
+| `ACCESS_KEY` | **the entire app**, behind a login form | only people with the key — a private deployment |
+
+On a public instance, setting `ACCESS_KEY` is an outage: every reader gets a password box instead of an
+air-raid map. Use `ADMIN_KEY`.
+
+```bash
+fly secrets set ADMIN_KEY=…        # dashboard only, map stays public
+fly secrets unset ACCESS_KEY       # if it was ever set on a public instance
+```
+
+Then open `https://<your-app>/admin?key=…` once; it remembers you in a cookie that grants the dashboard and
+nothing else. With no key set at all, the dashboard is not served — it cannot be exposed by accident.
+
 ## The regression corpus
 
 `tests/corpus/cases.jsonl` holds real posts and the parse each one must produce. It runs with the ordinary
