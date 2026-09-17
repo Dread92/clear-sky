@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.9.0 — 2026-09-17
+
+### Added
+- **A regression corpus** (`scripts/corpus.py`, `tests/corpus/cases.jsonl`, `docs/CORPUS.md`). Real posts plus
+  the parse they must produce, replayed on every test run. The parser is patterns over free text in two
+  languages with declensions; it produces a steady trickle of misreads, and until now every one of them was
+  found by a person looking at the map — a detection method that does not work at three in the morning during
+  a mass attack.
+  - `harvest` takes posts the app has already collected (no network), capped per channel.
+  - `review` walks them: **verified** is enforced, **known_bad** is enforced in reverse so a fix gets noticed
+    and promoted instead of forgotten, **pending** is only reported — capturing a bug must never freeze it as
+    the expected answer.
+  - `replay` is the regression run, and `tests/test_corpus.py` puts it in the ordinary suite.
+  - What is compared is a deliberate projection: status, type, place, oblast, coordinates, count, altitude,
+    **position confidence**, quadrant, and the post's feed tags. Not the evidence wording — a corpus that
+    fails on rephrasing is one somebody switches off within a week.
+  - Seeded with 279 cases: every misread found today (each as the *correct* reading), the doctrine rules
+    they came from, and a real sample from 36 channels.
+
 ## 1.8.1 — 2026-09-17
 
 ### Fixed (safety)

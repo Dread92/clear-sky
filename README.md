@@ -134,6 +134,19 @@ Everything the page uses is public JSON; you can build your own client on it.
 | `GET /healthz` | Liveness. |
 | `POST /api/push/{subscribe,unsubscribe,test}` | Web Push subscriptions. |
 
+## The regression corpus
+
+`tests/corpus/cases.jsonl` holds real posts and the parse each one must produce. It runs with the ordinary
+test suite, and `python scripts/corpus.py replay` runs it alone. When something looks wrong on the live map,
+capture it while you are looking at it:
+
+```bash
+python scripts/corpus.py add --channel kyiv_airdef --text "…" --note "what is wrong with this reading"
+python scripts/corpus.py review
+```
+
+`docs/CORPUS.md` explains the three states and what is compared.
+
 ## Development
 
 ```bash
