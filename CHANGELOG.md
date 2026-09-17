@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.7.0 — 2026-09-17
+
+### Added
+- **A history report behind the counter chips.** The map now carries **the last 24 h only** — beyond that the
+  history layer buries the live picture, which is the one thing somebody opening the app during an attack needs
+  to see. Tapping the ✸ / ✕ / 🔥 chips opens a report with a 24 h / 72 h / 7 d selector: totals per kind, then
+  a list grouped by place — "Kyiv ×12 · last 03:41" says what two hundred dots were trying to say. It fetches
+  its own window, so the live layer is never reloaded at seven days, and it repeats under its own figures that
+  these count posts, not events.
+- **Fires are drawn as fires.** A post that says only *пожежа / горить / загорання* is a fire, not an
+  explosion: a small amber flame, drawn quietly, counted in its own column and never added to the explosion
+  total. The rule sits below the impact rule on purpose — "внаслідок влучання виникла пожежа" is a strike that
+  started a fire and still reads as a strike, and a shoot-down whose debris is burning stays a shoot-down.
+- **A fire leaves the live map after an hour** (`FIRE_TTL_MIN`). After that it is either out or it has been
+  burning all night; a new post about the same place brings it back, because that post carries a fresh
+  timestamp.
+
+### Fixed
+- **The livebar chips were not tappable at all.** The bar carries `pointer-events:none` so the map can be
+  dragged through it — which silently disabled every button placed inside. Only the chips take taps now; the
+  gaps between them still pass through to the map.
+
+### Changed
+- The Ukrainian and English chips say *reports* rather than a bare count of explosions, matching the stats
+  panel.
+- `/api/impacts` accepts up to 7 days (was 96 h) for the report; the map never asks for more than 24 h.
+
 ## 1.6.1 — 2026-09-17
 
 ### Changed

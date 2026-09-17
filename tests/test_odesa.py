@@ -117,3 +117,22 @@ def test_ordinary_words_never_raise_the_mig_banner():
 def test_kalibrs_are_recognised_in_the_russian_spelling_too():
     assert "cruise_missiles" in server.tag_feed_text("калибы на зп", "xydessa_live")
     assert "cruise_missiles" in server.tag_feed_text("калібри на Одесу", "xydessa_live")
+
+
+# -- a fire is not an explosion --------------------------------------------------------------------
+
+def test_a_post_that_only_reports_a_fire_is_a_fire():
+    out = geo.parse_post("Горить дах будинку в Оболоні")
+    assert out and out[0]["status"] == "fire"
+
+
+def test_an_impact_that_started_a_fire_is_still_an_impact():
+    """"внаслідок влучання виникла пожежа" is a strike. The fire rule sits below the impact rule so that
+    the more serious reading always wins."""
+    out = geo.parse_post("Вибух у Києві, виникла пожежа")
+    assert out and out[0]["status"] == "impact"
+
+
+def test_a_shoot_down_is_never_downgraded_to_a_fire():
+    out = geo.parse_post("Збито ціль над Києвом, уламки горять")
+    assert out and out[0]["status"] == "down"

@@ -820,15 +820,18 @@ class State:
         by_obl = {}
         for m in imp:
             d = (parse_iso(m["ts"]) or now).astimezone(kyiv_tz).strftime("%Y-%m-%d")
-            by_day.setdefault(d, {"alerts": 0, "minutes": 0, "impacts": 0, "down": 0, "drone_posts": 0, "missile_posts": 0})
-            by_day[d]["impacts" if m["status"] == "impact" else "down"] += 1
+            by_day.setdefault(d, {"alerts": 0, "minutes": 0, "impacts": 0, "down": 0, "fires": 0, "drone_posts": 0, "missile_posts": 0})
+            b = {"impact": "impacts", "down": "down", "fire": "fires"}.get(m["status"], "impacts")
+            by_day[d].setdefault(b, 0)
+            by_day[d][b] += 1
             ou = m.get("oblast_uid") or "?"
-            by_obl.setdefault(ou, {"impacts": 0, "down": 0})
-            by_obl[ou]["impacts" if m["status"] == "impact" else "down"] += 1
+            by_obl.setdefault(ou, {"impacts": 0, "down": 0, "fires": 0})
+            by_obl[ou].setdefault(b, 0)
+            by_obl[ou][b] += 1
         # 3. launches: Air Force morning summaries ("противник атакував N ударними БпЛА ... та M ракетами") give the
         #    official count of what was launched over Ukraine; per-day max (the summary is sometimes re-posted / corrected).
         #    Reports: every monitoring post tagged drones / missiles, all of Ukraine — a volume of reporting, not a count of targets.
-        empty = {"alerts": 0, "minutes": 0, "impacts": 0, "down": 0, "drone_posts": 0, "missile_posts": 0,
+        empty = {"alerts": 0, "minutes": 0, "impacts": 0, "down": 0, "fires": 0, "drone_posts": 0, "missile_posts": 0,
                  "drone_reports": 0, "missile_reports": 0, "launched_drones": 0, "launched_missiles": 0, "af_down": 0}
         for k in by_day.values():
             for kk, v in empty.items():
@@ -892,17 +895,21 @@ class State:
         # Explosions and confirmed shoot-downs come from parsed posts, and that parsing covers at most 96 h —
         # so they are reported for 24 h and 72 h only. Reporting them "per 30 days" would be a number that is
         # simply missing most of its days.
-        imp_windows = {1: {"impacts": 0, "down": 0}, 3: {"impacts": 0, "down": 0}}
+        # fires are counted apart and never folded into the explosion total: a warehouse burning after a strike
+        # is not a second explosion, and a fire nobody tied to a strike is not an explosion at all
+        imp_windows = {1: {"impacts": 0, "down": 0, "fires": 0}, 3: {"impacts": 0, "down": 0, "fires": 0}}
+        _bucket = {"impact": "impacts", "down": "down", "fire": "fires"}
         for m in imp:
             age_d = (now - (parse_iso(m["ts"]) or now)).total_seconds() / 86400
             for w, acc in imp_windows.items():
                 if age_d <= w:
-                    acc["impacts" if m["status"] == "impact" else "down"] += 1
+                    acc[_bucket.get(m["status"], "impacts")] += 1
         daysl = [(since + timedelta(days=i)).astimezone(kyiv_tz).strftime("%Y-%m-%d") for i in range(days + 1)]
         series = [{"day": d, **by_day.get(d, empty)} for d in daysl]
         out = {"days": days, "since": since.isoformat(), "series": series, "hours": hours, "kyiv_minutes": round(tot_min),
                "kyiv_alerts": sum(1 for a in al if a["oblast_uid"] == "31"), "longest": longest, "by_oblast": by_obl,
                "impacts_total": sum(1 for m in imp if m["status"] == "impact"), "down_total": sum(1 for m in imp if m["status"] == "down"),
+               "fires_total": sum(1 for m in imp if m["status"] == "fire"),
                "impact_window_h": min(days * 24, 96), "windows": {str(k): v for k, v in windows.items()},
                "imp_windows": {str(k): v for k, v in imp_windows.items()}, "imp_max_h": min(days * 24, 96)}
         self._stats_res[days] = (time.time(), out)
@@ -955,7 +962,7 @@ class State:
     # "impact / explosion" and confirmed "shot down" outcome markers, parsed from every post of the window (cached per post,
     # result cached 60 s per window). Same-place relays from other channels within 5 min are merged.
     def impacts(self, hours):
-        hours = max(1, min(int(hours), 96))
+        hours = max(1, min(int(hours), 168))      # the report offers 7 days; the map never asks for more than 24 h
         if not geo:
             return []
         now = time.time()
@@ -970,7 +977,7 @@ class State:
                     # only impacts pinned to a named town (no oblast-centre approximations in a history layer);
                     # long news / summary posts are not live impact reports
                     ms = [] if len(p["text"]) > 400 else [m for m in geo.parse_for_channel(p["channel"], p["text"])
-                          if m.get("status") in ("impact", "down") and m.get("lon") is not None and m.get("place") != "область"
+                          if m.get("status") in ("impact", "down", "fire") and m.get("lon") is not None and m.get("place") != "область"
                           and ((m.get("evidence") or {}).get("position") or {}).get("confidence") == "high"]
                 except Exception:
                     ms = []

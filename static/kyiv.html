@@ -112,6 +112,14 @@ svg#map{display:block;width:100%;height:100%}
 .livebar{position:absolute;left:8px;bottom:42px;display:flex;gap:4px;flex-wrap:wrap;max-width:calc(100% - 60px);pointer-events:none}
 @media (min-width:1000px){.livebar{bottom:8px}}
 .livebar .chip{font:600 11px/1 var(--mono);letter-spacing:.03em;padding:6px 8px;white-space:nowrap;background:rgba(18,21,27,.92);border:1px solid var(--line);color:var(--ink2);border-radius:0}
+/* the bar itself stays transparent to pointers so the map can be dragged through the gaps between chips;
+   only the buttons take taps */
+.livebar button.chip{pointer-events:auto;cursor:pointer;font-family:var(--mono);text-decoration:underline dotted rgba(255,255,255,.25);text-underline-offset:3px}
+.livebar button.chip:active{background:rgba(40,46,58,.95)}
+button.chip{cursor:pointer;font-family:var(--mono)}button.chip:hover{border-color:var(--ink3)}
+.livebar .chip.fire{color:#ffc48a;border-color:#4a3418}
+.repwin{display:flex;align-items:center;gap:6px;margin:8px 0}.repwin span{font:600 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-right:auto}
+.grow.rep{cursor:default}.grow.rep.down{border-left-color:#39d98a}.grow.rep.fire{border-left-color:#ff9a3c}
 .livebar .chip.red{color:#ffd9d6;border-color:#6a2a26}.livebar .chip.orange{color:#ffc9a3}.livebar .chip.green{color:#c9f2da}.livebar .chip.yellow{color:#ffefa8}.livebar .chip.blue{color:#bcd5ff}
 .livebar .chip b{font-weight:600}
 .mapctl{position:absolute;right:8px;bottom:8px;display:flex;flex-direction:column;gap:4px}
@@ -142,6 +150,11 @@ body.lite .imp .ig{fill:#fff;filter:none;animation:none}body.lite .imp.fresh .sw
 .glist::-webkit-scrollbar{width:4px}.glist::-webkit-scrollbar-thumb{background:var(--line)}
 body.lite .imp .icnt circle{fill:#fff}
 .imp.dn .ig{fill:#39d98a}.imp.dn .ir{stroke:#39d98a}.imp.dn .it{fill:#b8f0d3}svg.no-himp .imp.im,svg.no-hdown .imp.dn{display:none}
+/* a fire is a consequence, not a strike: amber, smaller, no glow, no shockwave, never counted as an explosion */
+.imp.fire .ig{fill:#ff9a3c;stroke:#2a1a08;stroke-width:calc(var(--k,1)*.6px);filter:none}
+.imp.fire .ir{stroke:#ff9a3c;opacity:.3}.imp.fire .it{fill:#ffd2a1}.imp.fire{opacity:.85}
+.imp.fire .icnt circle{stroke:#ff9a3c}
+body.lite .imp.fire .ig{fill:#fff}
 .mapfoot{display:none}
 .tip{position:absolute;z-index:6;max-width:300px;background:rgba(18,21,27,.98);border:1px solid var(--line);border-left:3px solid var(--orange);padding:8px 10px;font-size:12.5px;pointer-events:none}
 .tip b{display:block;font:700 15px/1.1 var(--cond);text-transform:uppercase;letter-spacing:.03em;margin-bottom:3px}.tip .m{color:var(--ink2);font-family:var(--mono);font-size:11px}.tip .q{margin-top:5px;padding-top:5px;border-top:1px solid var(--line);white-space:pre-wrap}
@@ -476,7 +489,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.6.1</div>
+    <div class="mi bt" id="buildtag">v1.7</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -965,7 +978,12 @@ function tick(){
     return `<g class="edge ${info.inbound?'inbound':''}"><polygon class="arrow" points="0,-3 6,0 0,3" transform="translate(${ex.toFixed(1)} ${ey.toFixed(1)}) rotate(${ang.toFixed(0)}) scale(${(1.6*KPX).toFixed(2)})"/><text class="etxt" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}" text-anchor="${anchor}">${esc(txt)}</text></g>`;
   }).join('');
   const parts=[]; if(tracked){ const tot=[totShahed?`<b>${totShahed}</b> ${t('lb_shahed')}`:'',totJet?`<b>${totJet}</b> ${t('lb_jet')}`:'',totMsl?`<b>${totMsl}</b> ${t('lb_msl')}`:'',totUnk?`<b>${totUnk}</b> ⚠`:'',totStale?`<b>${totStale}</b> ?`:''].filter(Boolean).join(' · '); parts.push(tot||`<b>${tracked}</b> ${t('lb_targets')}`); } if(inboundCount) parts.push(`<b style="color:#ffd9d6">${inboundCount} ${t('lb_tokyiv')}</b>`); if(HOME&&homeThreats) parts.push(`<b style="color:#ffb3c5">${homeThreats} → ${esc(homeName())}</b>`); if(ESTIMATE) parts.push('EST'); 
-  $('livebar').innerHTML=(parts.length?`<span class="chip ${inboundCount||homeThreats?'red':'orange'}">${parts.join(' · ')}</span>`:'')+(typeof IMP_H!=='undefined'&&IMP_H?(()=>{const cl=clusterImpacts(IMP);const ni=cl.filter(c=>c.m.status!=='down').reduce((a,c)=>a+c.n,0),nd=cl.reduce((a,c)=>a+c.n,0)-ni;return `<span class="chip red">✸ ${tn('lb_expl',ni)}</span><span class="chip green">✕ ${t('lb_down',nd)}</span><span class="chip">${IMP_H} h</span>`;})():'');
+  $('livebar').innerHTML=(parts.length?`<span class="chip ${inboundCount||homeThreats?'red':'orange'}">${parts.join(' · ')}</span>`:'')+(typeof IMP_H!=='undefined'&&IMP_H?(()=>{const cl=clusterImpacts(liveImpacts());
+      const sum=f=>cl.filter(f).reduce((a,c)=>a+c.n,0);
+      const ni=sum(c=>c.m.status==='impact'), nd=sum(c=>c.m.status==='down'), nf=sum(c=>c.m.status==='fire');
+      return `<button class="chip red" id="lbexp">✸ ${tn('lb_expl',ni)}</button><button class="chip green" id="lbdown">✕ ${t('lb_down',nd)}</button>`
+           + (nf?`<button class="chip fire" id="lbfire">${t('lb_fire',nf)}</button>`:'')
+           + `<span class="chip">${IMP_H} h</span>`;})():'');
   declutter();
   scheduleTick();
 }
@@ -1153,7 +1171,15 @@ function layoutTownLabels(){
   for(const it of items){ if(placed.some(q=>it.x<q.x+q.w&&q.x<it.x+it.w&&it.y<q.y+q.h&&q.y<it.y+it.h)){it.e.setAttribute('data-hid','1');continue;} placed.push(it); }
 }
 // ---- impact history layer (off / 24 h / 48 h / 72 h) — past "impact / explosion" reports only ----
-const IMP_STEPS=[0,24,48,72]; let IMP_H=0,IMP=[],impTimer=null;
+// The map carries the last 24 h and nothing more: beyond that the history layer buries the live picture,
+// which is the one thing somebody opening this app during an attack needs to see. Everything older is in the
+// report behind the chips.
+const IMP_STEPS=[0,24]; let IMP_H=0,IMP=[],impTimer=null;
+// A fire is news for about an hour. After that it is either out, or it is a building that has been burning
+// all night — and in neither case does it belong on a live map as if it had just happened. A new post about
+// the same place brings it back, because that post carries a fresh timestamp.
+const FIRE_TTL_MIN=60;
+const liveImpacts=()=>IMP.filter(m=>m.status!=='fire'||(Date.now()-Date.parse(m.ts))/60000<=FIRE_TTL_MIN);
 try{IMP_H=+localStorage.getItem('imph')||0;}catch(e){}
 // The same place reported over and over across 24 h is one dot with a count — nine glyphs stacked on one
 // village told you nothing that "×9" does not, and buried everything around it.
@@ -1181,11 +1207,11 @@ const impScale=()=>VB.w>900?.5:VB.w>230?.66:VB.w>90?.82:1;
 function packImpacts(cl){
   const out=[];
   for(const c of cl){
-    const dn=c.m.status==='down'; const [x,y]=proj(c.m.lon,c.m.lat);
+    const st=c.m.status; const dn=st==='down'; const [x,y]=proj(c.m.lon,c.m.lat);
     let host=null;
-    for(const o of out){ if(o.dn!==dn) continue;
+    for(const o of out){ if(o.st!==st) continue;        // an explosion, a shoot-down and a fire never merge
       if(Math.hypot(o.x-x,o.y-y)<=impGap()*KPX){ host=o; break; } }
-    if(!host){ out.push({x,y,dn,n:c.n,m:c.m,ids:c.ids.slice(),places:new Set([c.m.place])}); continue; }
+    if(!host){ out.push({x,y,st,dn,n:c.n,m:c.m,ids:c.ids.slice(),places:new Set([c.m.place])}); continue; }
     host.n+=c.n; host.ids.push(...c.ids); host.places.add(c.m.place);
     // anchored and labelled by its most recent member, never by a centroid — a centroid would put the dot
     // on a spot where nobody reported anything
@@ -1196,14 +1222,58 @@ function packImpacts(cl){
 function drawImpacts(){
   const g=$('impactsg'); if(!IMP_H){g.innerHTML='';return;}
   const now=Date.now();
-  g.innerHTML=packImpacts(clusterImpacts(IMP)).map(({m,n,ids,places})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const cls=h>48?'d2':h>24?'d1':''; const IZ=impScale(); const s=((dn?1.1:1.35)*KPX*IZ).toFixed(2); const more=places.size-1;
-    const glyph=dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
-    return `<g class="imp ${cls} ${dn?'dn':'im'} ${(!dn&&h<1.5)?'fresh':''}${n>1?' grp':''}" data-id="${esc(m.id)}" data-ids="${esc(ids.join('~'))}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${((n>1?11:9)*KPX*IZ).toFixed(2)}"/>${(!dn&&h<1.5)?`<circle class="sw" r="${(11*KPX*IZ).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX*IZ).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${more>0?` +${more}`:``}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX*IZ).toFixed(2)} ${(-8*KPX*IZ).toFixed(2)}) scale(${(KPX*Math.max(IZ,.8)).toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
+  g.innerHTML=packImpacts(clusterImpacts(liveImpacts())).map(({m,n,ids,places})=>{const [x,y]=proj(m.lon,m.lat); const h=(now-Date.parse(m.ts))/36e5; const dn=m.status==='down'; const fire=m.status==='fire'; const cls=h>48?'d2':h>24?'d1':''; const IZ=impScale(); const s=((fire?0.95:dn?1.1:1.35)*KPX*IZ).toFixed(2); const more=places.size-1;
+    // a fire is a small flame, drawn quietly: it is a consequence someone reported, not a strike of its own
+    const glyph=fire?`<path class="ig" d="M0-8 C3-4.5 5.5-2.5 5.5 1.2 C5.5 4.6 3 7 0 7 C-3 7 -5.5 4.6 -5.5 1.2 C-5.5 -1.4 -4 -2.6 -2.6 -4.6 C-2.2 -2.4 -1.2 -1.4 0 -1 C0.6 -3.2 0.4 -5.6 0-8 Z"/>`:dn?`<circle class="ig" r="6"/><path d="M-3.5-3.5 L3.5 3.5 M3.5-3.5 L-3.5 3.5" stroke="#080b10" stroke-width="1.8" fill="none"/>`:`<path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z M0-4.5 L4.5 0 L0 4.5 L-4.5 0 Z" transform="rotate(45)"/><path class="ig" d="M0-8 L2-2 L8 0 L2 2 L0 8 L-2 2 L-8 0 L-2-2 Z"/>`;
+    return `<g class="imp ${cls} ${fire?'fire':dn?'dn':'im'} ${(!dn&&!fire&&h<1.5)?'fresh':''}${n>1?' grp':''}" data-id="${esc(m.id)}" data-ids="${esc(ids.join('~'))}" data-tx="${x.toFixed(2)}" data-ty="${y.toFixed(2)}" transform="translate(${x.toFixed(2)} ${y.toFixed(2)})"><circle class="ir" r="${((n>1?11:9)*KPX*IZ).toFixed(2)}"/>${(!dn&&!fire&&h<1.5)?`<circle class="sw" r="${(11*KPX*IZ).toFixed(2)}"/>`:''}<g transform="scale(${s})">${glyph}</g><text class="it" x="${(11*KPX*IZ).toFixed(2)}" y="${(4*KPX).toFixed(2)}">${esc(m.place==='область'?'':pn(m.place))}${more>0?` +${more}`:``}${n>1?` ×${n}`:''} ${fmtD(m.ts)}</text>${n>1?`<g class="icnt" transform="translate(${(8*KPX*IZ).toFixed(2)} ${(-8*KPX*IZ).toFixed(2)}) scale(${(KPX*Math.max(IZ,.8)).toFixed(3)})"><circle r="6.5"/><text y="3.2">${n}</text></g>`:''}</g>`;}).join('');
   $('imph').textContent=IMP_H?IMP_H+'h':''; $('impbtn').classList.toggle('on',!!IMP_H);
 }
 function fmtD(ts){const d=new Date(ts);const tm=d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ});const today=new Date().toLocaleDateString('en-GB',{timeZone:TZ})===d.toLocaleDateString('en-GB',{timeZone:TZ});return today?tm:d.toLocaleDateString(LOCALE(),{day:'2-digit',month:'short',timeZone:TZ})+' '+tm;}
 async function loadImpacts(){ if(!IMP_H){IMP=[];drawImpacts();return;} try{const d=await jget('/api/impacts?hours='+IMP_H,12000);IMP=d.impacts||[];}catch(e){IMP=[];} drawImpacts(); }
 $('impbtn').onclick=()=>{IMP_H=IMP_STEPS[(IMP_STEPS.indexOf(IMP_H)+1)%IMP_STEPS.length];try{localStorage.setItem('imph',String(IMP_H));}catch(e){};loadImpacts();};
+// Beyond 24 h the history belongs in a report, not on the map. The chips open it; it fetches its own window
+// so the live layer is never reloaded at 7 days, and it groups by place so a night reads as "Kyiv ×12, last
+// at 03:41" instead of two hundred dots.
+let REP_H=24, REP_BUSY=false;
+async function impactReport(h){
+  if(h) REP_H=h;
+  $('tip').hidden=true;
+  const win=[[24,'rep_h24'],[72,'rep_h72'],[168,'rep_d7']];
+  const tabs=win.map(([v,k])=>`<button class="tgl${v===REP_H?' on':''}" data-rw="${v}">${esc(t(k))}</button>`).join('');
+  const head=`<div class="type">${esc(t('rep_title'))}</div>
+    <div class="repwin"><span>${esc(t('rep_win'))}</span>${tabs}</div>`;
+  $('sheetbody').innerHTML=head+`<div class="kv1">…</div>`;
+  $('sheet').classList.add('show');
+  const wire=()=>$('sheetbody').querySelectorAll('[data-rw]').forEach(b=>b.onclick=()=>{ if(!REP_BUSY) impactReport(+b.dataset.rw); });
+  wire();
+  let rows=[];
+  REP_BUSY=true;
+  try{ const d=await jget('/api/impacts?hours='+REP_H,20000); rows=d.impacts||[]; }
+  catch(e){ rows=null; }
+  finally{ REP_BUSY=false; }
+  if(rows===null){ $('sheetbody').innerHTML=head+`<div class="kv1">${esc(t('u_offline')||'—')}</div>`; wire(); return; }
+  const kinds=[['impact','rep_expl','#ffb3ad','✸'],['down','rep_down','#a8f0cf','✕'],['fire','rep_fire','#ffc48a','🔥']];
+  const tot=k=>rows.filter(m=>m.status===k).length;
+  const totals=`<div class="wtab">${kinds.map(([k,lbl,c,ic])=>
+     `<div class="srow"><span>${ic} ${esc(t(lbl))}</span><b style="color:${c}">${tot(k)}</b></div>`).join('')}</div>`;
+  // by place, most reports first; a place is named once with its count and the time of its latest report
+  const by=new Map();
+  for(const m of rows){ const k=(m.status)+'|'+(m.place||'?');
+    const c=by.get(k); if(c){ c.n++; if(m.ts>c.ts) c.ts=m.ts; } else by.set(k,{status:m.status,place:m.place,n:1,ts:m.ts}); }
+  const list=[...by.values()].sort((a,b)=>b.n-a.n||b.ts.localeCompare(a.ts));
+  const shown=list.slice(0,40);
+  const icon={impact:'✸',down:'✕',fire:'🔥'};
+  const body=shown.length?`<div class="slbl">${esc(t('rep_places'))}</div><div class="glist">${shown.map(r=>
+      `<div class="grow rep ${esc(r.status)}"><span class="gp">${esc(icon[r.status]||'')} ${esc(r.place==='область'?t('oblcentre'):pn(r.place))}</span>
+       <span class="gt">×${r.n}</span><span class="gc">${esc(t('rep_last',fmtD(r.ts)))}</span></div>`).join('')}</div>
+      ${list.length>shown.length?`<div class="sfoot">${esc(t('rep_more',list.length-shown.length))}</div>`:''}`
+    :`<div class="kv1">${esc(t('rep_none'))}</div>`;
+  $('sheetbody').innerHTML=head+totals+body+
+    `<div class="sfoot warn">${esc(t('rep_note'))}</div>
+     <div style="margin-top:8px;text-align:right"><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
+  wire();
+}
+
 // A grouped dot opens the list behind it, never a single report standing in for the others: every source is
 // one tap away, and the sheet says plainly that the grouping is a zoom artefact, not a merged event.
 function openImpactGroup(ids){
@@ -1413,7 +1483,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.6.1';
+const APP_VERSION='1.7';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
@@ -1552,6 +1622,9 @@ function helpSheet(){
     <div class="credit"><img src="/static/bf-logo.png" alt=""><div><span class="cn">${esc(t('credits'))}</span><br>${esc(t('credits_dev'))}</div></div>
     <div style="margin-top:10px;text-align:right"><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
   $('sheet').classList.add('show'); }
+// the livebar is rebuilt on every render, so the chips are handled by one delegated listener
+$('livebar').addEventListener('click',e=>{ const b=e.target.closest('#lbexp,#lbdown,#lbfire'); if(!b) return;
+  e.stopPropagation(); impactReport(); });
 $('helpbtn').onclick=()=>{$('menu').hidden=true;helpSheet();};
 $('geobtn').onclick=()=>{$('menu').hidden=true;geoSheet();};
 

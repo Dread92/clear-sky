@@ -148,6 +148,27 @@ to keep half-remembered.
 The channels' shorthand does count as naming it — 🛸 🛵 🏍 🅿 for a strike drone, 🚀 for a missile, 💣 for a KAB —
 because that is how those channels write, every night.
 
+## A fire is not an explosion, and it does not last all night
+
+A burning roof reported an hour after a raid is a consequence somebody saw, not a strike. Drawing it as the
+red starburst inflates the explosion count and puts a strike marker where no strike was reported. So a post
+that says only fire — *пожежа*, *горить*, *загорання* — gets its own small amber flame, drawn quietly, counted
+in its own column and never added to explosions. The rule sits **below** the impact rule on purpose: "внаслідок
+влучання виникла пожежа" is a strike that started a fire and reads as a strike, and a shoot-down whose debris
+is burning stays a shoot-down. The more serious reading always wins.
+
+A fire also **leaves the live map after an hour** (`FIRE_TTL_MIN`). After that it is either out or it has been
+burning all night, and neither belongs on a live map as though it had just happened. A new post about the same
+place brings it back, because that post carries a fresh timestamp.
+
+## The history layer never buries the live picture
+
+The map carries the last 24 hours and nothing more. Beyond that the dots are denser than the thing somebody
+opened the app to see, and a person deciding whether to go to a shelter should not have to read three days of
+history to find what is flying now. Longer windows — 24 h, 72 h, 7 days — live in a report behind the counter
+chips, grouped by place: "Kyiv ×12, last at 03:41" says what two hundred dots were trying to say. The report
+repeats, under its own figures, that they count posts and not events.
+
 ## Nothing is drawn where the source said it is clear
 
 Posts mix an all-clear and a warning in one breath: "Чисте небо Київська область та Київ. Васильків увага ‼️".

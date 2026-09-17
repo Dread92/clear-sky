@@ -400,6 +400,10 @@ def _sub_direction_offset(text, pos):
 # live marker carrying altitude state "descending". A post that also says збито/знищено still reads as shot down.
 STATUS_RX = [("down", re.compile(r"збит|знищен|мінус|ліквідован|падінн|впав|впали|приземл|збили", re.I)),
              ("impact", re.compile(r"вибух|приліт|прильот|влучанн|влучив|попадання", re.I)),
+             # A fire is not an explosion, and it must not be drawn as one. This sits BELOW "impact" on purpose:
+             # "внаслідок влучання виникла пожежа" is an impact that started a fire, and reads as an impact.
+             # Only a post that says nothing but fire — "пожежа в Дарницькому районі", "горить склад" — lands here.
+             ("fire", re.compile(r"пожеж|пожар|займанн|загорянн|загорін|горить|горит\b|горіння", re.I)),
              ("lost", re.compile(r"втрачен|зник|не спостеріга|загубл", re.I)),
              ("clear", re.compile(r"чисто|небо чисте|чист[еиої]\w*\s+небо", re.I))]
 
