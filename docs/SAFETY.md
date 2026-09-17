@@ -14,10 +14,12 @@ open, not once, and the scrolling ticker repeats the essentials while the app is
 
 A target is drawn **where a post said it was**. Nothing else.
 
-- A Shahed circles inside a dashed ring rather than sitting on a point, because its real path is erratic and
-  a marker pinned to one spot would imply a precision nobody has. It travels the circle but never turns: the
-  ring says *somewhere around here*, and the chevron shows a heading someone reported — a direction from a
-  post, not a course line.
+- A Shahed wanders a figure of eight inside a dashed ring rather than sitting on a point, because its real
+  path is erratic and a marker pinned to one spot would imply a precision nobody has. It flies that pattern
+  nose-first, banking into its own turns. This is the one glyph on the map that turns, and it does not muddle
+  what the map claims: the **reported** course is the chevron, pinned to the heading in the post. A moving
+  aircraft reads as movement; a still one pointing somewhere nobody named would read as a bearing, which is
+  the thing being avoided.
 - Dead reckoning along a heading exists only behind the explicit **EST** switch, off by default,
   labelled as an estimate. A drone that turned after the report would otherwise be drawn somewhere
   it is not.

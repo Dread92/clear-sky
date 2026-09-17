@@ -58,9 +58,9 @@
   shapes rather than a sprite so it still takes a colour (orange, amber for the jet, white in blackout) and
   stays sharp at every zoom. The Shahed-238 is the same airframe with the turbojet's dorsal intake, a fatter
   nozzle and a longer flame, because that is what actually distinguishes them.
-  - It still circles inside the loiter ring, but it no longer spins with it. The ring turns and a group
-    inside turns exactly the opposite way at the same rate, so the airframe travels the circle nose up —
-    the loitering motion is kept, the tumbling aircraft is not.
+  - It flies a figure of eight inside the loiter ring, nose on the tangent, banking into its own turns —
+    a circle read as orbiting a fixed point, which is not what a Shahed does. The one glyph on the map that
+    turns, and it muddles nothing: the reported course is still the chevron.
 - **One weapon, one symbol — and it never turns.** A rotating symbol has to point somewhere, so a target
   reported with no course forced a choice between inventing a heading and drawing a different icon for the
   same weapon; the app did both, and a Banderol was an arrow in one place and a diamond in another. Every

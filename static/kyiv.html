@@ -930,6 +930,11 @@ const G={drone:SHAHED_BODY+'<rect class="glyph" x="-2.8" y="6" width="5.6" heigh
   impact:'<path class="glyph x" d="M0-10 L2-3 L9-6 L4 0 L10 4 L3 3 L2 10 L-1 4 L-8 7 L-4 0 L-10-3 L-3-2 Z"/>',
   lost:'<circle class="glyph ring" cx="0" cy="0" r="8"/><text class="glyph q" x="0" y="3.5" text-anchor="middle">?</text>',
   clear:'<circle class="glyph ring" cx="0" cy="0" r="8"/><path class="glyph x" d="M-4 0 L-1 3 L5-4"/>'};
+// The loiter pattern, in glyph units: a figure of eight, flown once every 11 seconds. A circle reads as an
+// orbit around a fixed point, which is not what a Shahed does; a figure of eight reads as wandering, which is
+// closer to the truth and is the honest thing for a marker whose position is only approximate.
+const LOITER_R=17;
+const LOITER8='M0 0 C 6.5 -11.5 13.5 -6 13.5 0 C 13.5 6 6.5 11.5 0 0 C -6.5 -11.5 -13.5 -6 -13.5 0 C -13.5 6 -6.5 11.5 0 0 Z';
 let built=new Map(); const homeAlerted=new Set();
 // Outcomes reported for a whole oblast, grouped by oblast id — filled by tick(), drawn by paintOblEvents().
 let OBLEVT={};
@@ -998,7 +1003,7 @@ function buildMarker(m){
   const isNew=!seenMk.has(m.id); seenMk.add(m.id);
   const isMsl=/missile/.test(m.type)&&!m.status; if(isMsl) g.classList.add('msl');
   g.innerHTML=`<line class="ahead" x1="0" y1="0" x2="0" y2="0"/><polygon class="cone" points="0,0 0,0 0,0"/><circle class="halo" cx="0" cy="0" r="6"/>${isMsl?'<circle class="halo2" cx="0" cy="0" r="6"/><circle class="reach" cx="0" cy="0" r="0" style="display:none"/>':''}${isNew?`<circle class="spawn" cx="0" cy="0" r="${(10*KPX).toFixed(1)}"/>`:''}
-    ${m.type==='drones'&&!m.status?`<g class="orbit"><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="7s" repeatCount="indefinite"/><g class="body"><g class="spin"><animateTransform attributeName="transform" type="rotate" from="0 0 0" to="-360 0 0" dur="7s" repeatCount="indefinite"/><g class="rot">${glyph}</g></g></g></g><circle class="loiter" cx="0" cy="0" r="1"/>`:`<g class="body"><g class="rot">${glyph}</g></g>`}
+    ${m.type==='drones'&&!m.status?`<g class="orbit"><g class="fly"><animateMotion dur="11s" repeatCount="indefinite" rotate="auto" path="${LOITER8}"/><g class="rot">${glyph}</g></g></g><circle class="loiter" cx="0" cy="0" r="1"/>`:`<g class="body"><g class="rot">${glyph}</g></g>`}
     <polygon class="hdg" points="0,-5.2 5.4,3.6 0,1.3 -5.4,3.6" style="display:none"/><text class="qm" x="0" y="0">?</text><text class="dn" x="0" y="0">↓</text><g class="cnt" style="display:none"><circle r="6.5"/><text y="3.2">2</text></g><text class="lbl" x="5" y="-4"></text><text class="lbl2" x="5" y="0"></text><circle class="hit" cx="0" cy="0" r="8"/>`;
   g.addEventListener('pointerenter',e=>{if(e.pointerType==='touch')return;showTip(m,e);}); g.addEventListener('pointermove',e=>{if(e.pointerType==='touch')return;moveTip(e);}); g.addEventListener('pointerleave',()=>{$('tip').hidden=true;});
   const trail=document.createElementNS('http://www.w3.org/2000/svg','line'); trail.setAttribute('class','trail');
@@ -1059,13 +1064,19 @@ function tick(){
     {const gk=glyphKey(m); if(b.gk!==gk){b.gk=gk; b.g.querySelector('.rot').innerHTML=G[gk];}}
     const orbit=b.g.querySelector('.orbit');
     if(orbit&&!m.endedBy&&!m.stale){
-      // A Shahed's real path is erratic, so it circles inside a ring that says "somewhere around here"
-      // instead of sitting on a point that would claim a precision nobody has. The orbit group turns; the
-      // .spin group inside it turns exactly the opposite way, at the same rate, so the airframe travels
-      // around the circle while staying nose up — an aircraft tumbling end over end is not a thing anybody
-      // should have to read on this map, and orientation carries no meaning here anyway.
-      const R=11*KPX; b.g.querySelector('.body').setAttribute('transform',`translate(${R.toFixed(2)} 0)`); b.g.querySelector('.rot').setAttribute('transform',`scale(${(gs*0.92).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r',R.toFixed(2));
-    }else if(orbit){ b.g.querySelectorAll('animateTransform').forEach(x=>x.remove()); orbit.removeAttribute('transform'); const sp=b.g.querySelector('.spin'); if(sp) sp.removeAttribute('transform'); b.g.querySelector('.body').setAttribute('transform',''); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
+      // A Shahed's real path is erratic, so it wanders a figure of eight inside a ring that says "somewhere
+      // around here" rather than sitting on a point that would claim a precision nobody has. animateMotion
+      // with rotate="auto" puts the nose on the tangent, so it banks into its own turns and flies its path
+      // the way an aircraft does.
+      //
+      // This is the one place a glyph turns, and it does not break the rule the rest of the map keeps: the
+      // REPORTED course is the chevron, which is still pinned to the heading from the post. Nobody reads a
+      // continuously flying aircraft as a stated bearing — what would be dishonest is a still glyph pointing
+      // somewhere nobody said, and that is exactly what does not happen here.
+      orbit.setAttribute('transform',`scale(${KPX.toFixed(3)})`);
+      b.g.querySelector('.rot').setAttribute('transform',`scale(${(gs/KPX*0.92).toFixed(2)}) rotate(90)`);
+      b.g.querySelector('.loiter').setAttribute('r',(LOITER_R*KPX).toFixed(2));
+    }else if(orbit){ b.g.querySelectorAll('animateMotion').forEach(x=>x.remove()); orbit.removeAttribute('transform'); const fl=b.g.querySelector('.fly'); if(fl) fl.removeAttribute('transform'); b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${(gs*(m.stale?0.8:1)).toFixed(2)})`); b.g.querySelector('.loiter').setAttribute('r','0'); }
     else b.g.querySelector('.rot').setAttribute('transform',`rotate(${upright()}) scale(${gs.toFixed(2)})`);
     const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.55*KPX).toFixed(2)})`);}else hdg.style.display='none';
     paintReach(b,m);          // how far a fast target could have travelled since it was last reported
