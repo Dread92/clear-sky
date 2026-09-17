@@ -19,6 +19,21 @@
   - `/api/corpus` and `/api/corpus/review` need `ADMIN_KEY`, like the rest of the dashboard.
   - The terminal `review` still exists and does the same thing; use whichever is in front of you.
 
+### Added
+- **The dashboard speaks Ukrainian.** An EN / UA switch in the corner, remembered per browser. Every label
+  lives in one table in both languages, the way the app's own strings do. The posts under review are
+  Ukrainian and whoever reviews them may not be — and somebody reviewing *in* Ukrainian should not have to
+  read an English interface to do it.
+- **A reading can now be checked against its source.** Each case in **Review readings** carries the original
+  post, an English translation, and a link straight to the post on Telegram. The list ships the offline
+  glossary so the panel is never empty, and the case actually on screen gets a real translation — once, cached,
+  with a *translate again* control, because a stored translation can be a glossary fallback too and nobody can
+  judge a reading against transliterated Ukrainian.
+- **`/api/version` answers "what is actually running".** It reports the app version, and the build id is now a
+  hash of the front-end and service **files' contents** rather than their timestamps — so the same id here and
+  in production means the same code, which was not previously a question anyone could settle without squinting
+  at a screenshot. A test pins the version in the page, the server and the changelog to each other.
+
 ### Changed
 - **One weapon, one symbol — and it never turns.** A rotating symbol has to point somewhere, so a target
   reported with no course forced a choice between inventing a heading and drawing a different icon for the
@@ -31,6 +46,8 @@
 - **An outcome with no place named no longer lands on the oblast centre.** "Київщина - вибухи" was drawn as a
   pin near Vasylkiv — a report about a whole region shown as an explosion in one village. The region is
   outlined and labelled instead; a label is not a position and cannot be mistaken for one.
+- **An explosion somewhere in a whole oblast clears after 5 minutes.** It says far less than a located one
+  and should not outstay it.
 - **An explosion disappears after 10 minutes, not 25.** A burst still drawn reads as still happening there,
   and during a raid the map filled with ones that had already finished. A fire keeps its hour.
 - **"Heading to your village" now has to come from the post.** It used to mean "the reported course passes

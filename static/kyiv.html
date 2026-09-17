@@ -990,7 +990,10 @@ function tick(){
   // An explosion is a moment, not a state. Left on the map for 25 minutes it read as "it is still going on
   // there", and during a raid the map filled with bursts that had already finished. Ten minutes, then it
   // belongs to the history layer — which is where you go to ask what happened, not what is happening.
-  const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?(m.status==='impact'?10:25):ttl));
+  // A burst somewhere in a whole oblast says far less than a located one and is worth even less for even
+  // less time: five minutes, against ten for one with a town named.
+  const outcomeTtl=m=>m.status!=='impact'?25:(m.place==='область'?5:10);
+  const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?outcomeTtl(m):ttl));
   // "Київщина - вибухи" names no town. Drawn as a pin it claimed the oblast centre, which for Kyiv oblast
   // is near Vasylkiv — so a report about the whole region read as an explosion in one village. These become
   // a mark on the region itself, handled below, and never a position.

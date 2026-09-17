@@ -14,6 +14,7 @@ Sources (all optional except at least one alert source):
 Standard library only. Optional: `pip install plyer` for OS desktop notifications.
 """
 import argparse
+import hashlib
 import html
 import json
 import math
@@ -252,20 +253,31 @@ def parse_iso(s):
         return None
 
 
+BUILD_FILES = ("static/kyiv.html", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
+
+
 def build_id():
     """A short id that changes whenever the front end or the service changes. An open page compares it with
-    the one it loaded and offers a reload — that is how someone running for three days on an old build finds out."""
-    h = 0
-    for rel in ("static/kyiv.html", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py"):
-        p = os.path.join(ROOT, rel)
+    the one it loaded and offers a reload — that is how someone running for three days on an old build finds out.
+
+    It hashes the CONTENT of those files, not their timestamps. Timestamps change on every container build even
+    when nothing did, and are different on two machines holding identical code — so the same id here and in
+    production means the same code here and in production, and that is a question worth being able to answer
+    without guessing at a screenshot."""
+    h = hashlib.sha1()
+    for rel in BUILD_FILES:
         try:
-            st = os.stat(p)
-            h = (h * 1000003 + int(st.st_mtime) ^ st.st_size) & 0xFFFFFFFF
+            with open(os.path.join(ROOT, rel), "rb") as f:
+                h.update(f.read())
         except OSError:
-            pass
-    return format(h, "08x")
+            h.update(b"?")
+        h.update(b"\0")
+    return h.hexdigest()[:8]
 
 
+# The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
+# running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
+APP_VERSION = "1.11"
 BUILD = None    # filled at startup
 
 
@@ -645,6 +657,19 @@ class Store:
     def feed_count(self):
         with self.lock:
             return self.conn.execute("SELECT COUNT(*) FROM feed").fetchone()[0]
+
+    def feed_find(self, channel, text):
+        """The stored post a corpus case was harvested from: its id (so the review panel can link to it on
+        Telegram) and the English text that was translated once, when it arrived. Matched on the exact text,
+        because that is the only thing a corpus case keeps. Returns (post_id, text_en) or (None, None)."""
+        text = (text or "").strip()
+        if not text:
+            return (None, None)
+        with self.lock:
+            row = self.conn.execute(
+                "SELECT post_id,text_en FROM feed WHERE channel=? AND text=? ORDER BY ts DESC LIMIT 1",
+                (channel, text)).fetchone()
+        return (row[0], row[1]) if row else (None, None)
 
     def feed_since(self, minutes, limit=200, translate=True):
         since = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
@@ -1928,8 +1953,26 @@ class Handler(BaseHTTPRequestHandler):
                                            for m in (geo.parse_for_channel(c["channel"], clean) or [])]}
                 except Exception as e:
                     reading = {"error": str(e)[:120], "tags": [], "markers": []}
+            # Reviewing a reading means judging it against what the post SAYS. Ukrainian is not the first
+            # language of everybody doing the reviewing, and a case with no way back to the source cannot be
+            # checked at all — so every case carries its English text and a link to the post it came from.
+            post_id, text_en = self.state.store.feed_find(c["channel"], c["text"])
+            en_src = "feed" if text_en else None
+            if not text_en:
+                cached = self.state.store.kv_get("corpus_en:" + c["id"])
+                if cached:
+                    text_en, en_src = cached, "online"
+            if not text_en and _tr:
+                try:
+                    # The glossary, not the network: this runs while somebody waits for the page, and 25 cases
+                    # at a third of a second each is not a page load. A proper translation for the one case on
+                    # screen is fetched separately by /api/corpus/translate.
+                    text_en, en_src = _tr.translate_offline(c["text"]), "offline"
+                except Exception:
+                    text_en = None
             out.append({"id": c["id"], "channel": c["channel"], "ts": c.get("ts", ""),
-                        "text": c["text"], "reading": reading})
+                        "text": c["text"], "text_en": text_en, "en_src": en_src,
+                        "post_id": post_id or c.get("post_id"), "reading": reading})
         return {"cases": out, "pending": total_pending, "reviewed": len(done)}
 
     def _flag(self, data):
@@ -2055,7 +2098,7 @@ class Handler(BaseHTTPRequestHandler):
                 lvl = st.missile_active()
                 # `missile` stays a boolean for any client still on an older build; `msl` carries the level.
                 return self._json({"v": f"{seq}-{st.store.feed_count()}", "now": now_iso(),
-                                   "missile": bool(lvl), "msl": lvl, "build": BUILD})
+                                   "missile": bool(lvl), "msl": lvl, "build": BUILD, "app": APP_VERSION})
             if u.path == "/api/stats":
                 return self._json(st.stats(int(q.get("days", ["14"])[0])))
             if u.path == "/api/impacts":
@@ -2123,6 +2166,31 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "bad review"}, 400)
                 st.store.corpus_review(cid, state, data.get("note"))
                 return self._json({"ok": True})
+            if u.path == "/api/corpus/translate":
+                # A real translation of the ONE case on screen. The list endpoint ships the offline glossary
+                # so the panel is never empty, and this replaces it for the case actually being judged —
+                # transliterated Ukrainian is not something anybody can review a reading against. One call per
+                # case, cached forever, and the offline text stands if the service is unreachable.
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                cid = str(data.get("id") or "")[:64]
+                text = str(data.get("text") or "")[:4000]
+                if not cid or not text:
+                    return self._json({"error": "bad request"}, 400)
+                key = "corpus_en:" + cid
+                cached = None if data.get("force") else st.store.kv_get(key)
+                if cached:
+                    return self._json({"text_en": cached, "en_src": "online"})
+                if not _tr:
+                    return self._json({"error": "no translator on this server"}, 503)
+                try:
+                    out = _tr.translate(text)
+                except Exception as e:
+                    return self._json({"error": str(e)[:120]}, 502)
+                if out and getattr(_tr, "LAST_OK", [False])[0]:
+                    st.store.kv_set(key, out)
+                    return self._json({"text_en": out, "en_src": "online"})
+                return self._json({"text_en": out, "en_src": "offline"})
             pu = getattr(st, "pusher", None)
             if not (pu and pu.enabled):
                 return self._json({"error": "push not available on this server (pip install cryptography)"}, 503)

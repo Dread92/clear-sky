@@ -119,14 +119,15 @@ def save(cases):
     os.replace(tmp, CORPUS)
 
 
-def add_case(cases, channel, text, ts=None, note=""):
+def add_case(cases, channel, text, ts=None, note="", post_id=None):
     text = (text or "").strip()[:MAX_TEXT]
     if not text:
         return None
     cid = case_id(channel, text)
     if any(c["id"] == cid for c in cases):
         return None
-    case = {"id": cid, "channel": channel, "ts": ts or "", "text": text,
+    # post_id is kept so a reviewer can open the source months later, after the feed has pruned the post
+    case = {"id": cid, "channel": channel, "ts": ts or "", "text": text, "post_id": post_id or "",
             "state": "pending", "note": note, "expect": project(channel, text)}
     cases.append(case)
     return case
@@ -153,7 +154,7 @@ def cmd_harvest(args):
             continue
         if per_channel.get(channel, 0) >= args.per_channel:
             continue
-        if add_case(cases, channel, text, ts):
+        if add_case(cases, channel, text, ts, post_id=_pid):
             per_channel[channel] = per_channel.get(channel, 0) + 1
     save(cases)
     added = len(cases) - before
