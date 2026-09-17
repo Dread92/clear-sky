@@ -20,17 +20,10 @@
   - The terminal `review` still exists and does the same thing; use whichever is in front of you.
 
 ### Added
-- **Five figures on the statistics tab that answer what people actually ask.** *When* it happens, as an
-  hour-of-day chart split by weapon — a Shahed night and a ballistic morning are not the same hours, and one
-  combined histogram said they were. *How much warning* the app gave over the official siren, as a median and
-  a p90, measured against its own record rather than claimed. *How long an alert lasts*, median and p90
-  instead of a mean dragged up by one nine-hour night. *How many days it has been quiet.* And *how often an
-  alert was followed by a reported impact* — allowed to come out low, because that is the answer.
-- **A sources table**: posts seen per channel, the share the app could read, and how many readers flagged as
-  wrong. That is what tells you which channel deserves to be believed first.
 - **The app keeps what it said, not only what it was told.** Markers are written as computed, with their
-  evidence, and outcomes get a table of their own. Without this, the map's history died with the feed and the
-  warning-time figure could not exist.
+  evidence, and outcomes get a table of their own, and a per-channel ledger counts posts seen, posts the app
+  could read and readings people flagged as wrong. Nothing reads these yet — the statistics built on them
+  were reverted — but the record only exists from the moment it starts being kept.
 
 ### Removed
 - **Siren-start and all-clear push notifications.** "Kyiv oblast — alert" says nothing anyone can act on, and

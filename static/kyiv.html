@@ -50,13 +50,6 @@ body.lite .ticker .tki{color:#fff}
 .slbl{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:12px}
 .srow{display:flex;gap:10px;font:500 12.5px var(--sans);padding:3px 0;border-bottom:1px solid var(--line)}.srow span{flex:1}.srow b{min-width:44px;text-align:right}
 .sfoot{font:11.5px var(--sans);color:var(--muted);margin-top:10px;line-height:1.35}
-/* hour-of-day, stacked by what it was — the one chart here that answers "when do I need to be near a shelter" */
-.hbars{display:flex;align-items:flex-end;gap:2px;height:86px;margin:4px 0 3px}
-.hbars .hb{flex:1;min-width:2px;display:flex;flex-direction:column-reverse;justify-content:flex-start;height:100%}
-.hbars .hb i{display:block;width:100%;border-radius:1px}
-.hax{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted)}
-.hkey{display:flex;gap:12px;flex-wrap:wrap;font:10.5px var(--mono);color:var(--muted);margin-top:6px}
-.hkey i{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:1px;vertical-align:-1px}
 /* a number the app counted is not a number of things that happened; the caveat sits under the figures,
    not at the bottom of a panel nobody scrolls to */
 .sfoot.warn{border-left:2px solid var(--ua-yellow);padding-left:8px;margin:6px 0 2px;color:#c9c3a8}
@@ -1623,41 +1616,11 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
   const ser=(d.series||[]).slice(-14); const mx=Math.max(1,...ser.map(x=>x.impacts||0));
   const chart=ser.length?`<div class="sbars">${ser.map(x=>`<div class="sb" title="${x.day}: ${x.impacts||0}" style="height:${Math.max(2,(x.impacts||0)/mx*100)}%;background:#ff5a4e"></div>`).join('')}</div>
     <div class="sdays">${ser.map((x,i)=>`<span>${(i===0||i===ser.length-1||i%5===0)?x.day.slice(5):''}</span>`).join('')}</div>`:'';
-  // ---- the five questions people actually ask ------------------------------------------------------
-  const mins=v=>v==null?'—':(v>=90?`${Math.floor(v/60)} h ${Math.round(v%60)} min`:`${Math.round(v)} min`);
-  // When: one bar per hour, stacked by what it was. A Shahed night and a ballistic morning are not the same
-  // hours, and a single combined histogram said they were.
-  const HB=d.hours_by_type||{}; const fam=[['drones','#ff8a3d'],['cruise','#ff5a5a'],['ballistic','#ffffff'],['kab','#c78bff']];
-  const hmax=Math.max(1,...Array.from({length:24},(_,h)=>fam.reduce((s,[k])=>s+((HB[k]||[])[h]||0),0)));
-  const anyH=fam.some(([k])=>(HB[k]||[]).some(v=>v));
-  const hourChart=anyH?`<div class="hbars">${Array.from({length:24},(_,h)=>{
-      const tot=fam.reduce((s,[k])=>s+((HB[k]||[])[h]||0),0);
-      return `<div class="hb" title="${h}:00 \u2014 ${tot}">${fam.map(([k,c])=>{const v=(HB[k]||[])[h]||0;
-        return v?`<i style="height:${(v/hmax*100).toFixed(1)}%;background:${c}"></i>`:'';}).join('')}</div>`;}).join('')}</div>
-    <div class="hax"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
-    <div class="hkey">${fam.map(([k,c])=>`<span><i style="background:${c}"></i>${esc(t('st_f_'+k))}</span>`).join('')}</div>`
-    : `<div class="sfoot">${esc(t('st_collecting'))}</div>`;
-  const LD=d.lead||{}, DU=d.duration||{}, QT=d.quiet_days||{}, AO=d.alert_outcome||{};
-  const five=`<div class="wtab">${head([t('st_median'),t('st_p90')])}
-    ${LD.median_min!=null?row(t('st_lead'),[mins(LD.median_min),mins(LD.p90_min)],'#a8f0cf')
-      :`<div class="srow"><span>${esc(t('st_lead'))}</span><b style="color:var(--ink3);min-width:auto">${esc(t('st_lead_wait',LD.n||0))}</b></div>`}
-    ${row(t('st_dur'),[mins(DU.median_min),mins(DU.p90_min)],'#ffd9d6')}
-    ${row(t('st_quiet'),[QT.streak==null?'\u2014':tn('st_days',QT.streak)+(QT.capped?'+':''),''],'#a8f0cf')}
-    ${AO.pct!=null?row(t('st_realrate'),[AO.pct+'%',`${AO.with_outcome}/${AO.alerts}`],'#ffd9d6')
-      :`<div class="srow"><span>${esc(t('st_realrate'))}</span><b style="color:var(--ink3)">\u2014</b></div>`}
-  </div>`;
-  const CHS=d.channels||[];
-  const chTable=CHS.length?`<div class="wtab">${head([t('st_ch_posts'),t('st_ch_read'),t('st_ch_flag')])}
-    ${CHS.slice(0,8).map(c=>`<div class="srow"><span>${esc(CH[c.channel]||c.channel)}</span><b>${c.posts}</b><b style="color:#a8f0cf">${c.posts?Math.round(c.with_marker/c.posts*100)+'%':'\u2014'}</b><b style="color:${c.flagged?'#ffb3ad':'var(--ink3)'}">${c.flagged||0}</b></div>`).join('')}</div>`:'';
   el.innerHTML=`<div class="card plain">
     ${impTable}
     <div class="slbl">${esc(t('st_launched'))}</div>${afTable}
-    <div class="slbl">${esc(t('st_when'))}</div>${hourChart}
-    <div class="slbl">${esc(t('st_five'))}</div>${five}
-    ${chTable?`<div class="slbl">${esc(t('st_ch'))}</div>${chTable}`:''}
     <div class="slbl">${esc(t('st_expl_day'))}</div>${chart}
-    <div class="sfoot">${esc(t('st_src'))}</div>
-    <div class="sfoot">${esc(t('st_note_new'))}</div></div>`;
+    <div class="sfoot">${esc(t('st_src'))}</div></div>`;
 }
 // =====================================================================================
 // Update notice, install prompt, support, sharing, blackout mode, proximity alerts
