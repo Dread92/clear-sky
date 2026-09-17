@@ -377,6 +377,49 @@ def cmd_flags(args):
     return 0
 
 
+def cmd_pull(args):
+    """Merge verdicts given on /admin back into the corpus file.
+
+    The corpus ships inside the deployed image, so a machine in Amsterdam cannot write to it. The reviewing
+    happens where the reviewer is — a browser, a phone — and the answers come home here.
+    """
+    db = args.db if os.path.isabs(args.db) else os.path.join(ROOT, args.db)
+    if not os.path.exists(db):
+        print(f"no database at {db} — copy it from the server, or pass --db")
+        return 1
+    conn = sqlite3.connect(db)
+    try:
+        rows = conn.execute("SELECT case_id,state,note FROM corpus_reviews").fetchall()
+    except sqlite3.OperationalError:
+        print("no reviews in that database yet")
+        conn.close()
+        return 0
+    conn.close()
+    verdicts = {r[0]: (r[1], r[2] or "") for r in rows}
+    cases = load()
+    applied, missing, changed = 0, 0, []
+    for c in cases:
+        v = verdicts.get(c["id"])
+        if not v or v[0] == c.get("state"):
+            continue
+        state, note = v
+        # a verdict is about the reading somebody SAW, so the expectation is re-recorded from today's code
+        c["expect"] = project(c["channel"], c["text"])
+        c["state"] = state
+        if note:
+            c["note"] = note
+        applied += 1
+        changed.append((state, c["channel"], " ".join((note or c["text"]).split())[:60]))
+    missing = len([k for k in verdicts if not any(c["id"] == k for c in cases)])
+    save(cases)
+    for state, ch, what in changed[:20]:
+        print(f"  {state:10} @{ch:22} {what}")
+    print(f"{applied} verdict(s) applied" + (f", {missing} for cases not in this corpus" if missing else ""))
+    if applied:
+        print("next: python scripts/corpus.py replay")
+    return 0
+
+
 def cmd_stats(args):
     cases = load()
     by_state, by_channel = {}, {}
@@ -425,6 +468,10 @@ def main():
     f.add_argument("--keep", action="store_true", help="do not mark them handled after importing")
     f.add_argument("--all", action="store_true", help="include ones already handled")
     f.set_defaults(fn=cmd_flags)
+
+    pl = sub.add_parser("pull", help="merge verdicts given on /admin back into the corpus")
+    pl.add_argument("--db", default="alerts.sqlite")
+    pl.set_defaults(fn=cmd_pull)
 
     s = sub.add_parser("stats", help="what is in the corpus")
     s.set_defaults(fn=cmd_stats)

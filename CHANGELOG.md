@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.11.0 — 2026-09-17
+
+### Added
+- **Reviewing the corpus from `/admin`, not from a terminal.** 260 captured cases were sitting there readable
+  only by `corpus.py review` on a command line — the third feature in two days whose capture step assumed a
+  keyboard that is not where the work happens. **Review readings** shows one post, what this build makes of
+  it, and three answers: correct · wrong (with a note) · skip. It works on a phone.
+  - The corpus file ships inside the deployed image and cannot be written from the server, so verdicts are
+    stored on the volume and merged back with `python scripts/corpus.py pull`.
+  - The reading shown is computed by the **running build**, not the one recorded at capture time — that is
+    what the reviewer is actually being asked to judge.
+  - `/api/corpus` and `/api/corpus/review` need `ADMIN_KEY`, like the rest of the dashboard.
+  - The terminal `review` still exists and does the same thing; use whichever is in front of you.
+
+### Fixed
+- **The device counter inflated itself at every restart.** The daily salt and the set of hashes seen under it
+  were rebuilt in memory at every process start, so each deploy, crash and auto-stop counted every returning
+  reader as somebody new — 62 "devices" for a handful of people. Both now live on the volume, keyed by day, and
+  yesterday's are destroyed when the day turns, which is what the privacy claim rests on. A restart no longer
+  recounts anybody; `tests/test_usage.py` pins it with four simulated restarts.
+- **"devices · 7 days" was a sum of daily counts, not a number of people** — somebody opening the app every day
+  for a week counted seven times. Renamed **device-days**, with a note saying why there is no unique-visitor
+  figure and why there cannot be one: the hash is regenerated every midnight precisely so the same person
+  cannot be recognised tomorrow. That is the cost of not tracking anybody.
+- **The dashboard said `UK` for Ukrainian.** UK is the United Kingdom; Ukraine is **UA**. The app had been
+  fixed long ago — the dashboard was building its label with a bare `toUpperCase()` on the language code.
+- The dashboard footer still told you to set `ACCESS_KEY`. It says `ADMIN_KEY`, and explains the difference.
+
 ## 1.10.1 — 2026-09-17
 
 ### Fixed (outage)

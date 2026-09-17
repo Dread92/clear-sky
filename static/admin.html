@@ -30,7 +30,11 @@ th{text-align:left;font:600 10.5px var(--mono);letter-spacing:.06em;text-transfo
 td{padding:6px 4px;border-bottom:1px solid var(--line);font-variant-numeric:tabular-nums}
 td.n{text-align:right;font-family:var(--mono)}
 .foot{color:var(--ink3);font:12px/1.5 var(--sans);margin-top:24px;border-top:1px solid var(--line);padding-top:12px}
+.note{color:var(--ink2);font:12px/1.55 var(--sans);border-left:2px solid var(--ua-yellow);padding-left:9px;margin:-8px 0 18px}
 .err{background:#3a1512;border-left:3px solid var(--red);padding:12px;font:13px var(--sans)}
+button.rv{border:1px solid var(--line);padding:9px 12px;font:600 12.5px var(--sans);cursor:pointer;border-radius:2px}
+button.rv:disabled{opacity:.45;cursor:default}
+#review .card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);padding:12px 14px}
 a{color:#8fb4ff}
 .lang span{display:inline-block;margin-right:12px;font:600 12px var(--mono)}
 </style>
@@ -45,7 +49,9 @@ a{color:#8fb4ff}
   that is thrown away and regenerated every midnight — so the same person cannot be followed from one day to the
   next, and no hash can be turned back into an address. No IP is stored. No location, no path through the app, no
   per-person history, nothing that identifies anybody. Only the daily totals on this page are kept.<br><br>
-  This page needs the access key and is not served at all unless <code>ACCESS_KEY</code> is set.
+  This page needs <code>ADMIN_KEY</code> and is not served at all unless it is set. <code>ADMIN_KEY</code>
+  protects this dashboard only — the map stays public. (<code>ACCESS_KEY</code> is the other one: it puts a
+  password box in front of the whole map, for a private deployment.)
 </div>
 <script>
 const $=i=>document.getElementById(i);
@@ -66,19 +72,27 @@ const fmt=n=>(n||0).toLocaleString('en-GB');
   $('out').innerHTML=`
     <div class="cards">
       <div class="card"><div class="v">${fmt(d.today_devices)}</div><div class="l">devices today</div></div>
-      <div class="card b"><div class="v">${fmt(sum(last7,'devices'))}</div><div class="l">devices · 7 days</div></div>
-      <div class="card b"><div class="v">${fmt(sum(last30,'devices'))}</div><div class="l">devices · 30 days</div></div>
+      <div class="card b"><div class="v">${fmt(sum(last7,'devices'))}</div><div class="l">device-days · 7 d</div></div>
+      <div class="card b"><div class="v">${fmt(sum(last30,'devices'))}</div><div class="l">device-days · 30 d</div></div>
       <div class="card g"><div class="v">${fmt(d.push_subs)}</div><div class="l">push subscribers</div></div>
       <div class="card o"><div class="v">${fmt(sum(last30,'loads'))}</div><div class="l">app opens · 30 d</div></div>
       <div class="card o"><div class="v">${fmt(sum(last30,'pwa'))}</div><div class="l">opened as an app</div></div>
     </div>
+
+    <div class="note">A <b>device-day</b> is one device on one day. Somebody who opens the app every day for a
+      week counts seven times, and that is on purpose: the daily hash is regenerated every midnight precisely so
+      the same person cannot be recognised tomorrow. There is no unique-visitor figure here and there cannot be
+      one — that is the cost of not tracking anybody, and it is worth it.</div>
 
     <h2>Devices per day</h2>
     <div class="bars">${days.map(x=>`<div class="b" style="height:${Math.max(2,(x.devices||0)/peak*100)}%" title="${x.day}: ${x.devices} devices, ${x.loads} opens"></div>`).join('')}</div>
     <div class="days"><span>${days[0]?days[0].day:''}</span><span>${days.length?days[days.length-1].day:''}</span></div>
 
     <h2>Language</h2>
-    <div class="lang">${['uk','en','fr'].map(l=>`<span>${l.toUpperCase()}: ${Math.round((langs[l]||0)/langTot*100)}% <span style="color:var(--ink3)">(${fmt(langs[l]||0)})</span></span>`).join('')}</div>
+    <div class="lang">${[['uk','UA'],['en','EN'],['fr','FR']].map(([l,code])=>`<span>${code}: ${Math.round((langs[l]||0)/langTot*100)}% <span style="color:var(--ink3)">(${fmt(langs[l]||0)})</span></span>`).join('')}</div>
+
+    <h2>Review readings</h2>
+    <div id="review">…</div>
 
     <h2>Flagged readings</h2>
     <div id="flags">…</div>
@@ -87,6 +101,76 @@ const fmt=n=>(n||0).toLocaleString('en-GB');
     <table><tr><th>Day</th><th style="text-align:right">Devices</th><th style="text-align:right">Opens</th><th style="text-align:right">Pings</th><th style="text-align:right">As app</th><th style="text-align:right">Blackout</th></tr>
       ${days.slice().reverse().map(x=>`<tr><td>${x.day}</td><td class="n">${fmt(x.devices)}</td><td class="n">${fmt(x.loads)}</td><td class="n">${fmt(x.pings)}</td><td class="n">${fmt(x.pwa)}</td><td class="n">${fmt(x.lite)}</td></tr>`).join('')}
     </table>`;
+  // Reviewing the corpus from a browser instead of a terminal. One post, what this build makes of it, and
+  // three answers. Verdicts are stored on the server and merged back into the repo by `corpus.py pull` —
+  // the corpus file itself ships inside the image and cannot be written here.
+  const KEYQ = location.search.includes('key=') ? '&' + location.search.slice(1) : '';
+  let QUEUE = [], LEFT = 0;
+  function drawReview(){
+    const box = $('review');
+    if(!QUEUE.length){
+      box.innerHTML = LEFT
+        ? '<div style="color:var(--ink3);font:13px var(--sans)">Loading…</div>'
+        : '<div style="color:var(--green);font:13px var(--sans)">Nothing left to review. '
+          + 'Run <code style="color:#8fb4ff">python scripts/corpus.py pull</code> to merge your answers into the repo.</div>';
+      return;
+    }
+    const c = QUEUE[0];
+    const r = c.reading || {markers:[],tags:[]};
+    const esc = t => String(t==null?'':t).replace(/[<>&]/g,'');
+    const marks = r.markers.length
+      ? r.markers.map(m => `<div style="font:600 13px var(--mono);color:${m.status?'#ffb3ad':'#8fb4ff'}">
+          ${esc(m.status||m.type)} · ${esc(m.place||'—')}${m.count?' ×'+m.count:''}${m.jet?' · jet':''}
+          ${m.likely?' · likely '+esc(m.likely):''} <span style="color:var(--ink3)">· ${esc(m.conf)} confidence</span></div>`).join('')
+      : '<div style="font:600 13px var(--mono);color:var(--ink3)">no marker</div>';
+    box.innerHTML = `
+      <div style="color:var(--ink3);font:12px var(--mono);margin-bottom:8px">${LEFT} left · @${esc(c.channel)} · ${esc((c.ts||'').slice(0,16).replace('T',' '))}</div>
+      <div class="card" style="border-left-color:var(--blue)">
+        <div style="font:13px/1.5 var(--sans);white-space:pre-wrap">${esc(c.text).slice(0,700)}</div>
+      </div>
+      <div class="card" style="border-left-color:var(--ua-yellow);margin-top:8px">
+        <div style="font:600 10.5px var(--mono);letter-spacing:.08em;color:var(--ink3);margin-bottom:6px">WHAT THE APP MAKES OF IT</div>
+        ${marks}
+        <div style="font:11px var(--mono);color:var(--ink3);margin-top:6px">tags: ${r.tags.join(', ')||'—'}</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+        <button class="rv" data-v="verified" style="background:#123020;border-color:var(--green);color:#c9f2da">✓ Correct — enforce it</button>
+        <button class="rv" data-v="known_bad" style="background:#3a1512;border-color:var(--red);color:#ffd6d6">✗ Wrong — record it as a bug</button>
+        <button class="rv" data-v="skip" style="background:transparent;color:var(--ink3)">Skip</button>
+      </div>
+      <div style="color:var(--ink3);font:11.5px/1.5 var(--sans);margin-top:8px">
+        The question is not whether the app did something reasonable — it is whether that is what the post
+        actually says. When unsure, skip.</div>`;
+    box.querySelectorAll('.rv').forEach(b => b.onclick = async () => {
+      const v = b.dataset.v;
+      box.querySelectorAll('.rv').forEach(x => x.disabled = true);
+      if(v !== 'skip'){
+        let note = '';
+        if(v === 'known_bad'){ note = prompt('What is wrong with it?') || ''; }
+        try{
+          await fetch('/api/corpus/review' + (KEYQ ? '?' + KEYQ.slice(1) : ''), {method:'POST',
+            headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:c.id, state:v, note})});
+          LEFT = Math.max(0, LEFT - 1);
+        }catch(e){ /* keep it in the queue if it could not be saved */ }
+      }
+      QUEUE.shift();
+      if(QUEUE.length < 3 && LEFT > QUEUE.length) loadReview(true);
+      drawReview();
+    });
+  }
+  async function loadReview(more){
+    try{
+      const r = await fetch('/api/corpus?limit=25' + KEYQ);
+      const d = await r.json();
+      if(d.error){ $('review').innerHTML = '<div class="err">' + d.error + '</div>'; return; }
+      LEFT = d.pending || 0;
+      const have = new Set(QUEUE.map(c => c.id));
+      (d.cases || []).forEach(c => { if(!have.has(c.id)) QUEUE.push(c); });
+      if(!more) drawReview();
+    }catch(e){ $('review').innerHTML = '<div class="err">could not load the corpus</div>'; }
+  }
+  loadReview();
+
   // Markers somebody using the map said were wrong. Nothing here identifies who: the post, the reading and
   // what they said about it, and that is all that was ever stored.
   try{

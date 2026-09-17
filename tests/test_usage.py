@@ -32,11 +32,37 @@ def test_no_address_is_ever_stored():
 
 def test_the_salt_changes_with_the_day_so_devices_cannot_be_linked_across_days():
     u = _usage()
-    u.hit("1.2.3.4", "A", "load")
-    first = u.salt
-    u.day = "1999-01-01"          # pretend the day rolled over
-    u.hit("1.2.3.4", "A", "load")
-    assert u.salt != first and u.seen != set()
+    a = u._salt_for("1999-01-01")
+    b = u._salt_for("1999-01-02")
+    assert a != b
+
+
+def test_yesterdays_salt_and_hashes_are_destroyed():
+    """That destruction is the whole privacy claim: once the salt is gone, the day's hashes mean nothing."""
+    u = _usage()
+    u._salt_for("1999-01-01")
+    u.store.conn.execute("INSERT INTO usage_seen(day,h) VALUES('1999-01-01','deadbeef')")
+    u.store.conn.commit()
+    u._salt_for("1999-01-02")
+    left = u.store.conn.execute("SELECT COUNT(*) FROM usage_seen WHERE day='1999-01-01'").fetchone()[0]
+    salts = u.store.conn.execute("SELECT COUNT(*) FROM kv WHERE k LIKE 'usage_salt:%'").fetchone()[0]
+    assert left == 0 and salts == 1
+
+
+def test_a_restart_does_not_recount_the_same_people():
+    """This is what put 62 "devices" on the dashboard for a handful of readers: the salt and the seen-set
+    were rebuilt at every process start, so every deploy and every auto-stop counted everybody again."""
+    store = server.Store(":memory:")
+    u1 = server.Usage(store)
+    for ip in ("1.1.1.1", "2.2.2.2", "3.3.3.3"):
+        u1.hit(ip, "A", "load")
+    assert u1.report()["days"][0]["devices"] == 3
+
+    for _ in range(4):                       # four restarts, same three readers coming back
+        u = server.Usage(store)
+        for ip in ("1.1.1.1", "2.2.2.2", "3.3.3.3"):
+            u.hit(ip, "A", "load")
+    assert u.report()["days"][0]["devices"] == 3
 
 
 def test_counting_never_breaks_the_app():

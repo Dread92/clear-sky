@@ -280,7 +280,7 @@ class Usage:
         self.store = store
         self.lock = threading.Lock()
         self.day = None
-        self.salt = os.urandom(16)
+        self.salt = None
         self.seen = set()          # hashes seen today, in memory only, dropped at midnight
         # Pings are counted in memory and written in batches. During a ballistic alert every client pings once
         # a second: one committed transaction per ping would put thousands of writes a second through a single
@@ -291,6 +291,12 @@ class Usage:
             store.conn.execute("""CREATE TABLE IF NOT EXISTS usage(
                 day TEXT PRIMARY KEY, devices INTEGER, loads INTEGER, pings INTEGER,
                 lang TEXT, pwa INTEGER, lite INTEGER)""")
+            # The day's salt and the hashes seen under it have to OUTLIVE THE PROCESS. They used to be a
+            # fresh random salt and an empty set at every start, so every deploy, every crash and every
+            # auto-stop/start counted the same three people again — 62 "devices" out of a handful of readers.
+            # A counter that inflates itself is a counter that says nothing, and this one sits on a dashboard
+            # next to figures that are carefully honest about what they count.
+            store.conn.execute("CREATE TABLE IF NOT EXISTS usage_seen(day TEXT, h TEXT, PRIMARY KEY(day,h))")
             store.conn.commit()
 
     def _roll(self):
@@ -299,8 +305,37 @@ class Usage:
             if self.day is not None and self.pending:
                 self._flush(self.day, self.pending)          # yesterday's tail is not thrown away
                 self.pending = 0
-            self.day, self.seen, self.salt = d, set(), os.urandom(16)   # new day, new salt: no linking across days
+            self.day = d
+            self.salt = self._salt_for(d)
+            self.seen = self._seen_for(d)
         return d
+
+    def _salt_for(self, day):
+        """One salt per day, kept only for that day. New day, new salt: nobody can be followed across days."""
+        import binascii
+        k = f"usage_salt:{day}"
+        cur = self.store.kv_get(k)
+        if cur:
+            try:
+                return binascii.unhexlify(cur)
+            except Exception:
+                pass
+        salt = os.urandom(16)
+        self.store.kv_set(k, binascii.hexlify(salt).decode())
+        with self.store.lock:
+            # yesterday's salt and hashes are destroyed, which is what makes the daily hash un-followable
+            self.store.conn.execute("DELETE FROM kv WHERE k LIKE 'usage_salt:%' AND k<>?", (k,))
+            self.store.conn.execute("DELETE FROM usage_seen WHERE day<>?", (day,))
+            self.store.conn.commit()
+        return salt
+
+    def _seen_for(self, day):
+        with self.store.lock:
+            try:
+                rows = self.store.conn.execute("SELECT h FROM usage_seen WHERE day=?", (day,)).fetchall()
+            except sqlite3.OperationalError:
+                return set()
+        return {r[0] for r in rows}
 
     def _flush(self, day, n):
         with self.store.lock:
@@ -319,6 +354,12 @@ class Usage:
                 new = h not in self.seen
                 if new:
                     self.seen.add(h)
+                    try:
+                        with self.store.lock:
+                            self.store.conn.execute("INSERT OR IGNORE INTO usage_seen(day,h) VALUES(?,?)", (day, h))
+                            self.store.conn.commit()
+                    except Exception:
+                        pass
                 if kind != "load":
                     self.pending += 1
                     now = time.time()
@@ -514,6 +555,27 @@ class Store:
                 return []                          # nobody has flagged anything yet
         keys = ("id", "ts", "post_id", "channel", "marker_id", "place", "kind", "reason", "note", "text", "done")
         return [dict(zip(keys, r)) for r in rows]
+
+    # -- corpus review verdicts ---------------------------------------------
+    # The corpus itself is a repo file, shipped inside the image and read-only here: anything written to it on
+    # a deployed machine would vanish on the next release. So the verdicts live on the volume instead, and get
+    # merged back into the repo by `corpus.py pull`. That keeps the reviewing where the reviewer actually is —
+    # a phone, in a browser — without pretending the container is the source of truth.
+    def corpus_review(self, case_id, state, note=""):
+        with self.lock:
+            self.conn.execute("""CREATE TABLE IF NOT EXISTS corpus_reviews(
+                case_id TEXT PRIMARY KEY, state TEXT, note TEXT, ts TEXT)""")
+            self.conn.execute("INSERT OR REPLACE INTO corpus_reviews(case_id,state,note,ts) VALUES(?,?,?,?)",
+                              (case_id, state, (note or "")[:300], now_iso()))
+            self.conn.commit()
+
+    def corpus_reviews(self):
+        with self.lock:
+            try:
+                rows = self.conn.execute("SELECT case_id,state,note,ts FROM corpus_reviews").fetchall()
+            except sqlite3.OperationalError:
+                return {}
+        return {r[0]: {"state": r[1], "note": r[2], "ts": r[3]} for r in rows}
 
     def flag_done(self, ids):
         with self.lock:
@@ -1826,6 +1888,48 @@ class Handler(BaseHTTPRequestHandler):
 
     # A marker somebody says is wrong. The whole point is that this costs one tap while looking at the map:
     # capture that is any harder than noticing simply does not happen during a raid.
+    _corpus_cache = None
+
+    def _corpus_pending(self, limit=30):
+        """Cases nobody has ruled on yet, with what this build makes of them."""
+        cls = type(self)
+        if cls._corpus_cache is None:
+            cases = []
+            path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "tests", "corpus", "cases.jsonl")
+            try:
+                with open(path, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line:
+                            cases.append(json.loads(line))
+            except Exception:
+                cases = []
+            cls._corpus_cache = cases
+        done = self.state.store.corpus_reviews()
+        out, total_pending = [], 0
+        for c in cls._corpus_cache:
+            if c.get("state") != "pending" or c["id"] in done:
+                continue
+            total_pending += 1
+            if len(out) >= limit:
+                continue
+            reading = None
+            if geo:
+                try:
+                    clean = _clean_post(c["text"])
+                    reading = {"tags": sorted(tag_feed_text(clean, c["channel"])),
+                               "markers": [{"status": m.get("status"), "type": m.get("type"),
+                                            "place": m.get("place"), "count": m.get("count"),
+                                            "jet": bool(m.get("jet")), "likely": m.get("likely"),
+                                            "conf": ((m.get("evidence") or {}).get("position") or {}).get("confidence")}
+                                           for m in (geo.parse_for_channel(c["channel"], clean) or [])]}
+                except Exception as e:
+                    reading = {"error": str(e)[:120], "tags": [], "markers": []}
+            out.append({"id": c["id"], "channel": c["channel"], "ts": c.get("ts", ""),
+                        "text": c["text"], "reading": reading})
+        return {"cases": out, "pending": total_pending, "reviewed": len(done)}
+
     def _flag(self, data):
         st = self.state
         mid = str(data.get("marker") or "")[:120]
@@ -1967,6 +2071,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"events": st.store.events(int(q.get("limit", ["200"])[0]))})
             # Flagged readings are yours alone, on the same terms as the dashboard: they quote posts and
             # somebody's opinion of them, and neither belongs on an open endpoint.
+            # The corpus, for reviewing from a browser instead of a terminal. The reading shown is computed
+            # by THIS build, not the one recorded when the case was captured, because that is what the
+            # reviewer is being asked to judge.
+            if u.path == "/api/corpus":
+                if not self._admin_ok(q):
+                    return self._json({"error": "set ADMIN_KEY to review the corpus"}, 403)
+                return self._json(self._corpus_pending(int(q.get("limit", ["30"])[0])))
             if u.path == "/api/flags":
                 if not self._admin_ok(q):
                     return self._json({"error": "set ADMIN_KEY to read flagged readings"}, 403)
@@ -2002,6 +2113,14 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
             if u.path == "/api/flag":
                 return self._flag(data)
+            if u.path == "/api/corpus/review":
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                cid, state = str(data.get("id") or "")[:64], str(data.get("state") or "")
+                if not cid or state not in ("verified", "known_bad", "pending"):
+                    return self._json({"error": "bad review"}, 400)
+                st.store.corpus_review(cid, state, data.get("note"))
+                return self._json({"ok": True})
             pu = getattr(st, "pusher", None)
             if not (pu and pu.enabled):
                 return self._json({"error": "push not available on this server (pip install cryptography)"}, 503)

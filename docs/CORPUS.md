@@ -50,6 +50,21 @@ midnight and cannot be reversed.
 That also means the people using this map — the ones who know the ground far better than any parser does — are
 the ones finding the misreads, instead of one person checking a map alone.
 
+## Reviewing: on /admin, not in a terminal
+
+The 260-odd pending cases are reviewed from the browser, under **Review readings** on `/admin`. One post, what
+this build makes of it, and three answers: *correct*, *wrong* (with a note), *skip*. It works on a phone.
+
+The corpus file ships inside the deployed image and cannot be written from a machine in Amsterdam, so the
+verdicts are stored on the volume and come home with:
+
+```bash
+python scripts/corpus.py pull      # merge the verdicts into tests/corpus/cases.jsonl
+python scripts/corpus.py replay
+```
+
+`review` in the terminal still exists and does the same thing; use whichever is in front of you.
+
 ## Day to day
 
 ```bash
