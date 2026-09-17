@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.10.0 — 2026-09-17
+
+### Added
+- **A ⚑ button on every marker: "this reading is wrong".** The person who notices a bad marker is holding a
+  phone, looking at the map, during a raid. Every capture path that needed a terminal was a capture path that
+  never happened, so the corpus was only ever going to be fed by one person with a keyboard. Now it is one tap:
+  pick what is wrong (wrong place · wrong threat type · not a threat at all · already gone · something else),
+  add a line if you want, send.
+  - It changes **nothing** on the map, and says so on the confirmation. A button that silently moved markers
+    would be a way to lie to everyone else looking at the same screen.
+  - Flags appear on `/admin` under **Flagged readings**, with the original post beside the complaint, and
+    become regression cases with `python scripts/corpus.py flags --import`.
+  - **Nothing identifying is stored**: the post, the reading, the reason, the optional note. No address, no
+    location. The 40-a-day rate limit reuses the usage counter's throwaway daily hash — regenerated every
+    midnight, not reversible, never returned by the API.
+  - `/api/flags` needs `ACCESS_KEY` and refuses to serve anything when none is set, like the dashboard.
+  - EN / UA / FR.
+
+The point of this one is not the feature. It is that the people reading this map know the ground far better
+than any parser does, and until now there was no way for them to say so.
+
 ## 1.9.1 — 2026-09-17
 
 ### Fixed (safety)

@@ -26,6 +26,30 @@ gets noticed and promoted instead of forgotten.
 Even a pending case earns its keep: the press release that closed a live track showed up as drift in two
 channels before anyone had labelled it.
 
+## Where cases actually come from
+
+Not a terminal. The person who notices a wrong marker is holding a phone, looking at the map, during a raid —
+and a capture step that needs a command line is a capture step that never happens.
+
+So the primary path is the **⚑ button on every marker**. Tap it, pick what is wrong (wrong place, wrong threat
+type, not a threat at all, already gone, something else), optionally add a line, send. It changes **nothing** on
+the map and says so — a button that silently moved markers would be a way to lie to everyone else looking at
+the same screen. It files the post for review.
+
+Flags land on `/admin` under **Flagged readings**, and become corpus cases with:
+
+```bash
+python scripts/corpus.py flags            # read them
+python scripts/corpus.py flags --import   # turn them into pending cases, mark them handled
+```
+
+Nothing identifying is stored: the post, the reading, the reason, the optional note. No address, no location.
+The rate limit (40 a day) uses the same throwaway daily hash as the usage counter, which is regenerated every
+midnight and cannot be reversed.
+
+That also means the people using this map — the ones who know the ground far better than any parser does — are
+the ones finding the misreads, instead of one person checking a map alone.
+
 ## Day to day
 
 ```bash

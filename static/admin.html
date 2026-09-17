@@ -80,10 +80,34 @@ const fmt=n=>(n||0).toLocaleString('en-GB');
     <h2>Language</h2>
     <div class="lang">${['uk','en','fr'].map(l=>`<span>${l.toUpperCase()}: ${Math.round((langs[l]||0)/langTot*100)}% <span style="color:var(--ink3)">(${fmt(langs[l]||0)})</span></span>`).join('')}</div>
 
+    <h2>Flagged readings</h2>
+    <div id="flags">…</div>
+
     <h2>Daily detail</h2>
     <table><tr><th>Day</th><th style="text-align:right">Devices</th><th style="text-align:right">Opens</th><th style="text-align:right">Pings</th><th style="text-align:right">As app</th><th style="text-align:right">Blackout</th></tr>
       ${days.slice().reverse().map(x=>`<tr><td>${x.day}</td><td class="n">${fmt(x.devices)}</td><td class="n">${fmt(x.loads)}</td><td class="n">${fmt(x.pings)}</td><td class="n">${fmt(x.pwa)}</td><td class="n">${fmt(x.lite)}</td></tr>`).join('')}
     </table>`;
+  // Markers somebody using the map said were wrong. Nothing here identifies who: the post, the reading and
+  // what they said about it, and that is all that was ever stored.
+  try{
+    const fr = await fetch('/api/flags?limit=100' + (location.search.includes('key=') ? '&' + location.search.slice(1) : ''));
+    const fd = await fr.json();
+    const fl = fd.flags || [];
+    const REASON = {place:'wrong place', type:'wrong threat type', not_a_threat:'not a threat — news / announcement',
+                    already_gone:'already gone / shot down', other:'something else'};
+    $('flags').innerHTML = fl.length ? `
+      <div style="color:var(--ink3);font:12px var(--sans);margin-bottom:10px">
+        ${fl.length} open. To turn them into regression cases:
+        <code style="color:#8fb4ff">python scripts/corpus.py flags --import</code>
+      </div>` + fl.map(f => `
+      <div class="card" style="border-left-color:var(--orange);margin-bottom:8px">
+        <div style="font:600 12px var(--mono);color:var(--orange)">${(REASON[f.reason]||f.reason).toUpperCase()}
+          <span style="color:var(--ink3);font-weight:400"> · @${f.channel||'?'} · ${(f.ts||'').replace('T',' ').replace('Z','')} · ${f.place||''} ${f.kind||''}</span></div>
+        ${f.note ? `<div style="font:500 13px var(--sans);margin-top:6px">"${f.note.replace(/[<>&]/g,'')}"</div>` : ''}
+        <div style="font:12px/1.45 var(--sans);color:var(--ink2);margin-top:6px;white-space:pre-wrap">${(f.text||'').slice(0,320).replace(/[<>&]/g,'')}</div>
+      </div>`).join('')
+      : '<div style="color:var(--ink3);font:12px var(--sans)">Nothing flagged. The ⚑ button on any marker files one.</div>';
+  }catch(e){ $('flags').innerHTML = '<div class="err">could not load flagged readings</div>'; }
 })();
 </script>
 </body>

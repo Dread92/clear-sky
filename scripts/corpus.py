@@ -323,6 +323,60 @@ def cmd_review(args):
     return 0
 
 
+def cmd_flags(args):
+    """Readings people flagged as wrong from inside the app, turned into corpus cases.
+
+    This is the path that actually gets used: somebody taps a marker on their phone during a raid, says what
+    is wrong with it, and the post lands here. No terminal involved at the moment that matters.
+    """
+    db = args.db if os.path.isabs(args.db) else os.path.join(ROOT, args.db)
+    if not os.path.exists(db):
+        print(f"no database at {db}")
+        return 1
+    conn = sqlite3.connect(db)
+    try:
+        rows = conn.execute("SELECT id,ts,channel,reason,note,text,done FROM flags ORDER BY id DESC "
+                            "LIMIT ?", (args.limit,)).fetchall()
+    except sqlite3.OperationalError:
+        print("nobody has flagged anything yet")
+        conn.close()
+        return 0
+    open_rows = [r for r in rows if not r[6] or args.all]
+    if not open_rows:
+        print("no open flags")
+        conn.close()
+        return 0
+    if not args.import_:
+        for _id, ts, ch, reason, note, text, done in open_rows:
+            print("=" * 78)
+            print(f"#{_id}  {reason}  @{ch}  {ts[:16]}{'  (done)' if done else ''}")
+            if note:
+                print(f'  "{note}"')
+            print(f"  {(text or '')[:200]}")
+        print("=" * 78)
+        print(f"{len(open_rows)} open flag(s). --import turns them into pending corpus cases.")
+        conn.close()
+        return 0
+    cases = load()
+    added, ids = 0, []
+    for _id, ts, ch, reason, note, text, _done in open_rows:
+        if not text:
+            continue
+        c = add_case(cases, ch, text, ts, note=f"flagged: {reason}" + (f" — {note}" if note else ""))
+        ids.append(_id)
+        if c:
+            added += 1
+    save(cases)
+    if ids and not args.keep:
+        conn.executemany("UPDATE flags SET done=1 WHERE id=?", [(i,) for i in ids])
+        conn.commit()
+    conn.close()
+    print(f"+{added} pending case(s) from {len(ids)} flag(s)")
+    if added:
+        print("next: python scripts/corpus.py review")
+    return 0
+
+
 def cmd_stats(args):
     cases = load()
     by_state, by_channel = {}, {}
@@ -363,6 +417,14 @@ def main():
     p = sub.add_parser("replay", help="re-parse every case and report what changed")
     p.add_argument("--all", action="store_true", help="also list pending drift")
     p.set_defaults(fn=cmd_replay)
+
+    f = sub.add_parser("flags", help="readings people flagged as wrong from inside the app")
+    f.add_argument("--db", default="alerts.sqlite")
+    f.add_argument("--limit", type=int, default=200)
+    f.add_argument("--import", dest="import_", action="store_true", help="turn them into pending cases")
+    f.add_argument("--keep", action="store_true", help="do not mark them handled after importing")
+    f.add_argument("--all", action="store_true", help="include ones already handled")
+    f.set_defaults(fn=cmd_flags)
 
     s = sub.add_parser("stats", help="what is in the corpus")
     s.set_defaults(fn=cmd_stats)

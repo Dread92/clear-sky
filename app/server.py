@@ -479,6 +479,47 @@ class Store:
             rows = self.conn.execute("SELECT endpoint,sub,home FROM push_subs").fetchall()
         return [{"endpoint": r[0], "sub": json.loads(r[1]), "home": json.loads(r[2] or "{}")} for r in rows]
 
+    # -- flagged readings ---------------------------------------------------
+    # The map is read by people who know the ground far better than any parser does. When one of them sees a
+    # marker that is wrong, the cheapest possible way to capture it is a button on the marker itself — a
+    # workflow that needs a terminal is a workflow that never happens during a raid. What is stored is the
+    # post, the reading, and what the person said was wrong with it. Never who they are: no address, no
+    # location, and the daily hash that rate-limits them is the same throwaway one the usage counter uses.
+    def flag_add(self, row):
+        with self.lock:
+            self.conn.execute("""CREATE TABLE IF NOT EXISTS flags(
+                id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT, post_id TEXT, channel TEXT, marker_id TEXT,
+                place TEXT, kind TEXT, reason TEXT, note TEXT, day_hash TEXT, text TEXT, done INTEGER DEFAULT 0)""")
+            n_today = self.conn.execute(
+                "SELECT COUNT(*) FROM flags WHERE day_hash=? AND ts>=?",
+                (row.get("day_hash") or "", row["ts"][:10])).fetchone()[0]
+            if n_today >= 40:                      # one device cannot flood it; 40 a day is far past honest use
+                return False
+            self.conn.execute(
+                "INSERT INTO flags(ts,post_id,channel,marker_id,place,kind,reason,note,day_hash,text) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (row["ts"], row.get("post_id"), row.get("channel"), row.get("marker_id"), row.get("place"),
+                 row.get("kind"), row.get("reason"), (row.get("note") or "")[:400], row.get("day_hash"),
+                 (row.get("text") or "")[:1500]))
+            self.conn.commit()
+        return True
+
+    def flags(self, limit=200, include_done=False):
+        with self.lock:
+            try:
+                q = ("SELECT id,ts,post_id,channel,marker_id,place,kind,reason,note,text,done FROM flags "
+                     + ("" if include_done else "WHERE done=0 ") + "ORDER BY id DESC LIMIT ?")
+                rows = self.conn.execute(q, (limit,)).fetchall()
+            except sqlite3.OperationalError:
+                return []                          # nobody has flagged anything yet
+        keys = ("id", "ts", "post_id", "channel", "marker_id", "place", "kind", "reason", "note", "text", "done")
+        return [dict(zip(keys, r)) for r in rows]
+
+    def flag_done(self, ids):
+        with self.lock:
+            self.conn.executemany("UPDATE flags SET done=1 WHERE id=?", [(int(i),) for i in ids])
+            self.conn.commit()
+
     def upsert_alert(self, a):
         with self.lock:
             self.conn.execute("""INSERT INTO alerts(key,source,location_uid,location_title,location_title_en,location_type,
@@ -1783,6 +1824,41 @@ class Handler(BaseHTTPRequestHandler):
         fwd = self.headers.get("X-Forwarded-For") or ""
         return (fwd.split(",")[0].strip() if fwd else (self.client_address[0] if self.client_address else ""))
 
+    # A marker somebody says is wrong. The whole point is that this costs one tap while looking at the map:
+    # capture that is any harder than noticing simply does not happen during a raid.
+    def _flag(self, data):
+        st = self.state
+        mid = str(data.get("marker") or "")[:120]
+        post_id = mid.split("#")[0] if "#" in mid else (str(data.get("post_id") or "")[:120] or None)
+        reason = str(data.get("reason") or "other")[:32]
+        if reason not in ("place", "type", "not_a_threat", "already_gone", "other"):
+            reason = "other"
+        text, channel = "", str(data.get("channel") or "")[:64]
+        if post_id:
+            try:
+                with st.store.lock:
+                    row = st.store.conn.execute("SELECT channel,text FROM feed WHERE post_id=?", (post_id,)).fetchone()
+                if row:
+                    channel, text = row[0], row[1]
+            except Exception:
+                pass
+        usage = getattr(st, "usage", None)
+        day_hash = ""
+        if usage:
+            try:
+                import hashlib
+                with usage.lock:
+                    usage._roll()
+                    day_hash = hashlib.blake2s(
+                        usage.salt + (self._peer_ip() or "").encode()
+                        + (self.headers.get("User-Agent") or "")[:120].encode(), digest_size=8).hexdigest()
+            except Exception:
+                day_hash = ""
+        ok = st.store.flag_add({"ts": now_iso(), "post_id": post_id, "channel": channel, "marker_id": mid,
+                                "place": str(data.get("place") or "")[:80], "kind": str(data.get("kind") or "")[:40],
+                                "reason": reason, "note": data.get("note"), "day_hash": day_hash, "text": text})
+        return self._json({"ok": bool(ok)})
+
     def _authorized(self, u, q):
         key = self.state.cfg.get("access_key") or os.environ.get("ACCESS_KEY") or ""
         if not key:
@@ -1862,6 +1938,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"alerts": st.store.history(hours, obl.split(",") if obl else None)})
             if u.path == "/api/events_log":
                 return self._json({"events": st.store.events(int(q.get("limit", ["200"])[0]))})
+            # Flagged readings are yours alone, on the same terms as the dashboard: they quote posts and
+            # somebody's opinion of them, and neither belongs on an open endpoint.
+            if u.path == "/api/flags":
+                if not (st.cfg.get("access_key") or os.environ.get("ACCESS_KEY")):
+                    return self._json({"error": "set ACCESS_KEY to read flagged readings"}, 403)
+                return self._json({"flags": st.store.flags(int(q.get("limit", ["200"])[0]),
+                                                           include_done=q.get("done", ["0"])[0] == "1")})
             if u.path == "/api/stream":
                 return self._stream()
             if u.path == "/sw.js":
@@ -1890,6 +1973,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             n = int(self.headers.get("Content-Length") or 0)
             data = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
+            if u.path == "/api/flag":
+                return self._flag(data)
             pu = getattr(st, "pusher", None)
             if not (pu and pu.enabled):
                 return self._json({"error": "push not available on this server (pip install cryptography)"}, 503)

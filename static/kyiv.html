@@ -119,6 +119,9 @@ svg#map{display:block;width:100%;height:100%}
 button.chip{cursor:pointer;font-family:var(--mono)}button.chip:hover{border-color:var(--ink3)}
 .livebar .chip.fire{color:#ffc48a;border-color:#4a3418}.livebar .chip.dmg{color:#f0b8b1;border-color:#4a2420}
 .repwin{display:flex;align-items:center;gap:6px;margin:8px 0}.repwin span{font:600 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink3);margin-right:auto}
+.grow.flagr{cursor:pointer;border-left-color:var(--ua-yellow)}
+.grow.flagr.on{background:#2a2410;border-color:var(--ua-yellow)}
+#flagnote{width:100%;margin-top:8px;padding:8px 9px;background:#12151b;border:1px solid var(--line);color:var(--ink);font:500 13px var(--sans)}
 .grow.rep{cursor:default}.grow.rep.down{border-left-color:#39d98a}.grow.rep.fire{border-left-color:#ff9a3c}.grow.rep.damage{border-left-color:#c2564a}
 .livebar .chip.red{color:#ffd9d6;border-color:#6a2a26}.livebar .chip.orange{color:#ffc9a3}.livebar .chip.green{color:#c9f2da}.livebar .chip.yellow{color:#ffefa8}.livebar .chip.blue{color:#bcd5ff}
 .livebar .chip b{font-weight:600}
@@ -494,7 +497,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.9.1</div>
+    <div class="mi bt" id="buildtag">v1.10</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -1127,7 +1130,7 @@ function openSheet(id){
       <div style="font-size:11px;color:var(--muted);margin-top:6px">${t('sh_note',STALE)}</div>
     </details>
     ${alt?`<div class="kv1 muted" style="font-size:11.5px">${esc(alt.state?(ALTL[alt.state]||alt.state):(alt.m+' m'))}: “${esc(alt.matched)}” — ${esc(t('alt_src'))}</div>`:''}
-    <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end"><button class="tgl" id="shbtn">${t('share_btn')}</button><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
+    <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end"><button class="tgl" id="flagbtn" data-fid="${esc(m.id)}">${t('flag_btn')}</button><button class="tgl" id="shbtn">${t('share_btn')}</button><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
   $('shbtn').onclick=()=>shareMarker(m.id,$('shbtn'));
   $('sheet').classList.add('show');
 }
@@ -1322,7 +1325,7 @@ function openImpact(id){ const m=IMP.find(x=>x.id===id); if(!m) return; $('tip')
     <span>${t('im_pos')}</span><b>${esc(m.place==='область'?t('oblcentre'):pn(m.place))}${m.count>1?` · ×${m.count}`:''}</b>
     <span>${t('im_kyiv')}</span><b>${t('im_fromc',Math.round(dist))}</b></div>
     <div class="txt">${esc(ptxt(m))}</div>
-    <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;color:var(--muted)">${t('im_note',IMP_H,dn?t('im_note_down'):t('im_note_expl'))}</span><span style="display:flex;gap:6px"><button class="tgl" id="shbtn2">${t('share_btn')}</button><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></span></div>`;
+    <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center"><span style="font-size:11.5px;color:var(--muted)">${t('im_note',IMP_H,dn?t('im_note_down'):t('im_note_expl'))}</span><span style="display:flex;gap:6px"><button class="tgl" id="flagbtn2" data-fid="${esc(m.id)}">${t('flag_btn')}</button><button class="tgl" id="shbtn2">${t('share_btn')}</button><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></span></div>`;
   setTimeout(()=>{const b=$('shbtn2'); if(b) b.onclick=()=>shareMarker(m.id,b);},0);
   $('sheet').classList.add('show'); }
 setInterval(()=>{if(IMP_H&&!document.hidden)loadImpacts();},120000);
@@ -1504,7 +1507,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.9.1';
+const APP_VERSION='1.10';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
@@ -1593,6 +1596,50 @@ function markerText(m){
   L.push(t('share_foot'));
   L.push(location.origin+'/m');
   return L.join('\n'); }
+// The people reading this map know the ground better than any parser does. When one of them sees a marker
+// that is wrong, the only capture that actually happens is the one that costs a single tap while they are
+// looking at it — a workflow that needs a terminal is a workflow nobody uses during a raid. This files the
+// post for review. It changes nothing on the map, and it says so, because a button that silently moved
+// markers would be a way to lie to everyone else looking at the same screen.
+const FLAG_REASONS=[['place','flag_place'],['type','flag_type'],['not_a_threat','flag_nothreat'],
+                    ['already_gone','flag_gone'],['other','flag_other']];
+function flagSheet(id){
+  const m=MK.find(x=>x.id===id)||IMP.find(x=>x.id===id); if(!m) return;
+  $('tip').hidden=true;
+  $('sheetbody').innerHTML=`<div class="type">${esc(t('flag_title'))}</div>
+    <div class="kv1">${esc(t('flag_sub'))}</div>
+    <div class="glist">${FLAG_REASONS.map(([k,lbl])=>
+      `<button class="grow flagr" data-fr="${k}"><span class="gp">${esc(t(lbl))}</span></button>`).join('')}</div>
+    <input id="flagnote" placeholder="${esc(t('flag_note'))}" maxlength="300">
+    <div style="margin-top:8px;display:flex;gap:6px;justify-content:flex-end">
+      <button class="tgl" id="flagsend" disabled>${esc(t('flag_send'))}</button>
+      <button class="tgl" onclick="closeSheet()">${esc(t('btn_close'))}</button></div>`;
+  $('sheet').classList.add('show');
+  let reason=null;
+  setTimeout(()=>{
+    $('sheetbody').querySelectorAll('.flagr').forEach(b=>b.onclick=()=>{
+      reason=b.dataset.fr;
+      $('sheetbody').querySelectorAll('.flagr').forEach(x=>x.classList.toggle('on',x===b));
+      const sb=$('flagsend'); if(sb) sb.disabled=false;});
+    const send=$('flagsend'); if(send) send.onclick=async()=>{
+      send.disabled=true;
+      try{
+        const r=await fetch('/api/flag',{method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({marker:id,reason:reason||'other',note:($('flagnote')||{}).value||'',
+                               place:m.place||'',kind:m.status||m.type||''})});
+        if(!r.ok) throw new Error(r.status);
+        $('sheetbody').innerHTML=`<div class="type">${esc(t('flag_title'))}</div>
+          <div class="kv1 green">${esc(t('flag_thanks'))}</div>
+          <div style="margin-top:8px;text-align:right"><button class="tgl" onclick="closeSheet()">${esc(t('btn_close'))}</button></div>`;
+      }catch(e){
+        const w=document.createElement('div'); w.className='kv1 yellow'; w.textContent=t('flag_fail');
+        $('sheetbody').appendChild(w); send.disabled=false;
+      }};
+  },0);
+}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('#flagbtn,#flagbtn2');
+  if(b){e.stopPropagation(); flagSheet(b.dataset.fid);}});
+
 async function shareMarker(id,btn){ const m=MK.find(x=>x.id===id)||IMP.find(x=>x.id===id); if(!m) return; const txt=markerText(m);
   if(navigator.share){ try{ await navigator.share({text:txt}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   copyText(txt,btn); }
