@@ -326,6 +326,33 @@ of the kind — the single most alarming sentence in the app, produced by arithm
 It is now said only when the source said it: the target's place, or the destination the post named, is that
 town. Everything else gets a **distance in kilometres**, which is a fact, and nothing more.
 
+## A push that cannot be acted on costs the ones that can
+
+Siren-start and all-clear pushes are gone. "Kyiv oblast — alert" says nothing a person can do anything with:
+not what, not where, not how far — and the siren itself already said that much, louder. It still wakes
+somebody at three in the morning, and after enough of those the notification that *does* matter gets swiped
+away with the rest. What is left is what is specific: a MiG-31K or a ballistic launch, and a target actually
+near the reader.
+
+## The one row that could say where somebody sleeps
+
+A push subscription paired the address a phone can be reached at with the exact coordinates of the village its
+owner had chosen. Nothing in the app needs that: a proximity alert asks whether anything is within N km, and N
+is never smaller than 10. The point is snapped to a **~10 km cell** and the name is dropped, existing rows are
+rewritten at startup, and the radius test is widened by half a cell so nobody is missed because their village
+was rounded.
+
+The push text changed with it. "23 km from you" was precision the stored point no longer has, so the reader
+gets the radius they chose and the place *the post* named — both of which are true.
+
+## What the app said is kept, not just what it was told
+
+Markers were recomputed from the feed on every request, and the feed prunes. So "what did the map show at
+02:14 last Tuesday" had no answer; neither did "how much warning did this give over the siren", which is the
+app's whole reason to exist. Every marker is now written once, as computed, with the evidence that produced
+it, and outcomes have a table of their own. The numbers on the statistics tab are measured against that
+record — not against anybody's claim, including this app's.
+
 ## "High confidence" says how sharply it was read, not that it is true
 
 Confidence used to be one word with no stated meaning. Each reading method has a known sharpness, and the app

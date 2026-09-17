@@ -481,6 +481,36 @@ def log(*a):
     print(datetime.now().strftime("%H:%M:%S"), *a, flush=True)
 
 
+# A subscription used to carry the exact coordinates of somebody's village, next to the address their phone
+# can be reached at. That is the only row in this database that would say where a person sleeps, and the app
+# does not need it: proximity alerts ask "is anything within N km", and N is never smaller than 10. The point
+# is snapped to a ~10 km grid and the name is dropped — the alerts behave the same, and the row no longer
+# points at a house.
+HOME_CELL_KM = 10.0
+HOME_CELL_LAT = HOME_CELL_KM / 111.0
+HOME_CELL_LON = HOME_CELL_KM / 71.0          # at ~50°N, the latitudes this app covers
+
+
+def coarse_home(home):
+    """{lat, lon, radius} snapped to the grid, and nothing else. Anything unrecognised is dropped."""
+    if not isinstance(home, dict):
+        return {}
+    try:
+        lat, lon = float(home["lat"]), float(home["lon"])
+    except (KeyError, TypeError, ValueError):
+        return {}
+    out = {"lat": round(round(lat / HOME_CELL_LAT) * HOME_CELL_LAT, 4),
+           "lon": round(round(lon / HOME_CELL_LON) * HOME_CELL_LON, 4),
+           "cell_km": HOME_CELL_KM}
+    try:
+        r = float(home.get("radius") or 0)
+        if r > 0:
+            out["radius"] = min(100.0, max(HOME_CELL_KM, r))
+    except (TypeError, ValueError):
+        pass
+    return out
+
+
 # ---------------------------------------------------------------------------
 # State + storage
 # ---------------------------------------------------------------------------
@@ -504,8 +534,30 @@ class Store:
             c.execute("ALTER TABLE feed ADD COLUMN text_en TEXT")
         c.execute("CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT)")
         c.execute("CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, sub TEXT, home TEXT, created TEXT, last_ok TEXT)")
+        # ---- the record of what the app itself said -------------------------------------------------
+        # Markers were recomputed from the feed on every request, and the feed prunes. So "what did the map
+        # show at 02:14 last Tuesday" had no answer, the lead time over the official siren could not be
+        # measured, and a wrong reading could only be studied while the post that caused it was still there.
+        # Each marker is written once, as computed, with the evidence that produced it.
+        c.execute("""CREATE TABLE IF NOT EXISTS marker_log(
+            id TEXT PRIMARY KEY, ts TEXT, post_id TEXT, channel TEXT, type TEXT, status TEXT,
+            place TEXT, oblast_uid TEXT, lon REAL, lat REAL, heading REAL, count INTEGER,
+            jet INTEGER, pos_conf TEXT, evidence TEXT)""")
+        # Outcomes were derived from the feed every time they were asked for, which made them as short-lived
+        # as the posts. They are the app's most-cited numbers; they get a table.
+        c.execute("""CREATE TABLE IF NOT EXISTS outcomes(
+            id TEXT PRIMARY KEY, ts TEXT, post_id TEXT, channel TEXT, status TEXT, type TEXT,
+            place TEXT, oblast_uid TEXT, lon REAL, lat REAL, count INTEGER, pos_conf TEXT)""")
+        # Which channels earn being believed first: posts seen, how many the app could read, how many were
+        # flagged as wrong afterwards. Counters only — no post text, nothing about any reader.
+        c.execute("""CREATE TABLE IF NOT EXISTS channel_stats(
+            day TEXT, channel TEXT, posts INTEGER DEFAULT 0, with_marker INTEGER DEFAULT 0,
+            outcomes INTEGER DEFAULT 0, flagged INTEGER DEFAULT 0, PRIMARY KEY(day, channel))""")
         c.execute("CREATE INDEX IF NOT EXISTS ix_alerts_started ON alerts(started_at)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_feed_ts ON feed(ts)")
+        c.execute("CREATE INDEX IF NOT EXISTS ix_mlog_ts ON marker_log(ts)")
+        c.execute("CREATE INDEX IF NOT EXISTS ix_mlog_obl ON marker_log(oblast_uid, ts)")
+        c.execute("CREATE INDEX IF NOT EXISTS ix_out_ts ON outcomes(ts)")
         c.commit()
 
     def kv_get(self, k):
@@ -521,8 +573,28 @@ class Store:
     def push_add(self, sub, home):
         with self.lock:
             self.conn.execute("INSERT OR REPLACE INTO push_subs(endpoint,sub,home,created,last_ok) VALUES(?,?,?,?,?)",
-                              (sub["endpoint"], json.dumps(sub), json.dumps(home or {}), now_iso(), now_iso()))
+                              (sub["endpoint"], json.dumps(sub), json.dumps(coarse_home(home)), now_iso(), now_iso()))
             self.conn.commit()
+
+    def coarsen_homes(self):
+        """Rewrite every stored home through the grid, once, at startup. Rows written before this existed
+        hold an exact village; leaving them would mean the change only protected new subscribers."""
+        with self.lock:
+            rows = self.conn.execute("SELECT endpoint,home FROM push_subs").fetchall()
+        n = 0
+        for ep, raw in rows:
+            try:
+                h = json.loads(raw or "{}")
+            except Exception:
+                h = {}
+            c = coarse_home(h)
+            if c != h:
+                with self.lock:
+                    self.conn.execute("UPDATE push_subs SET home=? WHERE endpoint=?",
+                                      (json.dumps(c), ep))
+                    self.conn.commit()
+                n += 1
+        return n
 
     def push_remove(self, endpoint):
         with self.lock:
@@ -557,6 +629,11 @@ class Store:
                  row.get("kind"), row.get("reason"), (row.get("note") or "")[:400], row.get("day_hash"),
                  (row.get("text") or "")[:1500]))
             self.conn.commit()
+        # a reader saying "this reading is wrong" is the strongest signal a channel has about itself
+        try:
+            self.bump_channel(row["ts"][:10], row.get("channel"), flagged=1)
+        except Exception:
+            pass
         return True
 
     def flags(self, limit=200, include_done=False):
@@ -652,11 +729,107 @@ class Store:
                 if cur.rowcount:
                     new.append(p)
             self.conn.commit()
+        # Which channel earns being read first. Counted here because this is the one place a post is known to
+        # be NEW — counting in markers() would count the same post again every time the window is recomputed.
+        for p in new:
+            try:
+                day = (p.get("ts") or now_iso())[:10]
+                got = 0
+                if geo:
+                    try:
+                        got = 1 if geo.parse_for_channel(p["channel"], _clean_post(p["text"])) else 0
+                    except Exception:
+                        got = 0
+                self.bump_channel(day, p["channel"], posts=1, with_marker=got)
+            except Exception:
+                pass
         return new
 
     def feed_count(self):
         with self.lock:
             return self.conn.execute("SELECT COUNT(*) FROM feed").fetchone()[0]
+
+    # -- the record of what the app said ------------------------------------------------------------
+    def log_markers(self, markers):
+        """Write each marker once, the way it was computed. INSERT OR IGNORE on the marker id: markers() is
+        called many times a minute and recomputes the same ids, so only the first sighting is kept."""
+        if not markers:
+            return 0
+        rows = []
+        for m in markers:
+            ev = m.get("evidence") or {}
+            rows.append((m.get("id"), m.get("ts"), str(m.get("id", "")).split("#")[0], m.get("channel"),
+                         m.get("type"), m.get("status"), m.get("place"), m.get("oblast_uid"),
+                         m.get("lon"), m.get("lat"), m.get("heading"), m.get("count"),
+                         1 if m.get("jet") else 0,
+                         ((ev.get("position") or {}).get("confidence")),
+                         json.dumps(ev, ensure_ascii=False)[:4000]))
+        with self.lock:
+            cur = self.conn.executemany(
+                "INSERT OR IGNORE INTO marker_log(id,ts,post_id,channel,type,status,place,oblast_uid,"
+                "lon,lat,heading,count,jet,pos_conf,evidence) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", rows)
+            n = cur.rowcount
+            out = [r for r in rows if r[5] in ("impact", "down", "fire", "damage")]
+            if out:
+                self.conn.executemany(
+                    "INSERT OR IGNORE INTO outcomes(id,ts,post_id,channel,status,type,place,oblast_uid,"
+                    "lon,lat,count,pos_conf) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    [(r[0], r[1], r[2], r[3], r[5], r[4], r[6], r[7], r[8], r[9], r[11], r[13]) for r in out])
+            self.conn.commit()
+        return max(0, n)
+
+    def bump_channel(self, day, channel, **counts):
+        """Counters per channel per day. Nothing about any reader, nothing about any post's content."""
+        if not channel:
+            return
+        fields = [k for k in ("posts", "with_marker", "outcomes", "flagged") if counts.get(k)]
+        if not fields:
+            return
+        with self.lock:
+            self.conn.execute("INSERT OR IGNORE INTO channel_stats(day,channel) VALUES(?,?)", (day, channel))
+            self.conn.execute("UPDATE channel_stats SET " + ", ".join(f"{f}={f}+?" for f in fields)
+                              + " WHERE day=? AND channel=?", [int(counts[f]) for f in fields] + [day, channel])
+            self.conn.commit()
+
+    def channel_report(self, days=30):
+        since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
+        with self.lock:
+            rows = self.conn.execute(
+                "SELECT channel, SUM(posts), SUM(with_marker), SUM(outcomes), SUM(flagged) "
+                "FROM channel_stats WHERE day>=? GROUP BY channel ORDER BY SUM(posts) DESC", (since,)).fetchall()
+        return [{"channel": r[0], "posts": r[1] or 0, "with_marker": r[2] or 0,
+                 "outcomes": r[3] or 0, "flagged": r[4] or 0} for r in rows]
+
+    def markers_between(self, start, end, oblast_uid=None, only_live=True):
+        """What the app had on the map in a window — used to measure how far ahead of the siren it was."""
+        q = "SELECT ts,type,status,place,oblast_uid,channel FROM marker_log WHERE ts>=? AND ts<=?"
+        a = [start, end]
+        if oblast_uid:
+            q += " AND oblast_uid=?"
+            a.append(oblast_uid)
+        if only_live:
+            q += " AND status IS NULL"
+        with self.lock:
+            rows = self.conn.execute(q + " ORDER BY ts", a).fetchall()
+        return [{"ts": r[0], "type": r[1], "status": r[2], "place": r[3], "oblast_uid": r[4], "channel": r[5]}
+                for r in rows]
+
+    def outcomes_between(self, start, end, oblast_uid=None):
+        q = "SELECT ts,status,type,place,oblast_uid,count FROM outcomes WHERE ts>=? AND ts<=?"
+        a = [start, end]
+        if oblast_uid:
+            q += " AND oblast_uid=?"
+            a.append(oblast_uid)
+        with self.lock:
+            rows = self.conn.execute(q + " ORDER BY ts", a).fetchall()
+        return [{"ts": r[0], "status": r[1], "type": r[2], "place": r[3], "oblast_uid": r[4], "count": r[5]}
+                for r in rows]
+
+    def prune_log(self, days=120):
+        cut = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        with self.lock:
+            self.conn.execute("DELETE FROM marker_log WHERE ts<?", (cut,))
+            self.conn.commit()
 
     def feed_find(self, channel, text):
         """The stored post a corpus case was harvested from: its id (so the review panel can link to it on
@@ -905,6 +1078,12 @@ class State:
                 out.append(dict(m, id=f"{p['post_id']}#{i}", ts=p["ts"], text=p["text"], text_en=p.get("text_en"), channel=p["channel"], tags=p["tags"], evidence=ev))
         out = self._chain_and_prune(out, ttl)
         out.sort(key=lambda m: m["ts"], reverse=True)
+        # Keep what the app decided, not just what it was told. INSERT OR IGNORE keyed on the marker id, so
+        # recomputing the same window many times a minute writes each marker exactly once.
+        try:
+            self.store.log_markers(out)
+        except Exception as e:
+            log(f"marker log failed: {e}")
         if len(self._marker_cache) > 2000:
             self._marker_cache.clear()
             self._ev_cache.clear()
@@ -1043,8 +1222,119 @@ class State:
                "damage_total": sum(1 for m in imp if m["status"] == "damage"),
                "impact_window_h": min(days * 24, 96), "windows": {str(k): v for k, v in windows.items()},
                "imp_windows": {str(k): v for k, v in imp_windows.items()}, "imp_max_h": min(days * 24, 96)}
+        out.update(self._deeper_stats(al, since, now, kyiv_tz, days))
         self._stats_res[days] = (time.time(), out)
         return out
+
+    # ---- the five questions people actually ask -------------------------------------------------------
+    # Averages and totals answer none of them. "When does it start", "how much warning did I get", "can I go
+    # back to sleep", "how long has it been quiet", "does an alert mean anything". Every figure below either
+    # comes out of the data or is reported as absent — none of them is estimated.
+    @staticmethod
+    def _pct(vals, p):
+        if not vals:
+            return None
+        v = sorted(vals)
+        k = (len(v) - 1) * p
+        lo, hi = int(math.floor(k)), int(math.ceil(k))
+        return round(v[lo] if lo == hi else v[lo] + (v[hi] - v[lo]) * (k - lo))
+
+    def _deeper_stats(self, al, since, now, kyiv_tz, days):
+        res = {}
+        # 1. WHEN. One histogram for everything hid that a Shahed night and a ballistic morning are different
+        #    hours. Split by what the app itself read, per hour of the Kyiv day.
+        fams = {"drones": "drones", "ballistic_missiles": "ballistic", "cruise_missiles": "cruise",
+                "banderol_missiles": "cruise", "unspecified_missiles": "cruise",
+                "guided_aerial_bombs": "kab"}
+        hbt = {k: [0] * 24 for k in ("drones", "ballistic", "cruise", "kab")}
+        seen_since = None
+        try:
+            rows = self.store.markers_between(since.isoformat(), now.isoformat())
+        except Exception:
+            rows = []
+        for r in rows:
+            fam = fams.get(r["type"])
+            ts = parse_iso(r["ts"])
+            if not fam or not ts:
+                continue
+            seen_since = min(seen_since or ts, ts)
+            hbt[fam][ts.astimezone(kyiv_tz).hour] += 1
+        res["hours_by_type"] = hbt
+        res["hours_by_type_since"] = seen_since.isoformat() if seen_since else None
+
+        # 2. HOW MUCH WARNING. For each alert that started, the earliest thing the app had on the map in that
+        #    oblast in the hour before it. This is the app's whole reason to exist, so it is measured, not
+        #    claimed — and it is only reported once there are enough alerts for a median to mean anything.
+        leads = []
+        for a in al:
+            if a["oblast_uid"] not in ("31", "14") or a["location_type"] not in ("oblast", "city"):
+                continue
+            st = parse_iso(a["started_at"])
+            if not st or st < since:
+                continue
+            try:
+                pre = self.store.markers_between((st - timedelta(minutes=60)).isoformat(), st.isoformat())
+            except Exception:
+                pre = []
+            pre = [p for p in pre if p["oblast_uid"] in ("31", "14")]
+            if not pre:
+                continue
+            first = parse_iso(pre[0]["ts"])
+            if first:
+                leads.append((st - first).total_seconds() / 60)
+        res["lead"] = ({"n": len(leads), "median_min": self._pct(leads, 0.5),
+                        "p90_min": self._pct(leads, 0.9)} if len(leads) >= 5 else {"n": len(leads)})
+
+        # 3. HOW LONG. A mean is dragged up by one nine-hour night and answers nobody; the median and the
+        #    long tail are the two numbers somebody deciding whether to go back to bed actually wants.
+        durs = []
+        for a in al:
+            if a["oblast_uid"] != "31" or a["location_type"] not in ("oblast", "city"):
+                continue
+            st, en = parse_iso(a["started_at"]), parse_iso(a["finished_at"]) if a["finished_at"] else None
+            if st and en and en > st:
+                durs.append((en - st).total_seconds() / 60)
+        res["duration"] = {"n": len(durs), "median_min": self._pct(durs, 0.5),
+                           "p90_min": self._pct(durs, 0.9), "max_min": round(max(durs)) if durs else None}
+
+        # 4. HOW LONG QUIET. Counted backwards from the last completed Kyiv day.
+        alert_days = set()
+        for a in al:
+            st = parse_iso(a["started_at"])
+            if st and a["oblast_uid"] in ("31", "14"):
+                alert_days.add(st.astimezone(kyiv_tz).strftime("%Y-%m-%d"))
+        streak, checked = 0, 0
+        d = now.astimezone(kyiv_tz)
+        while checked < days:
+            key = d.strftime("%Y-%m-%d")
+            if key in alert_days:
+                break
+            streak += 1
+            checked += 1
+            d -= timedelta(days=1)
+        res["quiet_days"] = {"streak": streak, "capped": streak >= days}
+
+        # 5. DOES AN ALERT MEAN ANYTHING. The share of oblast-wide alerts followed by at least one reported
+        #    outcome while they were running. It is allowed to come out low: that is the answer, not a fault.
+        withs = tot = 0
+        for a in al:
+            if a["oblast_uid"] not in ("31", "14") or a["location_type"] not in ("oblast", "city"):
+                continue
+            st = parse_iso(a["started_at"])
+            en = parse_iso(a["finished_at"]) if a["finished_at"] else now
+            if not st or st < since:
+                continue
+            tot += 1
+            try:
+                got = self.store.outcomes_between(st.isoformat(), (en + timedelta(minutes=30)).isoformat())
+            except Exception:
+                got = []
+            if [g for g in got if g["oblast_uid"] in ("31", "14")]:
+                withs += 1
+        res["alert_outcome"] = {"alerts": tot, "with_outcome": withs,
+                                "pct": round(withs / tot * 100) if tot else None}
+        res["channels"] = self.store.channel_report(min(days, 30))
+        return res
 
     # -- missile mode -----------------------------------------------------
     # A level, not a flag, because the two missile families leave you different amounts of time:
@@ -1743,24 +2033,17 @@ class Pusher:
         if not self.enabled:
             return
         a = ev["alert"]; kind = ev["kind"]
-        ou = a.get("oblast_uid"); lt = a.get("location_type")
+        ou = a.get("oblast_uid")
         title = body = None; tag = "alert"
         thr = ev.get("threat") or {}
         if kind == "threat" and thr.get("threat_type") in ("mig31k_departure", "ballistic_missiles") and ou in ("31", "14"):
             title = "✈ MiG-31K airborne — ballistic risk" if thr["threat_type"] == "mig31k_departure" else "🚀 Ballistic threat — shelter now"
             body = (thr.get("source_message") or "")[:120]; tag = "threat"
-        elif ou == "31" and kind in ("start", "end"):
-            title = "🔴 Kyiv — air raid alert" if kind == "start" else "🟢 Kyiv — all clear"
-            body = ("%s level" % (a.get("alert_level") or "red")) if kind == "start" else "Alert lifted"
-        elif ou == "14" and lt == "oblast" and kind in ("start", "end"):
-            title = "🟡 Kyiv oblast — alert" if kind == "start" else "🟢 Kyiv oblast — all clear"
-            body = (a.get("alert_level") or "") + " level" if kind == "start" else ""
-        elif ou == "14" and lt == "raion" and kind in ("start", "end"):
-            t = (a.get("location_title") or "").lower(); slug = next((sl for st, sl in RAION_STEMS if st in t), None)
-            if not slug:
-                return
-            title = ("🔴 " if a.get("alert_level") == "red" else "🟡 ") + a["location_title"] + (" — alert" if kind == "start" else " — all clear"); body = ""
-            self._queue(title, body, tag, raion=slug); return
+        # Siren-start and all-clear pushes are gone. "Kyiv oblast — alert" says nothing a person can act on:
+        # not what, not where, not how far — the siren itself already said that much, louder. A push that
+        # cannot be acted on still wakes somebody at 3 a.m., and after enough of those the ones that matter
+        # get swiped away too. What is left is what is specific: a MiG-31K or ballistic launch, above, and a
+        # target actually near the reader, in proximity_watch.
         if not title:
             return
         self._queue(title, body, tag)
@@ -1852,8 +2135,10 @@ def proximity_watch(state, interval=20):
                 for m in live:
                     if m["id"] in seen:
                         continue
+                    # the stored point is a ~10 km cell, not a house, so the test is widened by half a
+                    # cell: nobody inside their own radius is missed because their village was rounded
                     d = haversine_km(home["lat"], home["lon"], m["lat"], m["lon"])
-                    if d <= radius:
+                    if d <= radius + HOME_CELL_KM / 2:
                         near.append((d, m))
                 if not near:
                     continue
@@ -1867,8 +2152,10 @@ def proximity_watch(state, interval=20):
                 more = f" (+{len(near) - 1} more)" if len(near) > 1 else ""
                 place = m.get("place") or "?"
                 hdg = f", heading {compass_en(m['heading'])}" if m.get("heading") is not None else ""
+                # The stored home is a grid cell, so "23 km from you" would be precision this no longer
+                # has. The reader gets the radius they chose and the place the POST named — both true.
                 pusher.queue_direct(
-                    f"\u26a0 {kind}{extra} {round(d)} km from you{more}",
+                    f"\u26a0 {kind}{extra} within {round(radius)} km of you{more}",
                     f"Reported near {place}{hdg} at {fmt_kyiv(m['ts'])} \u00b7 position from a public post, not radar",
                     "near", ep)
         except Exception as e:
@@ -2316,6 +2603,12 @@ def main():
     state.pusher = Pusher(store)
     log("push notifications:", "enabled (VAPID key ready)" if state.pusher.enabled else "disabled — pip install cryptography to enable")
     Handler.state = state
+    try:
+        n = store.coarsen_homes()
+        if n:
+            log(f"push: coarsened {n} stored home location(s) to ~{int(HOME_CELL_KM)} km cells")
+    except Exception as e:
+        log("could not coarsen stored homes:", e)
     if state.pusher.enabled:
         threading.Thread(target=proximity_watch, args=(state,), daemon=True, name="proximity").start()
 

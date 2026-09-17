@@ -50,6 +50,13 @@ body.lite .ticker .tki{color:#fff}
 .slbl{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:12px}
 .srow{display:flex;gap:10px;font:500 12.5px var(--sans);padding:3px 0;border-bottom:1px solid var(--line)}.srow span{flex:1}.srow b{min-width:44px;text-align:right}
 .sfoot{font:11.5px var(--sans);color:var(--muted);margin-top:10px;line-height:1.35}
+/* hour-of-day, stacked by what it was — the one chart here that answers "when do I need to be near a shelter" */
+.hbars{display:flex;align-items:flex-end;gap:2px;height:86px;margin:4px 0 3px}
+.hbars .hb{flex:1;min-width:2px;display:flex;flex-direction:column-reverse;justify-content:flex-start;height:100%}
+.hbars .hb i{display:block;width:100%;border-radius:1px}
+.hax{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted)}
+.hkey{display:flex;gap:12px;flex-wrap:wrap;font:10.5px var(--mono);color:var(--muted);margin-top:6px}
+.hkey i{display:inline-block;width:8px;height:8px;margin-right:4px;border-radius:1px;vertical-align:-1px}
 /* a number the app counted is not a number of things that happened; the caveat sits under the figures,
    not at the bottom of a panel nobody scrolls to */
 .sfoot.warn{border-left:2px solid var(--ua-yellow);padding-left:8px;margin:6px 0 2px;color:#c9c3a8}
@@ -306,12 +313,12 @@ svg.city .town.district{fill:#aeb8c8;font-weight:500}
 /* An outcome that names no town belongs to a whole oblast. Drawn as a pin it claimed a place the post never
    gave — for Kyiv oblast the centre is near Vasylkiv, so "вибухи на Київщині" read as "explosions at
    Vasylkiv". The region itself is marked instead, and the count sits in it as a label, not as a position. */
-#oblevt .obring{fill:#ff3b3f;fill-opacity:.07;stroke:#ff4d57;stroke-width:1.6px;vector-effect:non-scaling-stroke;stroke-dasharray:7 5;animation:obpulse 1.6s ease-in-out infinite}
-#oblevt .obchip{fill:#180b0d;stroke:#ff4d57;stroke-width:1px;vector-effect:non-scaling-stroke}
-#oblevt .obtxt{fill:#ffd9db;font:600 4.2px var(--cond);letter-spacing:.4px;paint-order:stroke;stroke:#180b0d;stroke-width:1.6px}
+#oblevt .obring{fill:#ff3b3f;fill-opacity:.05;stroke:#ff4d57;stroke-width:1.2px;vector-effect:non-scaling-stroke;stroke-dasharray:7 5;animation:obpulse 1.9s ease-in-out infinite}
+/* A count beside the region, in the same voice as the region's own name — never a banner across the map. */
+#oblevt .obtxt{fill:#ff9ea2;font:800 calc(var(--k,1)*13px) system-ui;letter-spacing:.5px;paint-order:stroke;stroke:#0b0e14;stroke-width:calc(var(--k,1)*3px);cursor:pointer}
 #oblevt .hit{fill:transparent;cursor:pointer}
-@keyframes obpulse{0%,100%{stroke-opacity:.9;fill-opacity:.07}50%{stroke-opacity:.35;fill-opacity:.02}}
-body.lite #oblevt .obring{fill:none;stroke:#fff;animation:none}body.lite #oblevt .obtxt{fill:#fff;stroke:#000}body.lite #oblevt .obchip{fill:#000;stroke:#fff}
+@keyframes obpulse{0%,100%{stroke-opacity:.8;fill-opacity:.05}50%{stroke-opacity:.28;fill-opacity:.015}}
+body.lite #oblevt .obring{fill:none;stroke:#fff;animation:none}body.lite #oblevt .obtxt{fill:#fff;stroke:#000}
 .mk .jetfx{display:none}.mk.jet .jetfx{display:block}.mk .flame{fill:#ffb347;opacity:.9;animation:flick .18s steps(2) infinite}.mk .flame2{fill:#fff4d6;animation:flick .12s steps(2) infinite alternate}
 @keyframes flick{0%{transform:scaleY(1)}100%{transform:scaleY(.6)}}.mk .flame,.mk .flame2{transform-origin:0 9px;transform-box:view-box}
 .mk .loiter{fill:none;stroke:#ff8a3d;stroke-opacity:.45;stroke-width:1px;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}.mk.jet .loiter{stroke:#ffb15c}.mk.inbound .loiter{stroke:#ff4d57}.mk.tohome .loiter{stroke:#ff2d55}
@@ -918,25 +925,36 @@ const G={drone:'<path class="glyph" d="M0-9 L8.5 6.5 L4.5 6.5 L4.5 9 L-4.5 9 L-4
 let built=new Map(); const homeAlerted=new Set();
 // Outcomes reported for a whole oblast, grouped by oblast id — filled by tick(), drawn by paintOblEvents().
 let OBLEVT={};
+const OBL_EVENT=new Set(['impact','fire','damage','down']);
 function paintOblEvents(){
   const g=$('oblevt'); if(!g||!MAP) return;
   const uids=Object.keys(OBLEVT);
-  if(!uids.length){ if(g.innerHTML) g.innerHTML=''; return; }
+  if(!uids.length){ if(g.innerHTML){g.innerHTML='';g._sig='';} return; }
+  // tick() runs several times a second. Rebuilding this layer every frame replaced the nodes between a
+  // press and its release, so a tap on the count never became a click and the panel never opened — and it
+  // was redrawing oblast outlines for nothing. Only redraw when what it says has actually changed.
+  const sig=uids.map(u=>u+':'+OBLEVT[u].map(m=>m.status+(m.count||1)).sort().join('')).sort().join('|')+'|'+LANG;
+  if(g._sig===sig) return;
+  g._sig=sig;
   g.innerHTML=uids.map(uid=>{
     const o=(MAP.oblasts||[]).find(x=>x.uid===uid); if(!o) return '';
     const evs=OBLEVT[uid].slice().sort((a,b)=>a.ts<b.ts?1:-1);
-    const n=evs.reduce((s,m)=>s+(m.count||1),0);
-    // the chip is a LABEL for the region, deliberately not shaped like a marker: no pin, no position
-    // the short word: this chip is a region label on a map, not a card — the detail is one tap away
-    const lbl=`${statusIco(evs[0].status)} ${STATUS_W[evs[0].status]||statusName(evs[0].status)}${n>1?' ×'+n:''} · ${t('obl_somewhere')}`;
-    // near the top of the region, like a banner over it — the centre of an oblast is a busy place and a
-    // label sitting exactly on it starts to look like a pin again, which is the whole thing being fixed
+    // One short group per kind — "✸2 ✕1" — in the same voice as the region's own name. A sentence in a pill
+    // stretched across the map is not an annotation, it is an interruption; what it means in words is one
+    // tap away, and the fact that it is drawn on the region rather than at a point is what says "no place
+    // was given". The title attribute carries the full wording for anyone hovering.
+    const by={}; for(const m of evs) by[m.status]=(by[m.status]||0)+(m.count||1);
+    const kinds=Object.keys(by);
+    const lbl=kinds.map(k=>`${statusIco(k)}${by[k]>1?by[k]:''}`).join(' ');
+    const full=kinds.map(k=>`${STATUS_W[k]||statusName(k)}${by[k]>1?' ×'+by[k]:''}`).join(', ')+' · '+t('obl_somewhere');
+    // near the top of the region: its centre is a busy place, and a label sitting exactly on it starts to
+    // look like a pin again, which is the whole thing being fixed
     let y=o.cy; try{const pe=document.querySelector(`#oblastsg .ob[data-o="${uid}"]`); if(pe){const bb=pe.getBBox(); y=bb.y+bb.height*0.17;}}catch(e){}
-    const w=lbl.length*2.15+5;
+    const w=Math.max(9,lbl.length*3.4);
     return `<path class="obring" d="${o.path}"/>`
-      +`<g class="oblevtchip" data-o="${uid}"><rect class="obchip" x="${(o.cx-w/2).toFixed(1)}" y="${(y-3.4).toFixed(1)}" width="${w.toFixed(1)}" height="6.6" rx="3.3"/>`
-      +`<text class="obtxt" x="${o.cx.toFixed(1)}" y="${(y+1.3).toFixed(1)}" text-anchor="middle">${esc(lbl)}</text>`
-      +`<rect class="hit" x="${(o.cx-w/2).toFixed(1)}" y="${(y-3.4).toFixed(1)}" width="${w.toFixed(1)}" height="6.6"/></g>`;
+      +`<g class="oblevtchip" data-o="${uid}"><title>${esc(full)}</title>`
+      +`<text class="obtxt" x="${o.cx.toFixed(1)}" y="${(y+1.6).toFixed(1)}" text-anchor="middle">${esc(lbl)}</text>`
+      +`<rect class="hit" x="${(o.cx-w/2).toFixed(1)}" y="${(y-4.5).toFixed(1)}" width="${w.toFixed(1)}" height="9"/></g>`;
   }).join('');
   g.querySelectorAll('.oblevtchip').forEach(el=>el.addEventListener('click',()=>oblEventSheet(el.dataset.o)));
 }
@@ -997,7 +1015,16 @@ function tick(){
   // "Київщина - вибухи" names no town. Drawn as a pin it claimed the oblast centre, which for Kyiv oblast
   // is near Vasylkiv — so a report about the whole region read as an explosion in one village. These become
   // a mark on the region itself, handled below, and never a position.
-  {const g={}; live=live.filter(m=>{ if(m.status&&m.place==='область'&&m.oblast_uid){(g[m.oblast_uid]=g[m.oblast_uid]||[]).push(m);return false;} return true; }); OBLEVT=g;}
+  // Only things that HAPPENED belong on a region: an explosion, a fire, damage, a target brought down.
+  // "Clear somewhere in the oblast" and "lost somewhere in the oblast" are not events and say nothing — an
+  // all-clear is a state of the whole region, which the region's own colour already shows, and a track that
+  // stopped being reported has no location by definition. Neither is drawn; both still do their work of
+  // closing live tracks, which happens on the marker list, not here.
+  {const g={}; live=live.filter(m=>{
+    if(!m.status||m.place!=='область') return true;
+    if(OBL_EVENT.has(m.status)&&m.oblast_uid){(g[m.oblast_uid]=g[m.oblast_uid]||[]).push(m);}
+    return false;                                    // never a pin on the oblast centre, whatever it is
+  }); OBLEVT=g;}
   // outcome markers at the same place within 20 min collapse into one (✸ Impact ×3) — one glyph, not a pile
   {const groups={}; for(const m of live){ if(!m.status) continue; const k=m.status+'|'+String(m.place); (groups[k]=groups[k]||[]).push(m);} const drop=new Set();
     for(const arr of Object.values(groups)){ arr.sort((a,b)=>a.ts<b.ts?1:-1); const head=arr[0]; head.cluster=1; for(const o of arr.slice(1)){ if(agoMin(o.ts)-agoMin(head.ts)<=20){drop.add(o.id);head.cluster++;} } }
@@ -1596,11 +1623,41 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
   const ser=(d.series||[]).slice(-14); const mx=Math.max(1,...ser.map(x=>x.impacts||0));
   const chart=ser.length?`<div class="sbars">${ser.map(x=>`<div class="sb" title="${x.day}: ${x.impacts||0}" style="height:${Math.max(2,(x.impacts||0)/mx*100)}%;background:#ff5a4e"></div>`).join('')}</div>
     <div class="sdays">${ser.map((x,i)=>`<span>${(i===0||i===ser.length-1||i%5===0)?x.day.slice(5):''}</span>`).join('')}</div>`:'';
+  // ---- the five questions people actually ask ------------------------------------------------------
+  const mins=v=>v==null?'—':(v>=90?`${Math.floor(v/60)} h ${Math.round(v%60)} min`:`${Math.round(v)} min`);
+  // When: one bar per hour, stacked by what it was. A Shahed night and a ballistic morning are not the same
+  // hours, and a single combined histogram said they were.
+  const HB=d.hours_by_type||{}; const fam=[['drones','#ff8a3d'],['cruise','#ff5a5a'],['ballistic','#ffffff'],['kab','#c78bff']];
+  const hmax=Math.max(1,...Array.from({length:24},(_,h)=>fam.reduce((s,[k])=>s+((HB[k]||[])[h]||0),0)));
+  const anyH=fam.some(([k])=>(HB[k]||[]).some(v=>v));
+  const hourChart=anyH?`<div class="hbars">${Array.from({length:24},(_,h)=>{
+      const tot=fam.reduce((s,[k])=>s+((HB[k]||[])[h]||0),0);
+      return `<div class="hb" title="${h}:00 \u2014 ${tot}">${fam.map(([k,c])=>{const v=(HB[k]||[])[h]||0;
+        return v?`<i style="height:${(v/hmax*100).toFixed(1)}%;background:${c}"></i>`:'';}).join('')}</div>`;}).join('')}</div>
+    <div class="hax"><span>00</span><span>06</span><span>12</span><span>18</span><span>23</span></div>
+    <div class="hkey">${fam.map(([k,c])=>`<span><i style="background:${c}"></i>${esc(t('st_f_'+k))}</span>`).join('')}</div>`
+    : `<div class="sfoot">${esc(t('st_collecting'))}</div>`;
+  const LD=d.lead||{}, DU=d.duration||{}, QT=d.quiet_days||{}, AO=d.alert_outcome||{};
+  const five=`<div class="wtab">${head([t('st_median'),t('st_p90')])}
+    ${LD.median_min!=null?row(t('st_lead'),[mins(LD.median_min),mins(LD.p90_min)],'#a8f0cf')
+      :`<div class="srow"><span>${esc(t('st_lead'))}</span><b style="color:var(--ink3);min-width:auto">${esc(t('st_lead_wait',LD.n||0))}</b></div>`}
+    ${row(t('st_dur'),[mins(DU.median_min),mins(DU.p90_min)],'#ffd9d6')}
+    ${row(t('st_quiet'),[QT.streak==null?'\u2014':tn('st_days',QT.streak)+(QT.capped?'+':''),''],'#a8f0cf')}
+    ${AO.pct!=null?row(t('st_realrate'),[AO.pct+'%',`${AO.with_outcome}/${AO.alerts}`],'#ffd9d6')
+      :`<div class="srow"><span>${esc(t('st_realrate'))}</span><b style="color:var(--ink3)">\u2014</b></div>`}
+  </div>`;
+  const CHS=d.channels||[];
+  const chTable=CHS.length?`<div class="wtab">${head([t('st_ch_posts'),t('st_ch_read'),t('st_ch_flag')])}
+    ${CHS.slice(0,8).map(c=>`<div class="srow"><span>${esc(CH[c.channel]||c.channel)}</span><b>${c.posts}</b><b style="color:#a8f0cf">${c.posts?Math.round(c.with_marker/c.posts*100)+'%':'\u2014'}</b><b style="color:${c.flagged?'#ffb3ad':'var(--ink3)'}">${c.flagged||0}</b></div>`).join('')}</div>`:'';
   el.innerHTML=`<div class="card plain">
     ${impTable}
     <div class="slbl">${esc(t('st_launched'))}</div>${afTable}
+    <div class="slbl">${esc(t('st_when'))}</div>${hourChart}
+    <div class="slbl">${esc(t('st_five'))}</div>${five}
+    ${chTable?`<div class="slbl">${esc(t('st_ch'))}</div>${chTable}`:''}
     <div class="slbl">${esc(t('st_expl_day'))}</div>${chart}
-    <div class="sfoot">${esc(t('st_src'))}</div></div>`;
+    <div class="sfoot">${esc(t('st_src'))}</div>
+    <div class="sfoot">${esc(t('st_note_new'))}</div></div>`;
 }
 // =====================================================================================
 // Update notice, install prompt, support, sharing, blackout mode, proximity alerts

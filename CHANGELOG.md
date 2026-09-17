@@ -20,6 +20,31 @@
   - The terminal `review` still exists and does the same thing; use whichever is in front of you.
 
 ### Added
+- **Five figures on the statistics tab that answer what people actually ask.** *When* it happens, as an
+  hour-of-day chart split by weapon — a Shahed night and a ballistic morning are not the same hours, and one
+  combined histogram said they were. *How much warning* the app gave over the official siren, as a median and
+  a p90, measured against its own record rather than claimed. *How long an alert lasts*, median and p90
+  instead of a mean dragged up by one nine-hour night. *How many days it has been quiet.* And *how often an
+  alert was followed by a reported impact* — allowed to come out low, because that is the answer.
+- **A sources table**: posts seen per channel, the share the app could read, and how many readers flagged as
+  wrong. That is what tells you which channel deserves to be believed first.
+- **The app keeps what it said, not only what it was told.** Markers are written as computed, with their
+  evidence, and outcomes get a table of their own. Without this, the map's history died with the feed and the
+  warning-time figure could not exist.
+
+### Removed
+- **Siren-start and all-clear push notifications.** "Kyiv oblast — alert" says nothing anyone can act on, and
+  the siren already said it louder — but it still wakes somebody at 3 a.m., and after enough of those the
+  notification that matters gets swiped away too. MiG-31K, ballistic launches and targets near you stay.
+
+### Changed
+- **Push subscriptions no longer store where you live.** The row paired the address a phone is reached at
+  with the exact coordinates of a village. The point is snapped to a ~10 km cell, the name is dropped, and
+  rows written before this are rewritten at startup. The proximity test is widened by half a cell so nobody
+  is missed, and the push says "within your N km" instead of a distance the stored point can no longer
+  support.
+
+### Added
 - **The dashboard speaks Ukrainian.** An EN / UA switch in the corner, remembered per browser. Every label
   lives in one table in both languages, the way the app's own strings do. The posts under review are
   Ukrainian and whoever reviews them may not be — and somebody reviewing *in* Ukrainian should not have to
@@ -46,6 +71,10 @@
 - **An outcome with no place named no longer lands on the oblast centre.** "Київщина - вибухи" was drawn as a
   pin near Vasylkiv — a report about a whole region shown as an explosion in one village. The region is
   outlined and labelled instead; a label is not a position and cannot be mistaken for one.
+- **"Clear somewhere in the oblast" is no longer drawn.** An all-clear is not an event with a place — it is a
+  state of the whole region, which the region's own colour already shows — and neither is a track that simply
+  stopped being reported. Only things that happened get a region mark, and it is a count beside the region
+  now, not a sentence in a pill stretched across the map.
 - **An explosion somewhere in a whole oblast clears after 5 minutes.** It says far less than a located one
   and should not outstay it.
 - **An explosion disappears after 10 minutes, not 25.** A burst still drawn reads as still happening there,
