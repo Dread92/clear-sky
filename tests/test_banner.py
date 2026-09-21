@@ -68,13 +68,34 @@ def test_the_calm_line_never_appears_while_the_readers_own_region_is_under_alert
 
 def test_kyiv_city_and_oblast_count_as_one_place_in_both_directions():
     """Picking the city and getting "no alert" while the oblast around you is under one is the same bug as
-    the reverse, and the reverse is the one that is easy to write."""
-    i = PAGE.index("function idleLine(){")
-    body = PAGE[i:PAGE.index("\n}", i)]
-    m = re.search(r"const pair=u=>(.*)", body)
+    the reverse, and the reverse is the one that is easy to write. One shared helper, so the calm line and
+    the banner colour can never disagree about which region is the reader's."""
+    m = re.search(r"const oblPair=u=>(.*)", PAGE)
     assert m, "there is no city/oblast pairing at all"
-    assert "'31'" in m.group(1) and "'14'" in m.group(1)
     assert "u==='31'||u==='14'" in m.group(1).replace(" ", ""), "the pairing is one-directional"
+    assert PAGE.count("oblPair(MYOBL.uid)") >= 2, "the calm line and the banner colour use different rules"
+
+
+def test_the_banner_takes_its_colour_from_the_official_alert():
+    """A red strip over a yellow band, or the reverse, makes the reader work out which one to believe."""
+    body = _strip_fn()
+    assert "officialLevel()" in body
+    assert "'offr'" in body and "'offy'" in body
+    i = PAGE.index("function officialLevel(){")
+    fn = PAGE[i:PAGE.index("\n}", i)]
+    assert "alert_level" in fn and "'R'" in fn and "'Y'" in fn
+    assert "location_type==='oblast'||x.location_type==='city'" in fn.replace(" ", ""), (
+        "a raion-level alert would set the colour for the whole region")
+
+
+def test_a_threat_with_no_official_alert_yet_keeps_its_own_colour():
+    """The app reads the channels before the siren is declared. Painting that green, or red, would either
+    hide it or claim an alert that has not been issued."""
+    body = _strip_fn()
+    i = body.index("el.className='tstrip '")
+    line = body[i:body.index(";", i)]
+    assert "'mig'" in line and "'bal'" in line, (
+        "the threat-type colours were dropped, so an unconfirmed threat has no colour of its own")
 
 
 def test_the_calm_line_counts_and_never_projects():

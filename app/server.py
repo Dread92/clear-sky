@@ -2089,6 +2089,7 @@ def proximity_watch(state, interval=20):
 
 
 THREAT_EN = {"ballistic_missiles": "Ballistic missile", "cruise_missiles": "Cruise missile", "unspecified_missiles": "Missile",
+             "supersonic_missiles": "Supersonic missile (Kh-22/32)",
              "guided_aerial_bombs": "Guided bomb (KAB)", "tactic_aircraft_activity": "Tactical aviation"}
 
 

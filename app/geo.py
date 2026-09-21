@@ -236,7 +236,11 @@ TYPE_RX = [
     # it does, but slower and smaller than a Kalibr, and the channels name it by its own name. Folding it into
     # "cruise missiles" throws away a distinction the source made, and it would be drawn with a Kalibr's speed.
     ("banderol_missiles", re.compile(r"бандерол", re.I)),
-    ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|\bракет", re.I)),
+    # Kh-22 / Kh-32 are Mach 4+ anti-ship missiles fired at cities from a Tu-22M3. Folded into
+    # "cruise missiles" they were drawn at a fifth of their speed and filtered by a radius they cross in
+    # seven seconds. Tested before cruise, because the cruise pattern used to swallow them.
+    ("supersonic_missiles", re.compile(r"х-?22|х-?32|надзвуков", re.I)),
+    ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|\bракет", re.I)),
     ("guided_aerial_bombs", re.compile(r"\bкаб", re.I)),
     ("strategic_aircraft_activity", re.compile(r"ту-?95|ту-?160|ту-?22|стратегічн", re.I)),
     ("tactic_aircraft_activity", re.compile(r"тактичн", re.I)),
@@ -750,8 +754,9 @@ def _is_oblast_header(seg):
 # whole region the moment they are reported.
 #
 # Kept deliberately short. A cruise missile at ~13 km/min still gives a useful 45 seconds inside a 10 km
-# ring, and widening this list to "anything fast" would put the whole map back into every alert.
-IMMEDIATE_TYPES = frozenset({"ballistic_missiles", "mig31k_departure"})
+# ring, and widening this list to "anything fast" would put the whole map back into every alert. Kh-59/69
+# stay out for the same reason: fast for a guided missile, but the same order as a Kalibr, not ten times it.
+IMMEDIATE_TYPES = frozenset({"ballistic_missiles", "mig31k_departure", "supersonic_missiles"})
 # About one oblast across, and roughly two minutes of ballistic flight — the span over which "this concerns
 # you" is true for a weapon of this speed. It is a region test, never reported to anyone as a distance.
 REGION_ALERT_KM = 150.0
@@ -775,6 +780,7 @@ PHASE_FAMILY = {
     "ballistic_missiles": "ballistic",
     "mig31k_departure": "airlaunch",
     "cruise_missiles": "cruise", "banderol_missiles": "cruise", "unspecified_missiles": "cruise",
+    "supersonic_missiles": "cruise",
     "strategic_aircraft_activity": "cruise",
     "drones": "uav",
     "guided_aerial_bombs": "kab", "tactic_aircraft_activity": "kab",

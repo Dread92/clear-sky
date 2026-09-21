@@ -66,6 +66,9 @@ body.lite .ticker .tki{color:#fff}
 /* past the freshness window it stops shouting: no pulse, muted amber, past tense, age on the face of it */
 .tstrip.old{background:#221d13;color:#d9cba4;border-color:#4d411f;animation:none}
 .tstrip.calm{background:#0e2018;color:#b8e6cc;border-color:#25503c;animation:none}
+.tstrip.offr{background:#4a0d12;color:#ffd6d6;border-color:#8a2a2a}
+.tstrip.offy{background:#3a2e05;color:#ffe9a8;border-color:#7a6212}
+body.lite .tstrip.offr,body.lite .tstrip.offy{background:#fff;color:#000;border-color:#fff;animation:none}
 .tstrip .tsmore{margin-left:8px;font:700 11px var(--mono);letter-spacing:.04em;text-transform:uppercase;background:rgba(255,255,255,.08);color:inherit;border:1px solid currentColor;border-radius:2px;padding:2px 7px;cursor:pointer;opacity:.85}
 .tstrip .tsmore:active{background:rgba(255,255,255,.18)}
 .tstrip .tsrest{margin-top:5px;padding-top:5px;border-top:1px solid currentColor;display:flex;flex-direction:column;gap:4px;opacity:.92}
@@ -322,13 +325,18 @@ body.lite #oblevt .obring{fill:none;stroke:#fff;animation:none}body.lite #oblevt
 @keyframes flick{0%{transform:scaleY(1)}100%{transform:scaleY(.6)}}.mk .flame,.mk .flame2{transform-origin:0 9px;transform-box:view-box}
 .mk .loiter{fill:none;stroke:#ff8a3d;stroke-opacity:.45;stroke-width:1px;stroke-dasharray:3 3;vector-effect:non-scaling-stroke}.mk.jet .loiter{stroke:#ffb15c}.mk.inbound .loiter{stroke:#ff4d57}.mk.tohome .loiter{stroke:#ff2d55}
 .mk.ended .loiter,.mk.ended .orbit animateTransform{display:none}
-.mk .hdg{fill:#ff8a3d;stroke:#080b10;stroke-width:.6px;vector-effect:non-scaling-stroke}.mk.jet .hdg{fill:#ffb15c}.mk.inbound .hdg{fill:#ff4d57}.mk.tohome .hdg{fill:#ff2d55}.mk.ballistic_missiles .hdg,.mk.cruise_missiles .hdg,.mk.banderol_missiles .hdg,.mk.unspecified_missiles .hdg{fill:#ff5a5a}.mk.guided_aerial_bombs .hdg{fill:#c78bff}
+.mk .hdg{fill:#ff8a3d;stroke:#080b10;stroke-width:.6px;vector-effect:non-scaling-stroke}.mk.jet .hdg{fill:#ffb15c}.mk.inbound .hdg{fill:#ff4d57}.mk.tohome .hdg{fill:#ff2d55}.mk.ballistic_missiles .hdg,.mk.supersonic_missiles .hdg,.mk.cruise_missiles .hdg,.mk.banderol_missiles .hdg,.mk.unspecified_missiles .hdg{fill:#ff5a5a}.mk.guided_aerial_bombs .hdg{fill:#c78bff}
 /* Cruise and ballistic missiles: long range, minutes of warning, a much bigger warhead. They are the loudest
    thing on the map — brighter, larger, double pulse, and their label never hides at any zoom. */
 /* Cruise: a winged body on a route you can follow — red, with a marching course ray.
    Ballistic: no route to draw, it arcs down from above. White-hot, faster pulse, a downward spike, no ray. */
 .mk.ballistic_missiles .glyph{fill:#fff!important;stroke:#ff1744;stroke-width:1.6px;filter:drop-shadow(0 0 calc(var(--k,1)*4px) rgba(255,23,68,1));animation:balblink .55s steps(2) infinite}
 .mk.ballistic_missiles .halo,.mk.ballistic_missiles .halo2{stroke:#fff;animation-duration:.7s}
+.mk.supersonic_missiles .glyph{fill:#ffdca8!important;stroke:#ff6a00;stroke-width:1.5px;filter:drop-shadow(0 0 calc(var(--k,1)*3px) rgba(255,106,0,.9))}
+.mk.supersonic_missiles .halo,.mk.supersonic_missiles .halo2{stroke:#ffb15c;animation-duration:.9s}
+.mk.supersonic_missiles .ahead,.mk.supersonic_missiles .cone{display:none}
+.mk.supersonic_missiles .lbl{fill:#fff}.mk.supersonic_missiles .lbl2{fill:#ffd9b0}
+body.lite .mk.supersonic_missiles .glyph{fill:#fff!important;stroke:#000;filter:none}
 .mk.ballistic_missiles .ahead,.mk.ballistic_missiles .cone{display:none}
 .mk.ballistic_missiles .lbl{fill:#fff}.mk.ballistic_missiles .lbl2{fill:#ffc9d2}
 @keyframes balblink{0%,55%{fill:#fff}56%,100%{fill:#ff1744}}
@@ -585,7 +593,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 
 <script src="/static/i18n.js"></script>
 <script>
-const THREAT={drones:['🛸',t('th_drones')],ballistic_missiles:['🚀',t('th_bal')],cruise_missiles:['🎯',t('th_cruise')],banderol_missiles:['🛩',t('th_band')],unspecified_missiles:['🎯',t('th_msl')],
+const THREAT={drones:['🛸',t('th_drones')],ballistic_missiles:['🚀',t('th_bal')],cruise_missiles:['🎯',t('th_cruise')],supersonic_missiles:['⚡',t('th_super')],banderol_missiles:['🛩',t('th_band')],unspecified_missiles:['🎯',t('th_msl')],
   mig31k_departure:['✈️',t('th_mig')],strategic_aircraft_activity:['🛩️',t('th_strat')],tactic_aircraft_activity:['🛩️',t('th_tac')],
   guided_aerial_bombs:['💣',t('th_kab')],air_defense:['🛡️',t('th_ad')],kyiv:['📍',t('th_kyiv')],clear:['✅',t('th_clear')],official:['🏛️',t('th_official')],geo:['🗺️',t('th_geo')],unknown:['⚠️',t('th_unknown2')]};
 const ATYPE={air_raid:t('at_air_raid'),artillery_shelling:t('at_art'),urban_fights:t('at_urban'),chemical:t('at_chem'),nuclear:t('at_nuc'),info:t('at_info')};
@@ -839,7 +847,7 @@ function homeNamed(m){
 // warning. An Iskander or a Kinzhal crosses it in under four seconds — by the time one is "within 10 km of
 // you" it has arrived, and filtering by that distance deletes the only warning there was. These are exempt
 // from every radius and concern the whole region. Mirrors geo.IMMEDIATE_TYPES / REGION_ALERT_KM.
-const IMMEDIATE=new Set(['ballistic_missiles','mig31k_departure']);
+const IMMEDIATE=new Set(['ballistic_missiles','mig31k_departure','supersonic_missiles']);
 const REGION_R=150;   // km — proj() is scaled in km, so distances here are already kilometres
 function homeInfo(m,x,y){
   if(!HOME) return {near:false,inbound:false,named:false,dist:null,immediate:false};
@@ -1564,7 +1572,9 @@ function threatStrip(){
   const tt=thr[0]; const age=tsAge(tt); const old=age>TS_FRESH_MIN;
   const label=(old?{mig31k_departure:t('ts_mig_old'),ballistic_missiles:t('ts_bal_old'),strategic_aircraft_activity:t('ts_strat_old'),cruise_missiles:t('ts_cruise_old')}
                   :{mig31k_departure:t('ts_mig'),ballistic_missiles:t('ts_bal'),strategic_aircraft_activity:t('ts_strat'),cruise_missiles:t('ts_cruise')})[tt.ty];
-  el.className='tstrip '+(old?'old':tt.ty==='mig31k_departure'?'mig':tt.ty==='cruise_missiles'?'':'bal'); el.hidden=false;
+  const lvl=officialLevel();
+  el.className='tstrip '+(old?'old':lvl==='R'?'offr':lvl==='Y'?'offy'
+    :tt.ty==='mig31k_departure'?'mig':tt.ty==='cruise_missiles'?'':'bal'); el.hidden=false;
   // Everything after the first one used to be dropped on the floor. A MiG airborne AND a ballistic launch
   // is a different night from either alone, and the second one was never shown. They stack now: the most
   // urgent stays on the line, the rest fold behind a count that opens in place. In the header, never over
@@ -1582,21 +1592,43 @@ function threatStrip(){
 }
 // Kept outside threatStrip so a re-render every few seconds does not fold the list back up while it is open.
 let TS_OPEN=false;
-document.addEventListener('click',e=>{ if(e.target.closest('#tsmore')){ TS_OPEN=!TS_OPEN; threatStrip(); } });
+document.addEventListener('click',e=>{ if(e.target.closest('#tsmore')){ TS_OPEN=!TS_OPEN; threatStrip(); }
+  // Idle mode shows the country, but only when asked: silently re-framing a map somebody is reading is
+  // the same rudeness as a pop-up over it.
+  else if(e.target.closest('#tsua')) setView(120,110,1400); });
+// Kyiv city (31) and Kyiv oblast (14) are one place to the person standing in it, in both directions.
+const oblPair=u=>u==='31'||u==='14'?['31','14']:[u];
+// What the official system says about the reader's own region: R, Y, or nothing. The banner takes its
+// colour from this and not from the threat type, so the strip can never be a different colour from the
+// alert it belongs to. When there is no official alert yet the strip keeps the threat's own colour — the
+// app being ahead of the siren is information, not something to paint over.
+function officialLevel(){
+  if(!S) return null; const mine=new Set(oblPair(MYOBL.uid));
+  const a=(S.active||[]).filter(x=>mine.has(x.oblast_uid)&&(x.location_type==='oblast'||x.location_type==='city'));
+  if(!a.length) return null;
+  return a.some(x=>x.alert_level!=='yellow')?'R':'Y';   // no level reported (mirror) = full red
+}
 // The calm line: counts of what is already known, for the whole country. No projection, no "heading to".
 function idleLine(){
   if(!S) return '';
   const act=(S.active||[]).filter(a=>a.location_type==='oblast'||a.location_type==='city');
-  // Kyiv city (31) and Kyiv oblast (14) are one place to the person standing in it, in both directions.
-  // Checking the pair one way only would have told somebody who picked the city "no alert" while the oblast
+  // Checking the pair one way only would tell somebody who picked the city "no alert" while the oblast
   // around them was under one — a green line directly contradicting the red band above it.
-  const pair=u=>u==='31'||u==='14'?['31','14']:[u];
-  const mine=new Set(pair(MYOBL.uid));
+  const mine=new Set(oblPair(MYOBL.uid));
   if(act.some(a=>mine.has(a.oblast_uid))) return '';   // the band above already says so, louder
   const obls=new Set(act.map(a=>a.oblast_uid)).size;
-  const live=(MK||[]).filter(m=>!m.status&&!m.endedBy&&!m.stale).length;
+  const alive=(MK||[]).filter(m=>!m.status&&!m.endedBy&&!m.stale);
+  // The far approaches: the closest thing actually being reported anywhere, and how far off it is. A
+  // distance between two reported points is a fact. Which way it is going is not — nothing here says
+  // "approaching", because on a quiet evening most of these are going somewhere else entirely.
+  let far='';
+  if(HOME&&alive.length){ const [hx,hy]=proj(HOME.lon,HOME.lat);
+    let best=null; for(const m of alive){ const [x,y]=posOf(m,Date.now()); const d=Math.hypot(x-hx,y-hy);
+      if(!best||d<best.d) best={d,m}; }
+    if(best&&best.m.place) far=' · '+esc(t('ts_calm_near',pn(best.m.place),Math.round(best.d)));}
   const bits=[`✓ ${esc(t('ts_calm',oblFull(MYOBL.uid)))}`,
-    `<small>${esc(obls?t('ts_calm_obl',obls):t('ts_calm_noobl'))} · ${esc(t('ts_calm_tgt',live))}</small>`];
+    `<small>${esc(obls?t('ts_calm_obl',obls):t('ts_calm_noobl'))} · ${esc(t('ts_calm_tgt',alive.length))}${far}`
+    +`${alive.length?` · <button type="button" class="tsmore" id="tsua">${esc(t('ts_calm_ua'))}</button>`:''}</small>`];
   return bits.join(' ');
 }
 function render(){

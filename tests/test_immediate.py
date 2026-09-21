@@ -26,15 +26,17 @@ PAGE = open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
 def test_the_list_is_the_weapons_that_actually_outrun_a_radius():
     assert geo.is_immediate("ballistic_missiles")
     assert geo.is_immediate("mig31k_departure")
+    assert geo.is_immediate("supersonic_missiles"), "Kh-22/32 cross a 10 km ring in seven seconds"
 
 
 def test_it_does_not_quietly_grow_to_mean_anything_fast():
     """A cruise missile inside a 10 km ring still gives ~45 seconds — a real warning worth filtering by.
-    Widening this list would put the entire map into every alert and make the setting meaningless."""
+    Widening this list would put the entire map into every alert and make the setting meaningless. Kh-59/69
+    stay out on the same test: fast for a guided missile, but the same order as a Kalibr, not ten times it."""
     for t in ("drones", "cruise_missiles", "banderol_missiles", "guided_aerial_bombs",
               "unspecified_missiles", "tactic_aircraft_activity", "strategic_aircraft_activity"):
         assert not geo.is_immediate(t), f"{t} was added to the bypass list"
-    assert len(geo.IMMEDIATE_TYPES) == 2
+    assert len(geo.IMMEDIATE_TYPES) == 3
 
 
 def test_the_region_span_is_about_an_oblast():
@@ -148,3 +150,37 @@ def test_a_mig31k_takeoff_is_not_a_kyiv_event():
     mig = mig[:mig.index("elif")]
     assert 'ou in ("31", "14")' not in mig, "the MiG-31K push is still gated on the Kyiv oblast"
     assert "country-wide" in mig
+
+
+def test_a_supersonic_missile_is_read_as_its_own_weapon():
+    """Х-22 used to match the cruise pattern. As a "cruise missile" it was drawn at a fifth of its speed and
+    filtered by a radius it crosses in seven seconds — the exact failure this whole file is about."""
+    for text in ("Х-22 по Одещині", "Ракета Х-32 курсом на Миколаїв", "х22 на Одесу"):
+        ms = geo.parse_post(text)
+        assert ms and ms[0]["type"] == "supersonic_missiles", f"{text!r} → {ms[0]['type'] if ms else None}"
+
+
+def test_the_ordinary_cruise_missiles_did_not_follow_it_across():
+    for text, want in (("Х-59 по Харківщині", "cruise_missiles"),
+                       ("Крилаті ракети Х-101 на Полтавщині", "cruise_missiles"),
+                       ("Калібри на Київщині", "cruise_missiles")):
+        ms = geo.parse_post(text)
+        assert ms and ms[0]["type"] == want, f"{text!r} → {ms[0]['type'] if ms else None}"
+
+
+def test_it_is_never_extrapolated_along_a_course():
+    """At Mach 4 one minute of drift is 93 km of invented position. No SPEED entry means no extrapolation —
+    the marker stays where the post put it, like ballistic."""
+    m = re.search(r"const SPEED=(.*)", PAGE)
+    assert m and "supersonic" not in m.group(1)
+    css = PAGE[PAGE.index(".mk.supersonic_missiles .glyph"):]
+    assert ".mk.supersonic_missiles .ahead,.mk.supersonic_missiles .cone{display:none}" in css, (
+        "the projection cone is still drawn for a weapon whose position cannot be projected")
+
+
+def test_it_does_not_look_like_a_ballistic_missile():
+    """Two different warnings. Drawn identically, the one that means "shelter now, it is already here"
+    stops being distinguishable from the one that means it too — and both stop meaning anything."""
+    a = PAGE[PAGE.index(".mk.ballistic_missiles .glyph"):].split("}")[0]
+    b = PAGE[PAGE.index(".mk.supersonic_missiles .glyph"):].split("}")[0]
+    assert a != b
