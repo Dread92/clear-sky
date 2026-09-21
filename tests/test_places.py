@@ -1,0 +1,206 @@
+"""The four places somebody watches, and the promise that they stay on the phone.
+
+One of the four is a school. A row in a database saying "this person's child is at these coordinates on
+weekday mornings" is not a thing this app gets to create, whatever it would buy — and the way that row gets
+created is never a decision, it is a `name` field quietly riding along in a request body that somebody added
+for debugging. So the test is not "does the server store it": it is "does it ever leave the phone at all".
+
+The rest is the filtering around that place. Two rules run through all of it: a course the app inferred is
+never treated as a course the source reported, and "we do not know" is never rendered as "not coming".
+"""
+import os
+import re
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def _values(key, src):
+    """Every translation of one key. Written to survive escaped apostrophes — "s\'il garde le cap" is the
+    French for the most safety-critical caveat in the app, and a naive quote regex truncates it to "s\\"."""
+    out = []
+    for m in re.finditer(rf"\b{key}:'((?:[^'\\]|\\.)*)'", src):
+        out.append(m.group(1))
+    return out
+PAGE = open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
+SRV = open(os.path.join(ROOT, "app", "server.py"), encoding="utf-8").read()
+I18N = open(os.path.join(ROOT, "static", "i18n.js"), encoding="utf-8").read()
+
+
+def _fn(name, page=None):
+    src = page or PAGE
+    i = src.index(f"function {name}(")
+    return src[i:src.index("\n}", i)]
+
+
+# ── the promise ────────────────────────────────────────────────────────────────────────────────────────
+def test_the_four_places_are_written_only_to_this_browser():
+    body = _fn("saveSlots")
+    assert "localStorage.setItem('slots'" in body
+    assert "fetch(" not in body and "XMLHttpRequest" not in body
+
+
+def test_no_place_name_is_ever_put_in_the_push_request():
+    """It used to send the name of the watched place. The server threw it away, but the request could still
+    say "School 217" — and a request that can say it is one configuration change from a request that keeps
+    it. Only the browser's own coarse geolocation goes now."""
+    body = _fn("pushSync")
+    assert "name:" not in body, "a place name is back in the push payload"
+    assert "homeRaion()" not in body, "the raion is back in the push payload"
+    assert "Object.assign({},GEO||{})" in body.replace(" ", "")
+
+
+def test_the_slots_are_never_read_into_anything_that_leaves_the_page():
+    """A direct check that no network call anywhere on the page references the slot store."""
+    for m in re.finditer(r"fetch\([^)]*\)", PAGE):
+        assert "SLOTS" not in m.group(0), f"a slot reached a fetch call: {m.group(0)[:90]}"
+    assert "SLOTS" not in SRV, "the server has gained a concept of the user's named places"
+
+
+def test_the_server_still_has_exactly_one_door_for_writing_a_home():
+    writes = re.findall(r"(?:INSERT|REPLACE)[^\"']*push_subs", SRV)
+    assert len(writes) == 1
+
+
+def test_the_school_is_not_left_sitting_on_the_screen():
+    """The chips show the role, not the place. Somebody standing behind you on the metro reads "Kids", not
+    the name of the school."""
+    body = _fn("paintSlots")
+    assert "t('sl_'+id)}</span>" in body.replace(" ", "").replace("${esc(", "").replace(")}", "}") or \
+           "esc(t('sl_'+id))" in body, "the chip prints the place name rather than the role"
+
+
+# ── switching and dropping ─────────────────────────────────────────────────────────────────────────────
+def test_switching_place_does_not_replay_old_alerts():
+    """Alerts already raised for the old place would fire again against the new one the moment it changes."""
+    body = _fn("useSlot")
+    assert "homeAlerted.clear()" in body
+
+
+def test_a_dropped_pin_carries_no_frozen_name():
+    """Stored with t('...') baked in, its label stayed in whichever language was active when it was dropped."""
+    i = PAGE.index("setSlot('pin',{")
+    line = PAGE[i:PAGE.index("\n", i)]
+    assert "name:" not in line and "dropped:true" in line.replace(" ", "")
+
+
+def test_a_dropped_pin_can_never_be_named_by_a_post():
+    """homeNamed() matches a post's place against the watched place's name. A pin has none, so it can never
+    match — which is correct: a point on a map is not somewhere a channel can name."""
+    body = _fn("homeNamed")
+    assert "HOME.name" in body and "HOME.uk" in body
+    assert "filter(Boolean)" in body, "an undefined name would join the match set and match loosely"
+
+
+# ── the zones ──────────────────────────────────────────────────────────────────────────────────────────
+def test_the_three_zones_are_the_ones_that_were_asked_for():
+    m = re.search(r"const ZONES=\[(.*?)\];", PAGE)
+    assert m
+    assert [int(x) for x in re.findall(r"\[(\d+),", m.group(1))] == [10, 30, 60]
+
+
+def test_the_eta_is_a_band_and_never_a_number():
+    body = _fn("etaBand")
+    assert "lo:" in body and "hi:" in body
+    assert "eta_band" in PAGE
+    for lang_count in [I18N.count("eta_band:"), I18N.count("eta_if:")]:
+        assert lang_count == 3
+
+
+def test_the_eta_states_its_own_condition_in_every_language():
+    """A number with the condition dropped is a promise. Each translation has to carry "if it holds course"."""
+    vals = _values("eta_if", I18N)
+    assert len(vals) == 3
+    for v in vals:
+        assert len(v) > 20, f"the ETA condition was shortened away: {v!r}"
+
+
+def test_no_eta_without_a_course_the_post_actually_reported():
+    body = _fn("etaBand")
+    assert "m.heading==null" in body.replace(" ", "")
+    assert "confidence==='none'" in body.replace(" ", ""), (
+        "an ETA can be built on a heading the app inferred rather than one the post gave")
+
+
+def test_no_eta_for_the_weapons_that_outrun_a_filter():
+    """Their whole point is that there is no time to plan around. A countdown for one is a cruelty."""
+    body = _fn("etaBand")
+    assert "IMMEDIATE.has(m.type)" in body
+
+
+def test_the_eta_is_not_offered_for_a_target_flying_elsewhere():
+    body = _fn("etaBand")
+    assert re.search(r"off\s*>\s*\d+", body), "there is no bearing test at all"
+
+
+# ── focus ──────────────────────────────────────────────────────────────────────────────────────────────
+def test_a_target_with_no_reported_course_is_never_filtered_out():
+    """Unknown is not the same as not coming. Hiding it would be the app asserting a negative it cannot know."""
+    body = _fn("towardsMe")
+    assert "m.heading==null" in body.replace(" ", "") and "return true" in body
+    assert "confidence==='none'" in body.replace(" ", "")
+
+
+def test_the_immediate_weapons_are_never_filtered_out_either():
+    body = _fn("towardsMe")
+    assert "IMMEDIATE.has(m.type)" in body
+
+
+def test_focus_dims_rather_than_deletes():
+    """A target removed from the map is a target somebody cannot check. It goes quiet, it does not vanish."""
+    assert ".mk.defocus{opacity:" in PAGE
+    assert "display:none" not in PAGE[PAGE.index(".mk.defocus{"):PAGE.index(".mk.defocus{") + 40]
+
+
+# ── contact lost ───────────────────────────────────────────────────────────────────────────────────────
+def test_contact_lost_says_what_it_means_and_what_it_does_not():
+    """A mark that just vanishes reads as "shot down", and people conclude the sky is clear."""
+    vals = _values("lost_b", I18N)
+    assert len(vals) == 3
+    for v in vals:
+        assert "NOT" in v or "НЕ " in v or "PAS" in v, f"the wording does not rule out 'shot down': {v!r}"
+    assert I18N.count("lost_t:") == 3 and I18N.count("lost_b:") == 3
+
+
+def test_a_confirmed_outcome_is_not_contact_lost():
+    """Shot down is a known ending. Calling it "contact lost" would throw away the one certain thing."""
+    body = _fn("contactLost")
+    assert "m.status||m.endedBy" in body.replace(" ", "")
+
+
+def test_the_faded_state_lasts_about_two_minutes():
+    assert re.search(r"const LOST_FADE_MIN=2\b", PAGE)
+
+
+# ── telemetry ──────────────────────────────────────────────────────────────────────────────────────────
+def test_ground_speed_comes_from_two_reports_or_not_at_all():
+    """No post states a speed. The only honest source is the distance between two consecutive reports."""
+    body = _fn("groundSpeed")
+    assert "m.history" in body
+    assert "return null" in body
+    assert re.search(r"Math\.round\(d/dt\*60/10\)\*10", body), (
+        "the derived speed is reported to a precision its inputs do not carry")
+
+
+def test_ground_speed_says_where_it_came_from():
+    assert I18N.count("tel_gs_src:") == 3
+    vals = _values("tel_gs_src", I18N)
+    assert len(vals) == 3
+    for v in vals:
+        assert "radar" in v.lower() or "радар" in v.lower(), f"it does not disclaim radar: {v!r}"
+
+
+# ── audio ──────────────────────────────────────────────────────────────────────────────────────────────
+def test_the_alert_volume_follows_what_the_reader_can_still_do():
+    body = _fn("alertVol")
+    assert "IMMEDIATE.has(m.type)" in body
+    m = re.search(r"const ZONE_VOL=\{(.*?)\};", PAGE)
+    assert m
+    vals = dict(re.findall(r"(\w+):([\d.]+)", m.group(1)))
+    assert float(vals["near"]) > float(vals["approach"]) > float(vals["observe"])
+
+
+def test_every_new_string_exists_in_all_three_languages():
+    for k in ("sl_home", "sl_work", "sl_kids", "sl_pin", "sl_pin_set", "sl_pin_how", "sl_pin_dropped",
+              "fo_on", "fo_off", "fo_help", "z_near", "z_approach", "z_observe",
+              "eta_band", "eta_if", "tel_gs", "tel_gs_src", "lost_t", "lost_b"):
+        assert I18N.count(f"{k}:") == 3, f"{k} is missing from a language"

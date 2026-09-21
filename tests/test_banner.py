@@ -49,7 +49,16 @@ def test_it_is_a_band_in_the_header_and_never_a_pop_up_over_the_map():
     assert PAGE.index("</header>") > i, "the threat strip escaped the header"
     assert "position:fixed" not in PAGE[PAGE.index(".tstrip{"):PAGE.index(".tstrip{") + 400]
     body = _strip_fn()
-    assert body.count("--top") >= 3, "the map offset is not updated for every state the strip can be in"
+    assert body.count("syncTop()") >= 3, "the map offset is not updated for every state the strip can be in"
+
+
+def test_the_map_starts_where_the_header_actually_ends():
+    """The offset was a constant — 40 + 28 + 18 — that drifted out of date, so the header sat 17 px over the
+    top of the map and hid whatever was placed there. It is measured now."""
+    i = PAGE.index("function syncTop(){")
+    fn = PAGE[i:PAGE.index("\n}", i)]
+    assert "offsetHeight" in fn and "querySelector('header')" in fn
+    assert "setProperty('--top'" not in _strip_fn(), "a raw --top write bypassed the measurement"
 
 
 # ── the calm state ─────────────────────────────────────────────────────────────────────────────────────

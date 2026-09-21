@@ -109,6 +109,26 @@ body.lite .tstrip.old{background:#111;color:#ddd;border-color:#555}
 svg#map{display:block;width:100%;height:100%}
 /* situation overlay (raions + home) */
 #situ{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:6px;max-width:calc(100% - 60px);pointer-events:none}
+.mk.defocus{opacity:.22}
+.mk.defocus .lbl,.mk.defocus .lbl2,.mk.defocus .cnt{display:none}
+/* Contact lost: two minutes of a faded mark, then gone. The gap between "it stopped being reported" and
+   "it vanished from the screen" is where somebody decides it was shot down. It says which it is. */
+.mk.lostc{opacity:.45;filter:grayscale(1)}
+.mk.lostc .glyph{stroke-dasharray:2 2}
+.zone{stroke:#5fa8ff;stroke-opacity:.30;stroke-width:1px;vector-effect:non-scaling-stroke;stroke-dasharray:3 4}
+.zone.z-near{stroke:#ff8a3d;stroke-opacity:.5;stroke-dasharray:none}
+.zone.z-approach{stroke:#ffd166;stroke-opacity:.34}
+.zlbl{fill:#7f8a9c;font:600 2.2px var(--mono);opacity:.75;paint-order:stroke;stroke:#080b10;stroke-width:.7px}
+svg.far .zlbl,svg.veryfar .zlbl{display:none}
+svg.veryfar .zone{display:none}
+body.lite .zone{stroke:#000;stroke-opacity:.8}body.lite .zlbl{fill:#000;stroke:#fff}
+.slotrow{display:flex;gap:4px;flex-wrap:wrap;pointer-events:auto}
+.slotrow button{font:600 11px/1 var(--mono);letter-spacing:.02em;padding:6px 8px;border:1px solid var(--line);background:rgba(18,21,27,.92);color:var(--ink2);border-radius:2px;cursor:pointer;white-space:nowrap;display:flex;align-items:center;gap:4px}
+.slotrow button .sl{max-width:82px;overflow:hidden;text-overflow:ellipsis}
+.slotrow button.on{border-color:var(--orange);color:var(--ink);background:rgba(40,30,18,.95)}
+.slotrow button.empty{opacity:.5}
+body.lite .slotrow button{background:#000;color:#fff;border-color:#666}
+body.lite .slotrow button.on{border-color:#fff;background:#fff;color:#000}
 #situ>*{pointer-events:auto}
 #raions{display:flex;gap:3px;flex-wrap:wrap}#raions[hidden]{display:none}
 @media (max-width:999px){#raions{flex-wrap:nowrap;overflow-x:auto;max-width:calc(100vw - 60px);scrollbar-width:none;-webkit-overflow-scrolling:touch}#raions::-webkit-scrollbar{display:none}#raions .rt{white-space:nowrap;flex:0 0 auto}}
@@ -538,6 +558,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <g id="raionsg"></g>
     <g id="kdistg"></g>
     <g id="rings"></g>
+    <g id="zones"></g>
     <g id="homeg"></g>
     <g id="infra"></g>
     <g id="towns"></g>
@@ -547,7 +568,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <g id="markers"></g>
     <g id="edges"></g>
   </svg>
-  <div id="situ"><div id="raions" hidden></div><div class="homerow" id="homerow" hidden></div></div>
+  <div id="situ"><div class="slotrow" id="slotrow"></div><div id="raions" hidden></div><div class="homerow" id="homerow" hidden></div></div>
   <div class="livebar" id="livebar"></div>
   <div class="attrib" id="attrib" hidden>© OpenStreetMap contributors</div>
   <div class="mapctl"><button id="zin">+</button><button id="zout">−</button><button id="zkyiv" data-t-title="t_center" title="Centre on my oblast">◎</button><button id="impbtn" data-t-title="t_hist" title="History of explosions and confirmed shoot-downs: off / 24 h / 48 h / 72 h">✸<small id="imph"></small></button></div>
@@ -642,7 +663,12 @@ const MSL={cruise_missiles:{v:13,valid:2.5},unspecified_missiles:{v:13,valid:2.5
 const mslKind=m=>MSL[m.type];
 const REACH_CAP=260;                       // beyond this the circle covers half the country and says nothing
 const CAPMIN=m=>m.type==='drones'?45:8;
-const TZ='Europe/Kyiv'; const TOPBASE=86;   // header: 40 (bar) + 28 (band) + 18 (ticker) — the threat strip adds its own height
+const TZ='Europe/Kyiv'; const TOPBASE=86;   // fallback only, for the moment before the header has laid out
+// Measured, never assumed: the header grows and shrinks with the ticker, the band and the threat strip, and
+// every hardcoded total for it has eventually gone stale and slid the map up underneath it.
+function syncTop(){ const h=document.querySelector('header');
+  const px=h&&h.offsetHeight?h.offsetHeight:TOPBASE;
+  document.documentElement.style.setProperty('--top',px+'px'); }
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const fmtT=iso=>iso?new Date(iso).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',timeZone:TZ}):'';
@@ -651,7 +677,34 @@ const agoMin=iso=>(Date.now()-new Date(iso))/60000;
 const DIRS=t('dirs').split(',');
 const dirName=d=>DIRS[Math.round(d/45)%8];
 
-let HOME=null; try{HOME=JSON.parse(localStorage.getItem('home')||'null');}catch(e){}
+// Four places somebody watches, and which one is live.
+//
+// These never leave the phone. One of them is a school — a row in somebody's database saying "this person's
+// child is at these coordinates on weekday mornings" is not a thing this app will create, whatever it would
+// buy. They live in localStorage, the server is never told they exist, and push notifications keep using
+// only the coarse ~10 km cell of the browser's own geolocation, exactly as before.
+const SLOT_IDS=['home','work','kids','pin'];
+const SLOT_ICO={home:'🏠',work:'💼',kids:'🏫',pin:'📍'};
+let SLOTS={home:null,work:null,kids:null,pin:null};
+let ACTIVE='home';
+try{ const raw=JSON.parse(localStorage.getItem('slots')||'null');
+     if(raw&&typeof raw==='object') for(const k of SLOT_IDS) if(raw[k]) SLOTS[k]=raw[k];
+     const a=localStorage.getItem('slot_active'); if(a&&SLOT_IDS.includes(a)) ACTIVE=a; }catch(e){}
+// one-time carry-over from the single "home" this replaced, so nobody loses the place they had set
+try{ const old=JSON.parse(localStorage.getItem('home')||'null');
+     if(old&&!SLOTS.home){ SLOTS.home=old; localStorage.setItem('slots',JSON.stringify(SLOTS)); } }catch(e){}
+let HOME=SLOTS[ACTIVE]||null;
+function saveSlots(){ try{ localStorage.setItem('slots',JSON.stringify(SLOTS));
+  localStorage.setItem('slot_active',ACTIVE);
+  // keep the legacy key in step so an older cached page still finds a place
+  if(SLOTS[ACTIVE]) localStorage.setItem('home',JSON.stringify(SLOTS[ACTIVE])); else localStorage.removeItem('home');
+}catch(e){} }
+function setSlot(id,place){ if(!SLOT_IDS.includes(id)) return; SLOTS[id]=place||null; useSlot(id); }
+function useSlot(id){ if(!SLOT_IDS.includes(id)) return; ACTIVE=id; HOME=SLOTS[id]||null; saveSlots();
+  if(typeof drawHome==='function') drawHome(); if(typeof drawZones==='function') drawZones();
+  homeAlerted.clear();                      // a new place is a new set of alerts, not a continuation
+  if(typeof render==='function') render(); if(typeof paintSlots==='function') paintSlots();
+  if(typeof discHomeLabel==='function') discHomeLabel(); }
 let SHOW_UA=false; try{SHOW_UA=localStorage.getItem('ua')==='1';}catch(e){}
 let ESTIMATE=false; try{ESTIMATE=localStorage.getItem('est')==='1';}catch(e){}
 let MAP=null,S=null,MK=[],ttl=45,hist=[],soundOn=true,vibOn=false,seen=new Set(),firstFeed=true,seenMk=new Set();
@@ -707,8 +760,24 @@ const unproj=(x,y)=>[C[0]+x/KX, C[1]-y/KY];
 
 // ---- audio / notify ----
 let actx;
-function beep(kind){ if(!soundOn) return; try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)(); const seq=kind==='end'?[[660,.12],[880,.2]]:kind==='threat'?[[520,.1],[520,.1],[520,.1]]:[[880,.15],[660,.15],[880,.15],[660,.3]]; let t=actx.currentTime; for(const [f,d] of seq){const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);t+=d+.05;} }catch(e){} }
-function notify(title,body,kind){ const el=$('toast'); el.style.borderLeftColor=kind==='end'?'var(--green)':kind==='threat'?'var(--yellow)':'var(--red)'; el.innerHTML=`<b>${esc(title)}</b><div style="color:var(--muted);font-size:12.5px;margin-top:3px">${esc(body||'')}</div>`; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),7000); beep(kind); if(vibOn&&navigator.vibrate) navigator.vibrate(kind==='end'?[80]:[200,100,200]); }
+// How loud depends on what the reader can still do about it. Inside the near zone, or anything ballistic:
+// full volume, because the answer is "move now". Out past 30 km it is background — the same sound at the
+// same volume for something 50 km away is how an alert tone stops being heard at all.
+// `vol` is a multiplier: 1 normal, >1 critical, <1 background. 0 means do not play it.
+function beep(kind,vol){ if(!soundOn) return; const v=vol==null?1:vol; if(v<=0) return;
+  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const crit=v>1.2;
+    const seq=kind==='end'?[[660,.12],[880,.2]]
+      :crit?[[990,.13],[740,.13],[990,.13],[740,.13],[990,.35]]
+      :kind==='threat'?[[520,.1],[520,.1],[520,.1]]:[[880,.15],[660,.15],[880,.15],[660,.3]];
+    let t=actx.currentTime;
+    for(const [f,d] of seq){const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;
+      g.gain.value=Math.min(.14,.07*v);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);t+=d+.05;} }catch(e){} }
+// The zone a warning is about, turned into that multiplier.
+const ZONE_VOL={near:1.8,approach:1,observe:.45};
+function alertVol(m,hi){ if(m&&IMMEDIATE.has(m.type)) return 2;
+  const z=hi&&hi.zone; if(!z) return .45; return ZONE_VOL[z]!=null?ZONE_VOL[z]:1; }
+function notify(title,body,kind,vol){ const el=$('toast'); el.style.borderLeftColor=kind==='end'?'var(--green)':kind==='threat'?'var(--yellow)':'var(--red)'; el.innerHTML=`<b>${esc(title)}</b><div style="color:var(--muted);font-size:12.5px;margin-top:3px">${esc(body||'')}</div>`; el.classList.add('show'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.remove('show'),7000); beep(kind,vol); if(vibOn&&navigator.vibrate) navigator.vibrate(kind==='end'?[80]:(vol!=null&&vol>1.2)?[300,80,300,80,300]:[200,100,200]); }
 
 // ---- map base ----
 const TOWNS=[['Kyiv',30.52,50.45,1],['Brovary',30.79,50.51],['Boryspil',30.95,50.35],['Bucha',30.22,50.55],['Irpin',30.25,50.52],['Vyshhorod',30.49,50.58],['Obukhiv',30.62,50.11],['Vasylkiv',30.31,50.18],['Fastiv',29.92,50.08],['Bila Tserkva',30.11,49.80],['Pereiaslav',31.45,50.07],['Yahotyn',31.77,50.28],['Ivankiv',29.90,50.94],['Makariv',29.81,50.46],['Borodianka',29.92,50.64],['Kaharlyk',30.81,49.86],['Rzhyshchiv',31.05,49.97],['Uzyn',30.42,49.82],['Skvyra',29.67,49.73],['Tarashcha',30.50,49.55],['Bohuslav',30.87,49.55],['Baryshivka',31.31,50.36],['Zghurivka',31.78,50.49],['Dymer',30.30,50.80],['Slavutych',30.73,51.52],['Chornobyl',30.22,51.27],['Kozelets',31.12,50.91],['Nizhyn',31.89,51.05],['Chernihiv',31.29,51.50],['Zhytomyr',28.66,50.25],['Cherkasy',32.06,49.44],['Kaniv',31.47,49.75],['Uman',30.22,48.75],['Malyn',29.24,50.77],['Korostyshiv',29.06,50.32],['Pryluky',32.39,50.59],
@@ -778,7 +847,7 @@ function translit(s){let out='';for(let i=0;i<s.length;i++){const c=s[i],l=c.toL
 const svg=$('map'); const VB={x:-75,y:-100,w:150,h:200};
 const ASPECT=()=>{const r=svg.getBoundingClientRect();return r.width?r.height/r.width:1.33;};
 let KPX=1;
-function applyVB(){svg.setAttribute('viewBox',`${VB.x} ${VB.y} ${VB.w} ${VB.h}`);if(typeof drawHome==='function'&&HOME)setTimeout(drawHome,0);const r=svg.getBoundingClientRect();KPX=r.width?VB.w/r.width:1;svg.style.setProperty('--k',KPX);svg.classList.toggle('far',VB.w>90);svg.classList.toggle('close',VB.w<40);svg.classList.toggle('vclose',VB.w<22);svg.classList.toggle('veryfar',VB.w>230);svg.classList.toggle('ua',VB.w>900);if(typeof applySelOblast==='function'&&(VB.w<=300)!==applyVB._zin){applyVB._zin=VB.w<=300;applySelOblast();}{const kz=document.querySelector('.kozak'); if(kz){kz.querySelector('.kz').setAttribute('transform',`scale(${(2.2*KPX).toFixed(3)})`); const ts=kz.querySelectorAll('text'); ts[0].setAttribute('y',(14*KPX).toFixed(2)); ts[1].setAttribute('y',(25*KPX).toFixed(2));}}clearTimeout(applyVB._t);applyVB._t=setTimeout(()=>{applyVB._t=null;if(typeof IMP_H!=='undefined'&&IMP_H)drawImpacts();if(typeof updateTiles==='function'){updateTiles();layoutTownLabels();}},120);}
+function applyVB(){svg.setAttribute('viewBox',`${VB.x} ${VB.y} ${VB.w} ${VB.h}`);if(typeof drawHome==='function'&&HOME){setTimeout(drawHome,0);if(typeof drawZones==='function')setTimeout(drawZones,0);}const r=svg.getBoundingClientRect();KPX=r.width?VB.w/r.width:1;svg.style.setProperty('--k',KPX);svg.classList.toggle('far',VB.w>90);svg.classList.toggle('close',VB.w<40);svg.classList.toggle('vclose',VB.w<22);svg.classList.toggle('veryfar',VB.w>230);svg.classList.toggle('ua',VB.w>900);if(typeof applySelOblast==='function'&&(VB.w<=300)!==applyVB._zin){applyVB._zin=VB.w<=300;applySelOblast();}{const kz=document.querySelector('.kozak'); if(kz){kz.querySelector('.kz').setAttribute('transform',`scale(${(2.2*KPX).toFixed(3)})`); const ts=kz.querySelectorAll('text'); ts[0].setAttribute('y',(14*KPX).toFixed(2)); ts[1].setAttribute('y',(25*KPX).toFixed(2));}}clearTimeout(applyVB._t);applyVB._t=setTimeout(()=>{applyVB._t=null;if(typeof IMP_H!=='undefined'&&IMP_H)drawImpacts();if(typeof updateTiles==='function'){updateTiles();layoutTownLabels();}},120);}
 function setView(cx,cy,w){VB.w=Math.max(8,Math.min(1500,w));VB.h=VB.w*ASPECT();VB.x=cx-VB.w/2;VB.y=cy-VB.h/2;applyVB();}
 function zoomAt(f,cx,cy){const nw=Math.max(8,Math.min(1500,VB.w/f)),nh=nw*ASPECT();VB.x=cx-(cx-VB.x)*(nw/VB.w);VB.y=cy-(cy-VB.y)*(nh/VB.h);VB.w=nw;VB.h=nh;applyVB();}
 function toSvg(px,py){const r=svg.getBoundingClientRect();return [VB.x+(px-r.left)/r.width*VB.w, VB.y+(py-r.top)/r.height*VB.h];}
@@ -803,15 +872,27 @@ let downMk=null,downXY=null,downOb=null;
 wrap.addEventListener('pointerdown',e=>{if(!e.target.closest('svg#map')) return;
   if(e.pointerType==='pen'&&e.buttons===0&&!e.pressure) return;   /* pen hovering above the glass, not touching it */
   /* buttons / chips on top of the map keep their own clicks (pointer capture would swallow them) */
-  touches[e.pointerId]=[e.clientX,e.clientY];moved=false;downMk=e.target.closest?e.target.closest('g.mk,g.imp'):null;downOb=e.target.closest?(e.target.closest('path.ob,path.nb')||{}).dataset?.o:null;downXY=[e.clientX,e.clientY];wrap.setPointerCapture(e.pointerId);});
+  touches[e.pointerId]=[e.clientX,e.clientY];moved=false;downMk=e.target.closest?e.target.closest('g.mk,g.imp'):null;downOb=e.target.closest?(e.target.closest('path.ob,path.nb')||{}).dataset?.o:null;downXY=[e.clientX,e.clientY];wrap.setPointerCapture(e.pointerId);
+  // Press and hold on open map = drop the 📍 pin there. Not over a marker (that is a tap to open it), not
+  // with a second finger down (that is a pinch), and cancelled the moment the map is dragged.
+  clearTimeout(holdPin); holdPin=null;
+  if(!downMk&&Object.keys(touches).length===1){ const px=e.clientX, py=e.clientY;
+    holdPin=setTimeout(()=>{ holdPin=null; if(moved) return;
+      const [cx,cy]=toSvg(px,py); const lon=+(C[0]+cx/KX).toFixed(4), lat=+(C[1]-cy/KY).toFixed(4);
+      // A dropped pin stores no label at all — it is named at paint time, so it follows the language.
+      setSlot('pin',{lon,lat,dropped:true});
+      if(navigator.vibrate&&vibOn) navigator.vibrate(40);
+      notify(t('sl_pin_set'),t('sl_pin_b'),'end');
+    },600); }});
 wrap.addEventListener('pointermove',e=>{ if(!(e.pointerId in touches)) return;
   // A stylus (and a mouse) sends pointermove while merely HOVERING, with no button and no pressure. Panning on
   // those made the map drift on its own under an S Pen. Nothing moves unless something is actually pressed.
   if(e.buttons===0&&e.pointerType!=='touch'){ delete touches[e.pointerId]; lastDist=null; lastMid=null; return; }
   const pts=Object.values(touches); const prev=touches[e.pointerId]; touches[e.pointerId]=[e.clientX,e.clientY]; const r=svg.getBoundingClientRect(); const k=VB.w/r.width;
-  if(pts.length===1){ const dx=(e.clientX-prev[0])*k, dy=(e.clientY-prev[1])*k; if(Math.abs(dx)+Math.abs(dy)>0.2)moved=true; VB.x-=dx;VB.y-=dy;applyVB(); }
-  else{ const [a,b]=Object.values(touches); const d=Math.hypot(a[0]-b[0],a[1]-b[1]); const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2]; if(lastDist){const [cx,cy]=toSvg(mid[0],mid[1]); zoomAt(d/lastDist,cx,cy); if(lastMid){VB.x-=(mid[0]-lastMid[0])*k;VB.y-=(mid[1]-lastMid[1])*k;applyVB();}} lastDist=d;lastMid=mid;moved=true; }});
-const endT=e=>{delete touches[e.pointerId]; if(Object.keys(touches).length<2){lastDist=null;lastMid=null;}};
+  if(pts.length===1){ const dx=(e.clientX-prev[0])*k, dy=(e.clientY-prev[1])*k; if(Math.abs(dx)+Math.abs(dy)>0.2){moved=true;clearTimeout(holdPin);holdPin=null;} VB.x-=dx;VB.y-=dy;applyVB(); }
+  else{ const [a,b]=Object.values(touches); const d=Math.hypot(a[0]-b[0],a[1]-b[1]); const mid=[(a[0]+b[0])/2,(a[1]+b[1])/2]; if(lastDist){const [cx,cy]=toSvg(mid[0],mid[1]); zoomAt(d/lastDist,cx,cy); if(lastMid){VB.x-=(mid[0]-lastMid[0])*k;VB.y-=(mid[1]-lastMid[1])*k;applyVB();}} lastDist=d;lastMid=mid;moved=true;clearTimeout(holdPin);holdPin=null; }});
+let holdPin=null;
+const endT=e=>{clearTimeout(holdPin);holdPin=null;delete touches[e.pointerId]; if(Object.keys(touches).length<2){lastDist=null;lastMid=null;}};
 // tap on a marker: pointer capture sends pointerup to the wrapper, so hit-test here (≤10 px screen movement counts as a tap)
 wrap.addEventListener('pointerup',e=>{const mk=downMk,xy=downXY,ob=downOb;downMk=null;downXY=null;downOb=null;endT(e);
   const tap=xy&&Math.hypot(e.clientX-xy[0],e.clientY-xy[1])<=10&&Object.keys(touches).length===0;
@@ -822,7 +903,7 @@ wrap.addEventListener('pointerup',e=>{const mk=downMk,xy=downXY,ob=downOb;downMk
   else if(ob&&tap&&VB.w>150) selectOblast(ob);});
 wrap.addEventListener('pointercancel',endT); wrap.addEventListener('pointerleave',endT); wrap.addEventListener('lostpointercapture',endT);
 wrap.addEventListener('wheel',e=>{e.preventDefault();const [cx,cy]=toSvg(e.clientX,e.clientY);zoomAt(e.deltaY<0?1.2:1/1.2,cx,cy);},{passive:false});
-window.addEventListener('resize',()=>setView(VB.x+VB.w/2,VB.y+VB.h/2,VB.w));
+window.addEventListener('resize',()=>{syncTop();setView(VB.x+VB.w/2,VB.y+VB.h/2,VB.w);});
 
 // ---- marker kinematics ----
 // Positions are shown WHERE THEY WERE REPORTED. Dead-reckoning along the reported heading is an explicit
@@ -854,27 +935,143 @@ function homeInfo(m,x,y){
   const [hx,hy]=proj(HOME.lon,HOME.lat); const dist=Math.hypot(x-hx,y-hy); const v=SPEED(m);
   const named=!m.status&&!m.endedBy&&homeNamed(m);
   const imm=!m.status&&!m.endedBy&&IMMEDIATE.has(m.type)&&dist<=REGION_R;
+  const zone=(m.status||m.endedBy)?null:zoneOf(dist);
   // The no-speed branch below covers outcomes AND anything the page has no speed model for. A ballistic
   // marker falls in the second group, so the bypass has to survive it — dropping it here is how the whole
   // exemption silently did nothing.
-  if(m.status||m.endedBy||!v) return {near:dist<10||imm,inbound:false,named:false,dist,immediate:imm};
-  return {near:dist<10||imm,inbound:named,named,dist,immediate:imm,eta:named&&v?dist/v:null};
+  if(m.status||m.endedBy||!v) return {near:dist<10||imm,inbound:false,named:false,dist,immediate:imm,zone};
+  return {near:dist<10||imm,inbound:named,named,dist,immediate:imm,zone,eta:named&&v?dist/v:null};
+}
+// Three fixed distances around the watched place. Not thresholds the app invented — they are the ranges
+// over which a person can actually do something different: inside 10 km you can hear it and you go now;
+// 10–30 km is the window where an ETA is worth anything at all; out to 60 km is background you want to
+// know about but not act on. They are drawn, so a distance in a label can be placed by eye.
+const ZONES=[[10,'near'],[30,'approach'],[60,'observe']];
+// How fast each weapon actually flies, as a range rather than a number, because no post ever states it.
+// A single figure would turn "roughly four to six minutes" into "five minutes", which is a promise.
+const SPEED_BAND={drone:[2.2,3.2],jetdrone:[5.5,8.0],cruise:[11,14]};
+function speedBand(m){ return m.type==='drones'?(m.jet?SPEED_BAND.jetdrone:SPEED_BAND.drone)
+  :(m.type==='cruise_missiles'||m.type==='unspecified_missiles'||m.type==='banderol_missiles')?SPEED_BAND.cruise:null; }
+function zoneOf(d){ if(d==null) return null; for(const [r,k] of ZONES) if(d<=r) return k; return null; }
+function drawZones(){ const g=$('zones'); if(!g) return;
+  if(!MAP||!HOME){ g.innerHTML=''; return; }
+  const [x,y]=proj(HOME.lon,HOME.lat);
+  g.innerHTML=ZONES.map(([r,k])=>
+    `<circle class="zone z-${k}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${r}" fill="none"/>`
+    +`<text class="zlbl" x="${x.toFixed(1)}" y="${(y-r).toFixed(1)}" text-anchor="middle">${r} km</text>`).join('');
+}
+// The conditional ETA. Every word of that is load-bearing:
+//   - conditional, because it holds only if the target keeps the course the post reported;
+//   - a band, because the speed is a range and rounding it to one number invents precision;
+//   - only when the POST stated a heading — an ETA off a heading the app guessed is a guess twice over;
+//   - only when that heading actually points at the pin, within the error the bearing itself carries;
+//   - and never for the weapons that outrun a filter, whose whole point is that there is no time to plan.
+// Ground speed is not in any post. The only honest source for it is two consecutive reports of the same
+// track: distance between them over the time between them. That is a measurement, so it is shown — labelled
+// as derived from those two reports, with the reports named, and never for a single-report track.
+function groundSpeed(m){
+  if(!m.history||!m.history.length||m.status||m.endedBy) return null;
+  const prev=m.history[m.history.length-1];
+  if(!prev||prev.lon==null||prev.lat==null||!prev.ts) return null;
+  const dt=(new Date(m.ts)-new Date(prev.ts))/60000;
+  if(!(dt>0.5)&&!(dt>0)) return null;
+  if(dt<0.5||dt>30) return null;                       // too close together to mean anything, or too far apart
+  const [ax,ay]=proj(prev.lon,prev.lat), [bx,by]=proj(m.lon,m.lat);
+  const d=Math.hypot(bx-ax,by-ay); if(d<1) return null;
+  const kmh=Math.round(d/dt*60/10)*10;                 // to the nearest 10 km/h: the inputs do not carry more
+  if(kmh<40||kmh>4000) return null;
+  return {kmh,from:prev.place||null,mins:Math.round(dt)};
+}
+function etaBand(m,dist){
+  if(!HOME||m.status||m.endedBy||m.stale) return null;
+  if(IMMEDIATE.has(m.type)) return null;
+  if(m.heading==null) return null;
+  const ev=m.evidence&&m.evidence.heading;
+  if(!ev||!ev.confidence||ev.confidence==='none') return null;
+  const band=speedBand(m); if(!band||dist==null) return null;
+  const [hx,hy]=proj(HOME.lon,HOME.lat); const [x,y]=posOf(m,Date.now());
+  const bTo=(Math.atan2(hx-x,-(hy-y))*180/Math.PI+360)%360;
+  const off=Math.abs(((m.heading-bTo)+540)%360-180);
+  if(off>28) return null;                       // not coming this way on the course that was reported
+  const lo=Math.floor(dist/band[1]), hi=Math.ceil(dist/band[0]);
+  if(hi>90) return null;                        // beyond an hour and a half it is not an estimate any more
+  return {lo:Math.max(0,lo),hi:hi,off:off};
 }
 function drawHome(){ if(!MAP) return; if(!HOME){$('homeg').innerHTML='';return;} const [x,y]=proj(HOME.lon,HOME.lat);
   $('homeg').innerHTML=`<g class="homemk"><circle class="ring" cx="${x}" cy="${y}" r="5" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><circle class="ring" cx="${x}" cy="${y}" r="10" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><text class="ico" x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle">🏠</text><text class="hl" x="${x}" y="${(y-8*KPX).toFixed(1)}" text-anchor="middle">${esc(homeName())}</text></g>`; }
+function paintSlots(){ const el=$('slotrow'); if(!el) return;
+  el.innerHTML=(HOME?`<button type="button" id="focusbtn" class="${FOCUS?'on':''}" title="${esc(t('fo_help'))}">${FOCUS?'◎':'○'}<span class="sl">${esc(t(FOCUS?'fo_on':'fo_off'))}</span></button>`:'')
+    +SLOT_IDS.map(id=>{const p=SLOTS[id]; const on=id===ACTIVE&&p;
+    // The role, not the place. Shorter, so five chips fit one line on a phone — and the place a child is at
+    // does not sit permanently on screen for whoever is standing behind you. The place itself is named in
+    // the row below, and in the button's own tooltip.
+    const nm=!p?t('sl_'+id):p.dropped?t('sl_pin_dropped'):(LANG==='uk'&&p.uk?p.uk:townName(p.name));
+    return `<button type="button" data-slot="${id}" class="${on?'on':''}${p?'':' empty'}" title="${esc(p?t('sl_switch',nm):t('sl_set',t('sl_'+id)))}">${SLOT_ICO[id]}<span class="sl">${esc(t('sl_'+id))}</span></button>`;}).join('');
+}
+// Tap switches. Long-press (or a tap on an empty one) sets the place — the pin is set from the map instead.
+(()=>{ let hold=null, held=false;
+  const row=()=>$('slotrow'); if(!row()) return;
+  const setFor=id=>{ held=true; if(id==='pin'){ notify(t('sl_pin_how'),'','end'); return; }
+    SLOT_PICKING=id; if($('homebtn')) $('homebtn').onclick(); };
+  row().addEventListener('pointerdown',e=>{const b=e.target.closest('[data-slot]'); if(!b) return;
+    held=false; hold=setTimeout(()=>setFor(b.dataset.slot),550);});
+  const cancel=()=>{clearTimeout(hold);hold=null;};
+  row().addEventListener('click',e=>{ if(!e.target.closest('#focusbtn')) return;
+    FOCUS=!FOCUS; try{localStorage.setItem('focus',FOCUS?'1':'0');}catch(e2){}
+    paintSlots(); render(); });
+  row().addEventListener('pointerup',e=>{cancel(); const b=e.target.closest('[data-slot]'); if(!b||held) return;
+    const id=b.dataset.slot; if(SLOTS[id]) useSlot(id); else setFor(id);});
+  row().addEventListener('pointercancel',cancel); row().addEventListener('pointerleave',cancel);
+})();
+// "Only threats towards me" can only ever mean: the post said which way it is going, and that way is here.
+// A target whose course nobody reported is not filtered out — it is shown, because "we do not know" is not
+// the same as "not coming", and hiding it would be the app inventing a negative.
+let FOCUS=false; try{FOCUS=localStorage.getItem('focus')==='1';}catch(e){}
+// The two minutes between a track going quiet and its mark disappearing.
+//
+// A mark that simply vanishes gets read as "it was shot down" — people watch one fade off the screen over
+// their own district and conclude the sky is clear. It is not what happened: the channels stopped posting
+// about it, which usually means nobody could see it any more. So it says that, in those words, for two
+// minutes, and then it goes.
+const LOST_FADE_MIN=2;
+function contactLost(m){
+  if(m.status||m.endedBy) return false;
+  return !!m.stale && m.stale >= (ttl?Math.max(8,ttl*0.25):8);
+}
+function lostGoneIn(m){                       // minutes left before the mark is removed, or null
+  if(!contactLost(m)) return null;
+  const over=agoMin(m.ts)-(ttl||45);
+  return over>=0?Math.max(0,LOST_FADE_MIN-over):null;
+}
+function towardsMe(m){
+  if(!HOME||m.status||m.endedBy) return true;
+  if(IMMEDIATE.has(m.type)) return true;              // these concern the whole region, course or no course
+  if(m.heading==null) return true;                    // no reported course: unknown, so never hidden
+  const ev=m.evidence&&m.evidence.heading;
+  if(!ev||!ev.confidence||ev.confidence==='none') return true;
+  const [hx,hy]=proj(HOME.lon,HOME.lat); const [x,y]=posOf(m,Date.now());
+  const d=Math.hypot(x-hx,y-hy); if(d<=10) return true;   // already on top of the place
+  const bTo=(Math.atan2(hx-x,-(hy-y))*180/Math.PI+360)%360;
+  return Math.abs(((m.heading-bTo)+540)%360-180)<=35;
+}
+let SLOT_PICKING=null;   // which slot the place picker is currently filling
 let PLACES_ALL=[];
-const homeName=()=>HOME?(LANG==='uk'&&HOME.uk?HOME.uk:townName(HOME.name)):'';
+const homeName=()=>!HOME?'':HOME.dropped?t('sl_pin_dropped'):(LANG==='uk'&&HOME.uk?HOME.uk:townName(HOME.name));
 async function loadPlacesList(){try{const pl=(await (await fetch('/api/places?oblast=14,31,10,25,20,19,24,4')).json()).places;PLACES_ALL=pl.filter(p=>!/громада|берег|столиця|водосховище|море|АЕС|ГЕС|траса|шосе|проспект/i.test(p.name)).map(p=>({name:translit(p.name),uk:p.name,lon:p.lon,lat:p.lat,kind:OBL_N[p.oblast_uid]?oblFull(p.oblast_uid):t('kd_region')}));
   for(const [r,n] of Object.entries(RAION)) if(r!=='kyiv-city'){const c=RAION_LBL[r];PLACES_ALL.push({name:RAION_N[r][0]+' raion',uk:RAION_N[r][1]+' район',lon:C[0]+c[0]/KX,lat:C[1]-c[1]/KY,kind:t('kd_raion')});}
   PLACES_ALL.sort((a,b)=>a.name.localeCompare(b.name));}catch(e){}}
 function renderHomeList(q){const s=(q||'').toLowerCase();const rows=PLACES_ALL.filter(p=>!s||p.name.toLowerCase().includes(s)||p.uk.toLowerCase().includes(s)).slice(0,60);
   $('homelist').innerHTML=rows.map((p,i)=>`<div class="hitem" data-i="${PLACES_ALL.indexOf(p)}"><div>${esc(LANG==='uk'?p.uk:p.name)} <span>${esc(LANG==='uk'?p.name:p.uk)}</span></div><span>${esc(p.kind)}</span></div>`).join('')||`<div class="empty">${t('hl_nomatch')}</div>`;
-  $('homelist').querySelectorAll('.hitem').forEach(el=>el.onclick=()=>{const p=PLACES_ALL[+el.dataset.i];HOME={name:p.name,uk:p.uk,lon:p.lon,lat:p.lat};try{localStorage.setItem('home',JSON.stringify(HOME));}catch(e){};$('homesheet').classList.remove('show');drawHome();render();if(typeof pushSync==='function')pushSync();notify(t('n_home',homeName()),t('n_home_b'),'end');discHomeLabel();});}
+  $('homelist').querySelectorAll('.hitem').forEach(el=>el.onclick=()=>{const p=PLACES_ALL[+el.dataset.i];
+    const slot=SLOT_PICKING||ACTIVE; SLOT_PICKING=null;
+    setSlot(slot,{name:p.name,uk:p.uk,lon:p.lon,lat:p.lat});
+    $('homesheet').classList.remove('show');
+    notify(t('n_home',homeName()),t('n_home_b'),'end');});}
 $('menubtn').onclick=e=>{e.stopPropagation();$('menu').hidden=!$('menu').hidden;};
 document.addEventListener('pointerdown',e=>{if(!$('menu').hidden&&!$('menu').contains(e.target)&&e.target!==$('menubtn'))$('menu').hidden=true;});
 $('homebtn').onclick=async()=>{$('menu').hidden=true;if(!PLACES_ALL.length)await loadPlacesList();renderHomeList('');$('homeq').value='';$('homesheet').classList.add('show');setTimeout(()=>$('homeq').focus(),100);};
 $('homeq').addEventListener('input',e=>renderHomeList(e.target.value));
-$('homeclear').onclick=()=>{HOME=null;try{localStorage.removeItem('home');}catch(e){};$('homesheet').classList.remove('show');drawHome();render();discHomeLabel();};
+$('homeclear').onclick=()=>{const slot=SLOT_PICKING||ACTIVE; SLOT_PICKING=null; SLOTS[slot]=null; useSlot(slot); $('homesheet').classList.remove('show');};
 document.addEventListener('pointerdown',e=>{if($('homesheet').classList.contains('show')&&!$('homesheet').contains(e.target)&&e.target!==$('homebtn'))$('homesheet').classList.remove('show');});
 function inboundInfo(m,x,y){ // reported heading pointing at Kyiv centre (0,0)?
   const v=SPEED(m); const dist=Math.hypot(x,y); if(m.status||m.endedBy||!v||m.heading==null) return {inbound:false,dist};
@@ -1083,8 +1280,8 @@ function tick(){
     b.g.classList.toggle('tohome',hi.inbound||(hi.near&&!m.status&&!m.endedBy)); if(hi.inbound||hi.near){ if(!m.status&&!m.endedBy){ homeThreats++; if(hi.named) homeNamedN++; if(hi.inbound&&(!homeNearest||hi.dist<homeNearest.dist)) homeNearest={...hi,m}; if(!homeAlerted.has(m.id)){homeAlerted.add(m.id);
       // A ballistic warning names no distance and no ETA: at this speed neither is something the reader can
       // act on, and printing "112 km" invites exactly the wrong decision — that there is time.
-      if(hi.immediate) notify(`🚨 ${t('n_imm',THREAT[m.type]?.[1]||'')}`,`${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)} · ${t('n_imm_b')}`,'start');
-      else notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start');} } }
+      if(hi.immediate) notify(`🚨 ${t('n_imm',THREAT[m.type]?.[1]||'')}`,`${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)} · ${t('n_imm_b')}`,'start',alertVol(m,hi));
+      else notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start',alertVol(m,hi));} } }
     const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?1.5:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
     b.g.dataset.tx=x.toFixed(2); b.g.dataset.ty=y.toFixed(2);
     b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);
@@ -1113,6 +1310,8 @@ function tick(){
     b.g.classList.toggle('desc',dsc); b.g.classList.toggle('hasalt',!!altM);
     {const dn=b.g.querySelector('.dn'); if(dn){ dn.setAttribute('y',(16*KPX).toFixed(2));
       dn.textContent=altM?((dsc?'↓':'')+altM+' '+t('m_unit')):(dsc?'↓':''); }}
+    b.g.classList.toggle('defocus',FOCUS&&!towardsMe(m));
+    b.g.classList.toggle('lostc',contactLost(m));
     b.g.classList.toggle('inbound',info.inbound&&!m.stale); b.g.classList.toggle('old',age>ttl*0.65); b.g.classList.toggle('ended',!!m.endedBy); b.g.classList.toggle('stale',!!m.stale&&!m.endedBy&&!m.status); b.g.classList.toggle('s2',!!m.stale&&m.stale>=8); b.g.classList.toggle('s3',!!m.stale&&m.stale>=11); b.g.querySelector('.qm').setAttribute('y',(-12*KPX).toFixed(2));
     const v=SPEED(m); const ah=b.g.querySelector('.ahead'); const cone=b.g.querySelector('.cone');
     if(!m.status&&!m.endedBy&&v&&m.heading!=null){ // reported heading: 12-min ray + ±20° uncertainty cone
@@ -1312,6 +1511,14 @@ function openSheet(id){
   $('sheetbody').innerHTML=`<div class="type">${kind}${m.count?` <span class="chip">×${m.count}</span>`:''}${altChip}${m.status?'':phaseChip(m)}${info.inbound&&!m.stale&&!closer?` <span class="chip red">${t('lb_tokyiv')}</span>`:''}<span class="chip ${CONF[overall][0]}" style="margin-left:auto">${cf(overall)}</span></div>
     <div class="kv1 muted">${src} · <a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">${t('sh_post')}</a></div>
     <div class="kv1">${where}</div>${state}${merged}${track}
+    ${(()=>{ if(!HOME||m.status||m.endedBy) return '';
+      const [mx,my]=posOf(m,Date.now()); const hz=homeInfo(m,mx,my);
+      const z=hz.zone; const eb=etaBand(m,hz.dist);
+      if(!z&&!eb) return '';
+      const zl=z?`<span class="chip ${z==='near'?'red':z==='approach'?'':'muted'}">${esc(t('z_'+z))}</span>`:'';
+      // "if it holds its course" is not a hedge bolted on — it is the whole content of the number.
+      const el=eb?` <b>${esc(t('eta_band',eb.lo,eb.hi))}</b> <span style="color:var(--muted)">${esc(t('eta_if'))}</span>`:'';
+      return `<div class="kv1">${zl}${el}</div>`; })()}
     ${m.type==='unknown'&&!m.status?`<div class="kv1 yellow">${esc(t('unk_note'))}${m.likely==='drones'?' '+esc(m.alt&&m.alt.m?t('alt_likely'):t('unk_likely_l')):''}</div>`:''}
     ${mk?`<div class="kv1 muted" style="font-size:12px">${esc(m.type==='ballistic_missiles'?t('msl_bal'):m.type==='banderol_missiles'?t('msl_band'):t('msl_cru'))}</div>`:''}
     ${(m._reach>0)?`<div class="kv1 yellow"><b>${esc(t('msl_reach',Math.round(m._reach)))}</b> — ${esc(t('msl_seen',placeEn,fmtT(m.ts)))}<div style="color:var(--muted);font-size:11.5px;margin-top:3px">${esc(t('msl_note',mk.v))}</div></div>`:''}
@@ -1325,6 +1532,8 @@ function openSheet(id){
       <div style="font-size:11px;color:var(--muted);margin-top:6px">${t('sh_note',STALE)}</div>
     </details>
     ${alt?`<div class="kv1 muted" style="font-size:11.5px">${esc(alt.state?(ALTL[alt.state]||alt.state):(alt.m+' m'))}: “${esc(alt.matched)}” — ${esc(t('alt_src'))}</div>`:''}
+    ${(()=>{const gsd=groundSpeed(m); return gsd?`<div class="kv1 muted" style="font-size:11.5px">${esc(t('tel_gs',gsd.kmh))} — ${esc(t('tel_gs_src',gsd.mins))}</div>`:'';})()}
+    ${contactLost(m)?`<div class="kv1 yellow">✖ ${esc(t('lost_t'))}<div style="color:var(--muted);font-size:11.5px;margin-top:3px">${esc(t('lost_b',m.stale))}</div></div>`:''}
     <div style="margin-top:8px;display:flex;gap:8px;justify-content:flex-end"><button class="tgl" id="flagbtn" data-fid="${esc(m.id)}">${t('flag_btn')}</button><button class="tgl" id="shbtn">${t('share_btn')}</button><button class="tgl" onclick="closeSheet()">${t('btn_close')}</button></div>`;
   $('shbtn').onclick=()=>shareMarker(m.id,$('shbtn'));
   $('sheet').classList.add('show');
@@ -1553,9 +1762,9 @@ function threatStrip(){
   // opens this on a calm evening to ask — is anything happening at all, anywhere. So when nothing is
   // threatening this oblast the strip goes green and reports the country: how many oblasts are under alert,
   // how many targets are on the map. Counts only, from what is already known; nothing here is projected.
-  if(!thr.length){ const idle=idleLine(); if(!idle){el.hidden=true;document.documentElement.style.setProperty('--top',TOPBASE+'px');return;}
+  if(!thr.length){ const idle=idleLine(); if(!idle){el.hidden=true;syncTop();return;}
     el.className='tstrip calm'; el.hidden=false; el.innerHTML=idle;
-    document.documentElement.style.setProperty('--top',(TOPBASE+el.offsetHeight)+'px'); return; }
+    syncTop(); return; }
   // One row per threat, not per post. A MiG-31K take-off is relayed by four channels within a minute; four
   // identical rows say nothing the first one did not, and would push the ballistic warning underneath them
   // off the visible line. Same type collapses to its freshest report, and the channels that agree become a
@@ -1588,7 +1797,7 @@ function threatStrip(){
   el.innerHTML=one(tt)
     +(rest.length?` <button type="button" class="tsmore" id="tsmore" aria-expanded="${TS_OPEN?'true':'false'}">${esc(t('ts_more',rest.length))} ${TS_OPEN?'▴':'▾'}</button>`:'')
     +(rest.length&&TS_OPEN?`<div class="tsrest">${rest.map(x=>`<div class="tsr">${one(x)}</div>`).join('')}</div>`:'');
-  document.documentElement.style.setProperty('--top',(TOPBASE+el.offsetHeight)+'px');
+  syncTop();
 }
 // Kept outside threatStrip so a re-render every few seconds does not fold the list back up while it is open.
 let TS_OPEN=false;
@@ -1944,7 +2153,9 @@ function geoSheet(){
 // keep the server's copy of "where to warn me" in step with the local settings
 async function pushSync(){ if(!PUSH_SUB) return;
   try{ await fetch('/api/push/subscribe',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({subscription:PUSH_SUB.toJSON(),home:Object.assign({name:HOME?HOME.name:null,raion:homeRaion()},GEO||{})})}); }catch(e){} }
+    // Only the browser's own coarse geolocation, and never a name. The server discards a name anyway, but
+    // one of the watched places is a school: the request itself should not be able to say so.
+    body:JSON.stringify({subscription:PUSH_SUB.toJSON(),home:Object.assign({},GEO||{})})}); }catch(e){} }
 
 // ---- 7. how the app works ----------------------------------------------------------------
 function helpSheet(){
@@ -2035,7 +2246,7 @@ schedulePulse();setInterval(()=>{if(!document.hidden)render();},30000);setInterv
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){schedulePulse();pulse(true);}});
 window.addEventListener('online',()=>{schedulePulse();pulse(true);});
 window.addEventListener('focus',()=>{ if(Date.now()-lastPing>4000) pulse(true); });
-(async()=>{await loadMap();fillDiscOblasts();loadDistricts();drawHome();assignTownOblasts();setView(0,0,110);updateTiles();layoutTownLabels();applySelOblast();await refreshAll();
+(async()=>{await loadMap();fillDiscOblasts();loadDistricts();drawHome();drawZones();paintSlots();assignTownOblasts();setView(0,0,110);updateTiles();layoutTownLabels();applySelOblast();await refreshAll();
   try{ checkBuild(await(await fetch('/api/version')).json()); }catch(e){}
   paintFooters();
   {const q=new URLSearchParams(location.search);            // home-screen shortcuts from the manifest
