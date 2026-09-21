@@ -468,6 +468,114 @@ body.lite .leader{stroke:#fff;stroke-opacity:.6}body.lite .anchor{fill:#fff}
 .mk.desc .dn,.mk.hasalt .dn{display:block}svg.veryfar .mk .dn{display:none}
 .mk.hasalt:not(.desc) .dn{fill:#cfe0ff}
 .chip.desc{color:#ffb3c5;border-color:#7a2a3a;background:rgba(255,45,85,.12)}
+/* ---------- display modes ----------
+   Three, and they are for three different problems, which is why none of them is a brightness slider.
+
+   Daylight is for a phone held at arm's length in direct sun, where a dark screen is a mirror. Luminance is
+   what survives that, so it inverts: near-white ground, near-black ink, heavy strokes, no translucency and
+   no soft glows — a 7% fill that reads fine at night is simply not there outdoors. The threat colours stay
+   colours, darkened to keep their contrast against white, because which weapon it is must survive too.
+
+   Night is for somebody in a dark room or a shelter who needs to keep their night vision and not light up a
+   window. Everything is dimmed, nothing pulses, nothing glows, and the silhouettes drop to plain arrows.
+   One thing does NOT dim away: a ballistic mark is still unmistakable, drawn as a hard double outline
+   instead of a blinking glow. "No glare" cannot be allowed to mean "no warning".
+
+   Blackout is a separate switch and stays separate: it is about bytes and battery, not about light. */
+body.m-day{--bg:#f2f3f5;--ink:#0a0c10;--ink2:#2c3138;--ink3:#565c66;--line:#9aa1ac;--panel:#ffffff;--panel2:#e7e9ed;
+  --red:#b3140d;--red2:#d12a20;--yellow:#8a6d00;--green:#0d6b3f;--orange:#b8480a;--purple:#5b2fa8;--blue:#14459c}
+/* The map surface itself, not just the chrome around it. The base map is painted dark by its own fills and
+   by the tile layer's invert(1); leaving those alone gave a light interface wrapped around a black map,
+   which is the worst of both — the glare is still there and the contrast has gone. */
+body.m-day .mapwrap{background:#e9ebef}
+body.m-day #tiles{filter:brightness(1.04) contrast(1.10) saturate(.62)}
+body.m-day #tiles image{opacity:1}
+body.m-day .nb{fill:#e3e6ea;stroke:#a8afb9}
+body.m-day .rn{fill:#dce0e6;stroke:#9aa1ac}
+body.m-day .ob{stroke:#5b6572;stroke-width:1.5px}body.m-day .ob.far{fill:#e9ebef;stroke:#8d95a1}
+body.m-day .ob.region.R{fill:rgba(179,20,13,.16)}body.m-day .ob.region.Y{fill:rgba(201,151,0,.18)}
+body.m-day svg.tiled .rn{fill:rgba(255,255,255,.18)}
+body.m-day svg.tiled .rn.R{fill:rgba(179,20,13,.30)}body.m-day svg.tiled .rn.Y{fill:rgba(201,151,0,.34)}
+body.m-day .river{stroke:#7fa8d8}body.m-day .road{stroke:#b4bbc5}
+body.m-day .towndot{fill:#12161c}body.m-day .kd{stroke:#6d7581}
+/* Night dims the map itself as well, so the screen does not light a room or a window. */
+body.m-night .mapwrap{background:#020407}
+body.m-night .nb{fill:#070a0f;stroke:#141a23}
+body.m-night .rn{fill:#090d13;stroke:#161d27}
+body.m-night .ob{stroke:#1d2632}body.m-night .ob.far{fill:#04060a}
+body.m-night .river{stroke:#12283f}body.m-night .road{stroke:#12161d}
+body.m-day .mk .glyph{stroke:#000;stroke-width:1.4px;filter:none!important;animation:none!important}
+body.m-day .mk.ballistic_missiles .glyph{fill:#fff!important;stroke:#b3140d;stroke-width:2.2px}
+body.m-day .mk.supersonic_missiles .glyph{fill:#ffd9a8!important;stroke:#b8480a;stroke-width:2px}
+body.m-day .mk .hdg{stroke:#000;stroke-width:.9px}
+body.m-day .mk .cone{fill-opacity:.22}
+body.m-day .zone{stroke:#14459c;stroke-opacity:.75;stroke-width:1.4px}
+body.m-day .zlbl{fill:#14459c;stroke:#fff;stroke-width:1.2px}
+body.m-day .trail.hist line{stroke:#7a2f00;stroke-width:2px}
+body.m-day .ob{stroke:#4a515c}body.m-day .oblbl,body.m-day .nblbl,body.m-day .rnlbl{fill:#3a404a}
+body.m-day .town,body.m-day .roadlbl,body.m-day .rvlbl{fill:#12161c;paint-order:stroke;stroke:#fff;stroke-width:2.4px}
+body.m-day .nb.R,body.m-day .nb.oR,body.m-day .rn.R{fill:#b3140d;fill-opacity:.30}
+body.m-day .nb.Y,body.m-day .nb.oY,body.m-day .rn.Y{fill:#c99700;fill-opacity:.32}
+body.m-day .livebar .chip,body.m-day .slotrow button{background:#fff;color:#12161c;border-color:#6d7581}
+body.m-day .slotrow button.on{background:#12161c;color:#fff;border-color:#12161c}
+body.m-day .tstrip.calm{background:#d8f0e2;color:#04321d;border-color:#0d6b3f}
+body.m-day .tstrip.offy{background:#ffe9a8;color:#3a2c00;border-color:#8a6d00}
+body.m-day .tstrip.offr,body.m-day .tstrip.bal,body.m-day .tstrip.mig{background:#b3140d;color:#fff;border-color:#6d0b06;animation:none}
+
+body.m-night{--bg:#04060a;--ink:#8fa3b8;--ink2:#61748a;--ink3:#3f4e5e;--line:#18202b;--panel:#070a0f;--panel2:#0b1017;
+  --red:#8c2a26;--red2:#a83b34;--yellow:#7a6a20;--green:#2a6b4d;--orange:#8a5626;--purple:#5c4a8a;--blue:#2f5480}
+body.m-night #tiles{filter:brightness(.42) saturate(.35) contrast(.9)}
+body.m-night .mk .glyph{filter:none!important;animation:none!important;fill:#9fb4c9!important;stroke:#04060a;stroke-width:.8px}
+body.m-night .mk .halo,body.m-night .mk .halo2,body.m-night .mk .spawn,body.m-night .mk .jetfx{display:none}
+body.m-night .mk .cone{fill-opacity:.05}
+body.m-night .mk .hdg{fill:#7f97ae}
+/* the one thing night mode does not dim away */
+body.m-night .mk.ballistic_missiles .glyph,body.m-night .mk.supersonic_missiles .glyph{fill:none!important;stroke:#ff6b60;stroke-width:2.2px}
+body.m-night .mk.ballistic_missiles .reach{stroke:#ff6b60;stroke-opacity:.7}
+body.m-night .zone{stroke:#2f5480;stroke-opacity:.35}
+body.m-night .zlbl{fill:#3f4e5e;stroke:none}
+body.m-night .trail.hist line{stroke:#5c7086}
+body.m-night .tstrip{animation:none!important}
+body.m-night .ticker,body.m-night .tstrip.calm{animation:none}
+body.m-night .town.minor,body.m-night .towndot.minor,body.m-night .poi,body.m-night .poilbl{display:none}
+/* Marker labels carry their own dark halo, which in daylight is a black smear under light text. */
+body.m-day .mk .lbl{fill:#0a0c10;stroke:#fff;stroke-width:calc(var(--k,1)*3px)}
+body.m-day .mk .lbl2{fill:#7a2f00;stroke:#fff;stroke-width:calc(var(--k,1)*3px)}
+body.m-day .imp .it{fill:#8c0f09;stroke:#fff}
+body.m-day .zlbl{stroke-width:calc(var(--k,1)*1.6px)}
+body.m-day .roadlbl,body.m-day .rvlbl{fill:#3f4753;stroke:#fff}
+body.m-day .kozak text{fill:#7a5a00;stroke:#fff}
+body.m-night .mk .lbl{fill:#8fa3b8;stroke:#04060a}
+body.m-night .mk .lbl2{fill:#61748a;stroke:#04060a}
+body.m-night .town{fill:#63788d;stroke:#04060a}
+body.m-night .town.big{fill:#8fa3b8}
+/* Overlays that hardcode a dark panel rather than using the tokens. In daylight they were dark boxes with
+   dark text in them — unreadable, which for a warning panel is worse than not drawing it at all. */
+body.m-day .tip,body.m-day .homerow,body.m-day .rt,body.m-day .livebar .chip,body.m-day .mapctl button,
+body.m-day #toast,body.m-day .menu,body.m-day .mbox{background:#fff;color:#12161c;border-color:#7d858f}
+body.m-day .tip{border-left-color:#b8480a}
+body.m-day .menu .mi,body.m-day .menu .mi2,body.m-day .menu .ml{color:#12161c}
+body.m-day .menu .mi2{background:#eceef2;border-color:#8d95a1}
+body.m-day .menu .mi2.on{background:#12161c;color:#fff;border-color:#12161c}
+body.m-day #toast b{color:#12161c}
+body.m-day .sfoot,body.m-day .kv1.muted,body.m-day .muted{color:#4a515c}
+/* Anything still emitting light in the dark. An impact star at full white is the brightest thing on the
+   screen and it is reporting something that already happened — it does not get to be. */
+body.m-night .imp .ig{fill:#6d7f92;filter:none;animation:none}
+body.m-night .imp .it{fill:#61748a;stroke:#04060a}
+body.m-night .imp .sw{stroke:#3f4e5e;animation:none}
+body.m-night .imp.fire .ig{fill:#7a5a3a}body.m-night .imp.dmg .ig{fill:#7a4a46}
+body.m-night .ringlbl,body.m-night .rvlbl,body.m-night .roadlbl{fill:#2c3846}
+body.m-night .ring{stroke:#17202b}
+body.m-night .nb.R,body.m-night .nb.oR,body.m-night .rn.R{fill:#8c2a26;fill-opacity:.22}
+body.m-night .nb.Y,body.m-night .nb.oY,body.m-night .rn.Y{fill:#7a6a20;fill-opacity:.18}
+body.m-night .ob.region.R{fill:rgba(140,42,38,.10)}body.m-night .ob.region.Y{fill:rgba(122,106,32,.08)}
+body.m-night .hl,body.m-night .homemk .ico{opacity:.7}
+body.m-night .tip,body.m-night .homerow,body.m-night .rt,body.m-night .livebar .chip,
+body.m-night .mapctl button,body.m-night #toast,body.m-night .menu,body.m-night .mbox{background:#070a0f;color:#8fa3b8;border-color:#1c242f}
+#modetag{display:none;position:absolute;right:8px;bottom:8px;z-index:7;font:700 9.5px var(--mono);letter-spacing:.1em;color:var(--ink3);border:1px solid var(--line);padding:2px 5px;pointer-events:none}
+body.m-night #modetag,body.m-day #modetag{display:block}
+
 /* blackout mode: 2G, weak signal, OLED. Pure black and white, no tiles, no images, minimal payload. */
 body.lite{--bg:#000;--panel:#0a0a0a;--panel2:#111;--line:#3a3a3a;--ink:#fff;--ink2:#cfcfcf;--ink3:#8a8a8a}
 body.lite #tiles,body.lite .attrib,body.lite .kozak,body.lite .credit img,body.lite #top .logo{display:none}
@@ -532,6 +640,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <div class="mg" data-t="m_g_view">Display</div>
     <button class="mi" id="langbtn"></button>
     <button class="mi" id="lang" data-t="m_ua">Show original Ukrainian</button>
+    <div class="mrow z"><span class="ml" data-t="m_mode">Display mode</span><button class="mi2" id="mdstd" data-t="m_md_std">Standard</button><button class="mi2" id="mdday" data-t="m_md_day">Daylight</button><button class="mi2" id="mdnight" data-t="m_md_night">Night</button></div>
     <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
 
     <div class="mg" data-t="m_g_info">About</div>
@@ -573,6 +682,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
   <div class="mapctl"><button id="zin">+</button><button id="zout">−</button><button id="zkyiv" data-t-title="t_center" title="Centre on my oblast">◎</button><button id="impbtn" data-t-title="t_hist" title="History of explosions and confirmed shoot-downs: off / 24 h / 48 h / 72 h">✸<small id="imph"></small></button></div>
   <div class="tip" id="tip" hidden></div>
   <div id="litetag">BLACKOUT</div>
+  <div id="modetag"></div>
 </div>
 </div>
 
@@ -1166,6 +1276,9 @@ const G={drone:SHAHED_BODY+'<rect class="glyph" x="-2.8" y="6" width="5.6" heigh
 //
 // Aircraft, not missiles: a swept wing and a tail, so at a glance the silhouette says "something is flying
 // that will launch" rather than "something is already on its way".
+// Night mode's stand-in for every silhouette: one chevron, nose on the centreline like all the others, so
+// it obeys the same rotation rule and points only where the post said.
+G.arrow='<path class="glyph" d="M0-10 L7.2 8 L0 3.6 L-7.2 8 Z"/>';
 G.supersonic='<path class="glyph" d="M0-12.5 L2.6-5 L2.6 1 L8.4 7 L8.4 9 L2.6 6.4 L2.6 9.2 L4.4 12 L-4.4 12 L-2.6 9.2 L-2.6 6.4 L-8.4 9 L-8.4 7 L-2.6 1 L-2.6-5 Z"/>'
   +'<path class="glyph" d="M0-12.5 L1.3-8 L-1.3-8 Z" opacity=".55"/>';
 G.bomber='<path class="glyph" d="M0-12 L1.9-7.2 L1.9-1.2 L12.4 4.4 L12.4 6.6 L1.9 3.4 L1.9 7.6 L5.2 11.4 L5.2 12.6 L-5.2 12.6 L-5.2 11.4 L-1.9 7.6 L-1.9 3.4 L-12.4 6.6 L-12.4 4.4 L-1.9-1.2 L-1.9-7.2 Z"/>';
@@ -1257,6 +1370,10 @@ const GLYPH_BY_TYPE={drones:'drone',unknown:'unknown',banderol_missiles:'bandero
   tactic_aircraft_activity:'fighter',strategic_aircraft_activity:'bomber',mig31k_departure:'fighter',
   cruise_missiles:'missile',unspecified_missiles:'missile'};
 const glyphKey=m=>m.status?m.status
+  // Night mode: plain arrows, not silhouettes. A detailed shape needs more light to resolve than an arrow
+  // does, and in the dark it resolves to a grey blob anyway. The type is still on the label and in the
+  // panel; what the arrow has to carry is only "something is there, going that way".
+  :(MODE==='night'&&!IMMEDIATE.has(m.type))?'arrow'
   :(m.type==='drones'&&m.jet)?'jetdrone'
   :(GLYPH_BY_TYPE[m.type]||'missile');
 // Which way a mark points.
@@ -2174,13 +2291,35 @@ async function shareMarker(id,btn){ const m=MK.find(x=>x.id===id)||IMP.find(x=>x
   if(navigator.share){ try{ await navigator.share({text:txt}); return; }catch(e){ if(e&&e.name==='AbortError') return; } }
   copyText(txt,btn); }
 
+// ---- 4b. display mode: standard / daylight / night ---------------------------------------
+// Separate from blackout on purpose. Blackout is about bytes and battery; this is about the light the
+// screen is being read in, and somebody on 2G in bright sun needs both at once.
+const MODES=['standard','day','night'];
+let MODE='standard'; try{const v=ls('mode'); if(MODES.includes(v)) MODE=v;}catch(e){}
+function applyMode(){
+  for(const m of MODES) document.body.classList.toggle('m-'+m, m===MODE&&m!=='standard');
+  const tag=$('modetag'); if(tag) tag.textContent=MODE==='standard'?'':t('md_tag_'+MODE);
+  $('mdstd').classList.toggle('on',MODE==='standard');
+  $('mdday').classList.toggle('on',MODE==='day');
+  $('mdnight').classList.toggle('on',MODE==='night');
+  // the silhouettes differ between modes, so every built mark has to be re-keyed
+  if(typeof built!=='undefined') for(const [,b] of built) b.gk=null;
+  if(typeof updateTiles==='function') updateTiles();
+  if(typeof render==='function') render();
+}
+function setMode(m){ if(!MODES.includes(m)) return; MODE=m; ls('mode',m); applyMode();
+  $('menu').hidden=true; notify(t('md_set',t('m_md_'+(m==='standard'?'std':m))),'','end'); }
+$('mdstd').onclick=()=>setMode('standard');
+$('mdday').onclick=()=>setMode('day');
+$('mdnight').onclick=()=>setMode('night');
+
 // ---- 5. blackout mode (2G / weak signal) -------------------------------------------------
 let LITE=ls('lite')==='1';
 function applyLite(){ document.body.classList.toggle('lite',LITE); $('litebtn').classList.toggle('on',LITE);
   if(typeof updateTiles==='function') updateTiles(); }
 $('litebtn').onclick=()=>{ LITE=!LITE; ls('lite',LITE?'1':'0'); applyLite(); $('menu').hidden=true;
   notify(LITE?t('lite_on'):t('lite_off'),'','end'); };
-applyLite();
+applyLite(); applyMode();
 
 // ---- 6. "warn me when something is reported within N km of me" ---------------------------
 let GEO=null; try{GEO=JSON.parse(ls('geo')||'null');}catch(e){}
