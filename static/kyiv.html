@@ -65,6 +65,12 @@ body.lite .ticker .tki{color:#fff}
 .tstrip.bal{background:#4a0d12;color:#ffd6d6;border-color:#8a2a2a}.tstrip.mig{background:#2b1440;color:#e9d6ff;border-color:#5f2f8a}.tstrip[hidden]{display:none}
 /* past the freshness window it stops shouting: no pulse, muted amber, past tense, age on the face of it */
 .tstrip.old{background:#221d13;color:#d9cba4;border-color:#4d411f;animation:none}
+.tstrip.calm{background:#0e2018;color:#b8e6cc;border-color:#25503c;animation:none}
+.tstrip .tsmore{margin-left:8px;font:700 11px var(--mono);letter-spacing:.04em;text-transform:uppercase;background:rgba(255,255,255,.08);color:inherit;border:1px solid currentColor;border-radius:2px;padding:2px 7px;cursor:pointer;opacity:.85}
+.tstrip .tsmore:active{background:rgba(255,255,255,.18)}
+.tstrip .tsrest{margin-top:5px;padding-top:5px;border-top:1px solid currentColor;display:flex;flex-direction:column;gap:4px;opacity:.92}
+.tstrip .tsr{font:700 11.5px/1.3 var(--mono)}
+body.lite .tstrip.calm{background:#fff;color:#000;border-color:#fff}
 .tstrip.old small{opacity:.95}
 body.lite .tstrip.old{background:#111;color:#ddd;border-color:#555}
 @keyframes tpulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.35)}}
@@ -829,12 +835,22 @@ function homeNamed(m){
   const want=new Set([HOME.name,HOME.uk].filter(Boolean).map(s=>String(s).toLowerCase()));
   return want.has(bare(m.target))||want.has(bare(m.place));
 }
+// Weapons that outrun the filter. A Shahed crosses a 10 km ring in three minutes, so that ring is a real
+// warning. An Iskander or a Kinzhal crosses it in under four seconds — by the time one is "within 10 km of
+// you" it has arrived, and filtering by that distance deletes the only warning there was. These are exempt
+// from every radius and concern the whole region. Mirrors geo.IMMEDIATE_TYPES / REGION_ALERT_KM.
+const IMMEDIATE=new Set(['ballistic_missiles','mig31k_departure']);
+const REGION_R=150;   // km — proj() is scaled in km, so distances here are already kilometres
 function homeInfo(m,x,y){
-  if(!HOME) return {near:false,inbound:false,named:false,dist:null};
+  if(!HOME) return {near:false,inbound:false,named:false,dist:null,immediate:false};
   const [hx,hy]=proj(HOME.lon,HOME.lat); const dist=Math.hypot(x-hx,y-hy); const v=SPEED(m);
   const named=!m.status&&!m.endedBy&&homeNamed(m);
-  if(m.status||m.endedBy||!v) return {near:dist<10,inbound:false,named:false,dist};
-  return {near:dist<10,inbound:named,named,dist,eta:named&&v?dist/v:null};
+  const imm=!m.status&&!m.endedBy&&IMMEDIATE.has(m.type)&&dist<=REGION_R;
+  // The no-speed branch below covers outcomes AND anything the page has no speed model for. A ballistic
+  // marker falls in the second group, so the bypass has to survive it — dropping it here is how the whole
+  // exemption silently did nothing.
+  if(m.status||m.endedBy||!v) return {near:dist<10||imm,inbound:false,named:false,dist,immediate:imm};
+  return {near:dist<10||imm,inbound:named,named,dist,immediate:imm,eta:named&&v?dist/v:null};
 }
 function drawHome(){ if(!MAP) return; if(!HOME){$('homeg').innerHTML='';return;} const [x,y]=proj(HOME.lon,HOME.lat);
   $('homeg').innerHTML=`<g class="homemk"><circle class="ring" cx="${x}" cy="${y}" r="5" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><circle class="ring" cx="${x}" cy="${y}" r="10" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><text class="ico" x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle">🏠</text><text class="hl" x="${x}" y="${(y-8*KPX).toFixed(1)}" text-anchor="middle">${esc(homeName())}</text></g>`; }
@@ -1056,7 +1072,11 @@ function tick(){
     let b=built.get(m.id); if(!b){b=buildMarker(m);built.set(m.id,b);$('markers').appendChild(b.g);$('trails').appendChild(b.hist);$('trails').appendChild(b.trail);}
     if(m.history&&m.history.length){const [hx,hy]=posOf(m,now); b.hist.setAttribute('points',m.history.map(h=>proj(h.lon,h.lat).map(v=>v.toFixed(1)).join(',')).join(' ')+` ${hx.toFixed(1)},${hy.toFixed(1)}`);}else b.hist.setAttribute('points','');
     const [x,y,x0,y0]=posOf(m,now); const info=inboundInfo(m,x,y); const hi=homeInfo(m,x,y); const age=agoMin(m.ts);
-    b.g.classList.toggle('tohome',hi.inbound||(hi.near&&!m.status&&!m.endedBy)); if(hi.inbound||hi.near){ if(!m.status&&!m.endedBy){ homeThreats++; if(hi.named) homeNamedN++; if(hi.inbound&&(!homeNearest||hi.dist<homeNearest.dist)) homeNearest={...hi,m}; if(!homeAlerted.has(m.id)){homeAlerted.add(m.id); notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start');} } }
+    b.g.classList.toggle('tohome',hi.inbound||(hi.near&&!m.status&&!m.endedBy)); if(hi.inbound||hi.near){ if(!m.status&&!m.endedBy){ homeThreats++; if(hi.named) homeNamedN++; if(hi.inbound&&(!homeNearest||hi.dist<homeNearest.dist)) homeNearest={...hi,m}; if(!homeAlerted.has(m.id)){homeAlerted.add(m.id);
+      // A ballistic warning names no distance and no ETA: at this speed neither is something the reader can
+      // act on, and printing "112 km" invites exactly the wrong decision — that there is time.
+      if(hi.immediate) notify(`🚨 ${t('n_imm',THREAT[m.type]?.[1]||'')}`,`${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)} · ${t('n_imm_b')}`,'start');
+      else notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start');} } }
     const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?1.5:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
     b.g.dataset.tx=x.toFixed(2); b.g.dataset.ty=y.toFixed(2);
     b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);
@@ -1217,6 +1237,19 @@ const cfa=(kind,e,m)=>{const a=accTxt(kind,e,m); return cf(e&&e.confidence)+(a?`
 function evRow(label,e,fallback,acc){ if(!e) return `<span>${label}</span><b style="color:var(--muted);font-weight:500">${fallback||'—'}</b>`;
   const c=CONF[e.confidence]||['','']; const q=e.matched?`“${esc(SHOW_UA?e.matched:(e.matched_en||e.matched))}”`:`<i>${t('ev_nomatch')}</i>`;
   return `<span>${label}</span><b style="font-weight:500">${q}<div style="color:var(--muted);font-size:12px">${esc(e.method||'')}${e.confidence?` · <span class="chip ${c[0]}" style="padding:0 6px;font-size:10.5px">${c[1]} ${t('tp_conf')}${acc?' · '+esc(acc):''}</span>`:''}</div></b>`; }
+// Where a threat is in its own life, when — and only when — the post said so. The ladder lives in
+// app/geo.py; the page shows what it was handed and never infers a stage from a type or a time.
+const PH_ICO={prep:'◌',redeploy:'⇄',takeoff:'▲',line:'▮',launch:'⇈',entering:'⬤',drop:'▼',exit:'◄'};
+function phaseTxt(m){ if(!m||!m.phase) return ''; const l=t('ph_'+m.phase); return l==='ph_'+m.phase?'':l; }
+function phaseChip(m){ const l=phaseTxt(m); if(!l) return '';
+  // Deliberately no "5 of 6" here. The last rung is "in Ukrainian airspace", not "arrival", and a fraction
+  // beside a missile reads as a countdown to impact — a thing this app must never imply.
+  return ` <span class="chip" title="${esc(t('ph_src'))}">${PH_ICO[m.phase]||''} ${esc(l)}</span>`; }
+// The whole ladder, with the rung the post named marked. Shows what is known without inventing a schedule.
+function phaseLadder(m){ const L=m.phase_ladder; if(!m.phase||!L||!L.length) return '';
+  const rungs=L.map(k=>{const lb=t('ph_'+k); const on=k===m.phase;
+    return `<span style="${on?'color:var(--fg);font-weight:600':'color:var(--muted);opacity:.55'}">${on?(PH_ICO[k]||'')+' ':''}${esc(lb==='ph_'+k?k:lb)}</span>`;}).join('<span style="color:var(--muted);opacity:.4"> › </span>');
+  return `<div class="kv1 muted" style="font-size:11.5px;margin-top:4px">${t('ph_label')}: ${rungs}<div style="opacity:.7;margin-top:2px">${esc(t('ph_src'))}</div></div>`; }
 function showTip(m,e){
   const cur=MK.find(x=>x.id===m.id)||m; const [x,y]=posOf(cur,Date.now()); const info=inboundInfo(cur,x,y);
   const th=THREAT[cur.type]||THREAT.unknown;
@@ -1225,6 +1258,7 @@ function showTip(m,e){
   const ev=cur.evidence||{};
   $('tip').innerHTML=`<b>${title}</b><div class="m">${cur.status?t('tp_reported'):t('tp_spotted')} ${t('tp_near')} <b style="display:inline">${esc(where)}</b> · ${fmtT(cur.ts)} (${t('tp_ago',Math.round(agoMin(cur.ts)))}) · ${esc(CH[cur.channel]||cur.channel)}</div>
     ${cur.status?'':`<div class="m">${t('tp_heading')} ${cur.heading==null?t('tp_nr'):dirName(cur.heading)+' ('+cur.heading+'°)'}${cur.target?' → '+esc(tgtName(cur)):''}${info.inbound?` · <span style="color:#ffb3b5">${t('tp_tokyiv')}</span>`:''}</div>`}
+    ${phaseTxt(cur)?`<div class="m">${t('ph_label')}: <b style="display:inline">${esc(phaseTxt(cur))}</b></div>`:''}
     ${cur.endedBy?`<div class="m" style="color:#a8f0cf">${statusName(cur.endedBy.status)} ${t('tp_near')} ${esc(pn(cur.endedBy.place))} ${t('tp_at')} ${fmtT(cur.endedBy.ts)}</div>`:''}
     ${cur.history&&cur.history.length?`<div class="m">${t('tp_reports',cur.history.length+1)}: ${cur.history.map(h=>pn(h.place||'?')+' '+fmtT(h.ts)).join(' → ')} → ${esc(where)}</div>`:''}
     ${ev.position?`<div class="m">${t('tp_pos')}: ${esc(ev.position.method)} · ${cf(ev.position.confidence)} ${t('tp_conf')}${accTxt('pos',ev.position,cur)?' · '+esc(accTxt('pos',ev.position,cur)):''}</div>`:''}
@@ -1267,7 +1301,7 @@ function openSheet(id){
   const alt=m.alt&&!m.status?m.alt:null;
   const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
   const altChip=alt&&alt.state==='descending'?` <span class="chip desc">↓ ${esc(t('alt_desc'))}</span>`:alt&&alt.m?` <span class="chip">~${alt.m} ${t('m_unit')}</span>`:alt&&alt.state?` <span class="chip">${esc(ALTL[alt.state]||alt.state)}</span>`:'';
-  $('sheetbody').innerHTML=`<div class="type">${kind}${m.count?` <span class="chip">×${m.count}</span>`:''}${altChip}${info.inbound&&!m.stale&&!closer?` <span class="chip red">${t('lb_tokyiv')}</span>`:''}<span class="chip ${CONF[overall][0]}" style="margin-left:auto">${cf(overall)}</span></div>
+  $('sheetbody').innerHTML=`<div class="type">${kind}${m.count?` <span class="chip">×${m.count}</span>`:''}${altChip}${m.status?'':phaseChip(m)}${info.inbound&&!m.stale&&!closer?` <span class="chip red">${t('lb_tokyiv')}</span>`:''}<span class="chip ${CONF[overall][0]}" style="margin-left:auto">${cf(overall)}</span></div>
     <div class="kv1 muted">${src} · <a href="https://t.me/${esc(m.id.split('#')[0])}" target="_blank" rel="noopener">${t('sh_post')}</a></div>
     <div class="kv1">${where}</div>${state}${merged}${track}
     ${m.type==='unknown'&&!m.status?`<div class="kv1 yellow">${esc(t('unk_note'))}${m.likely==='drones'?' '+esc(m.alt&&m.alt.m?t('alt_likely'):t('unk_likely_l')):''}</div>`:''}
@@ -1277,6 +1311,7 @@ function openSheet(id){
     <div class="kv1 muted" style="font-size:11.5px">${conf}</div>
     <details style="margin-top:6px"><summary style="font:12px var(--mono);color:var(--muted);cursor:pointer">${t('sh_details')}</summary>
       ${(ev.segment&&ev.segment.trim().length<(m.text||'').trim().length-8)?`<div class="txt" style="margin-top:6px">${esc(ptxt(m))}</div>`:''}
+      ${m.status?'':phaseLadder(m)}
       <div class="kv" style="margin-top:6px">${evRow(t('ev_type'),ev.type)}${evRow(t('ev_pos'),ev.position,null,accTxt('pos',ev.position,m))}${m.status?'':evRow(t('ev_hdg'),ev.heading,t('tp_nr'),accTxt('hdg',ev.heading,m))}${evRow(t('ev_count'),ev.count,t('ev_count_fb'))}
       ${cor.length?`<span>${t('ev_others')}</span><b style="font-weight:500">${cor.map(o=>`${esc(CH[o.channel]||o.channel)} ${fmtT(o.ts)}`).join(', ')} ${t('ev_within')}</b>`:''}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">${t('sh_note',STALE)}</div>
@@ -1505,7 +1540,23 @@ function threatStrip(){
   for(const p of recent){ const tg=p.tags||[]; if(tg.includes('clear')||tg.includes('forecast')||FORECAST.test(p.text||'')) continue;
     if(tg.includes('mig31k_departure')){ if(!cancelledAfter(p.ts,'mig31k_departure')) thr.push({ty:'mig31k_departure',ts:p.ts,src:CH[p.channel]||p.channel,where:''}); }
     else if(tg.includes('ballistic_missiles')&&(/(?:^|[^а-яіїє])пуск|запуск[а-яіїє]*\s+(?:баліст|іскандер|кинджал|кінжал)|швидкісн[а-яіїє]*\s+ціл|балістик[а-яіїє]*\s+(?:на|по)\s+ки[їєе]в|загроза\s+(?:застосування\s+)?баліст[а-яіїє]*\s+(?:для|по|на)?\s*ки[їєе]в|ballistic.*kyiv|launch/i.test(p.text+' '+(p.text_en||''))||(tg.includes('kyiv')&&tg.includes('official')))){ if(!cancelledAfter(p.ts,'ballistic_missiles')) thr.push({ty:'ballistic_missiles',ts:p.ts,src:CH[p.channel]||p.channel,where:''}); } }
-  const el=$('tstrip'); if(!thr.length){el.hidden=true;document.documentElement.style.setProperty('--top',TOPBASE+'px');return;}
+  const el=$('tstrip');
+  // Quiet is a state worth showing, not an absence. A blank header answers none of the questions somebody
+  // opens this on a calm evening to ask — is anything happening at all, anywhere. So when nothing is
+  // threatening this oblast the strip goes green and reports the country: how many oblasts are under alert,
+  // how many targets are on the map. Counts only, from what is already known; nothing here is projected.
+  if(!thr.length){ const idle=idleLine(); if(!idle){el.hidden=true;document.documentElement.style.setProperty('--top',TOPBASE+'px');return;}
+    el.className='tstrip calm'; el.hidden=false; el.innerHTML=idle;
+    document.documentElement.style.setProperty('--top',(TOPBASE+el.offsetHeight)+'px'); return; }
+  // One row per threat, not per post. A MiG-31K take-off is relayed by four channels within a minute; four
+  // identical rows say nothing the first one did not, and would push the ballistic warning underneath them
+  // off the visible line. Same type collapses to its freshest report, and the channels that agree become a
+  // corroboration count — which is the part that actually adds confidence.
+  {const by=new Map();
+   for(const x of thr){ const k=x.ty; const p0=by.get(k);
+     if(!p0){by.set(k,{...x,srcs:new Set(x.src?[x.src]:[])});}
+     else{ if(x.src) p0.srcs.add(x.src); if(x.ts>p0.ts){p0.ts=x.ts;p0.src=x.src;p0.where=x.where;} } }
+   thr.length=0; for(const v of by.values()) thr.push(v);}
   const pri={mig31k_departure:0,ballistic_missiles:1,strategic_aircraft_activity:2,cruise_missiles:3};
   // freshness outranks type: an unconfirmed MiG from a quarter of an hour ago must never sit on top of a
   // ballistic warning that came in a minute ago
@@ -1514,8 +1565,39 @@ function threatStrip(){
   const label=(old?{mig31k_departure:t('ts_mig_old'),ballistic_missiles:t('ts_bal_old'),strategic_aircraft_activity:t('ts_strat_old'),cruise_missiles:t('ts_cruise_old')}
                   :{mig31k_departure:t('ts_mig'),ballistic_missiles:t('ts_bal'),strategic_aircraft_activity:t('ts_strat'),cruise_missiles:t('ts_cruise')})[tt.ty];
   el.className='tstrip '+(old?'old':tt.ty==='mig31k_departure'?'mig':tt.ty==='cruise_missiles'?'':'bal'); el.hidden=false;
-  el.innerHTML=`${esc(label)} <small>· ${fmtT(tt.ts)} · ${esc(old?t('ts_unconf',age):t('ts_ago',age))}${tt.src?' · '+esc(tt.src):''}</small>`;
+  // Everything after the first one used to be dropped on the floor. A MiG airborne AND a ballistic launch
+  // is a different night from either alone, and the second one was never shown. They stack now: the most
+  // urgent stays on the line, the rest fold behind a count that opens in place. In the header, never over
+  // the map, and never as a pop-up — nothing here may cover what somebody is trying to look at.
+  const rest=thr.slice(1);
+  const one=x=>{const a=tsAge(x); const o=a>TS_FRESH_MIN;
+    const lb=(o?{mig31k_departure:t('ts_mig_old'),ballistic_missiles:t('ts_bal_old'),strategic_aircraft_activity:t('ts_strat_old'),cruise_missiles:t('ts_cruise_old')}
+               :{mig31k_departure:t('ts_mig'),ballistic_missiles:t('ts_bal'),strategic_aircraft_activity:t('ts_strat'),cruise_missiles:t('ts_cruise')})[x.ty];
+    const n=x.srcs?x.srcs.size:(x.src?1:0);
+    return `${esc(lb)} <small>· ${fmtT(x.ts)} · ${esc(o?t('ts_unconf',a):t('ts_ago',a))}${x.src?' · '+esc(x.src):''}${n>1?' · '+esc(t('ts_conf',n)):''}</small>`;};
+  el.innerHTML=one(tt)
+    +(rest.length?` <button type="button" class="tsmore" id="tsmore" aria-expanded="${TS_OPEN?'true':'false'}">${esc(t('ts_more',rest.length))} ${TS_OPEN?'▴':'▾'}</button>`:'')
+    +(rest.length&&TS_OPEN?`<div class="tsrest">${rest.map(x=>`<div class="tsr">${one(x)}</div>`).join('')}</div>`:'');
   document.documentElement.style.setProperty('--top',(TOPBASE+el.offsetHeight)+'px');
+}
+// Kept outside threatStrip so a re-render every few seconds does not fold the list back up while it is open.
+let TS_OPEN=false;
+document.addEventListener('click',e=>{ if(e.target.closest('#tsmore')){ TS_OPEN=!TS_OPEN; threatStrip(); } });
+// The calm line: counts of what is already known, for the whole country. No projection, no "heading to".
+function idleLine(){
+  if(!S) return '';
+  const act=(S.active||[]).filter(a=>a.location_type==='oblast'||a.location_type==='city');
+  // Kyiv city (31) and Kyiv oblast (14) are one place to the person standing in it, in both directions.
+  // Checking the pair one way only would have told somebody who picked the city "no alert" while the oblast
+  // around them was under one — a green line directly contradicting the red band above it.
+  const pair=u=>u==='31'||u==='14'?['31','14']:[u];
+  const mine=new Set(pair(MYOBL.uid));
+  if(act.some(a=>mine.has(a.oblast_uid))) return '';   // the band above already says so, louder
+  const obls=new Set(act.map(a=>a.oblast_uid)).size;
+  const live=(MK||[]).filter(m=>!m.status&&!m.endedBy&&!m.stale).length;
+  const bits=[`✓ ${esc(t('ts_calm',oblFull(MYOBL.uid)))}`,
+    `<small>${esc(obls?t('ts_calm_obl',obls):t('ts_calm_noobl'))} · ${esc(t('ts_calm_tgt',live))}</small>`];
+  return bits.join(' ');
 }
 function render(){
   if(!S) return; const ob=S.oblasts; threatStrip();

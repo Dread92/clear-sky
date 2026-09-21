@@ -1926,8 +1926,19 @@ class Pusher:
         ou = a.get("oblast_uid")
         title = body = None; tag = "alert"
         thr = ev.get("threat") or {}
-        if kind == "threat" and thr.get("threat_type") in ("mig31k_departure", "ballistic_missiles") and ou in ("31", "14"):
-            title = "✈ MiG-31K airborne — ballistic risk" if thr["threat_type"] == "mig31k_departure" else "🚀 Ballistic threat — shelter now"
+        tt = thr.get("threat_type")
+        # A MiG-31K take-off is not a Kyiv event. The Air Force declares an alert over the whole country for
+        # it, because the aircraft can turn toward anywhere before it fires, and the channels post it as
+        # "тривога по усій території країни". Gating it on the Kyiv oblast uid meant a subscriber in Kharkiv
+        # got nothing at all for the one warning that comes an hour ahead of the missile.
+        if kind == "threat" and tt == "mig31k_departure":
+            title = "✈ MiG-31K airborne — ballistic risk, country-wide"
+            body = (thr.get("source_message") or "")[:120]; tag = "threat"
+        elif kind == "threat" and tt == "ballistic_missiles" and ou in ("31", "14"):
+            # Still oblast-gated: a ballistic launch concerns a region, and a subscription stores a coarse
+            # home cell with no region on it. Positioned ballistic markers are already covered region-wide by
+            # proximity_watch; the rest waits for the subscriber's own region to be a stored thing.
+            title = "🚀 Ballistic threat — shelter now"
             body = (thr.get("source_message") or "")[:120]; tag = "threat"
         # Siren-start and all-clear pushes are gone. "Kyiv oblast — alert" says nothing a person can act on:
         # not what, not where, not how far — the siren itself already said that much, louder. A push that
@@ -2019,18 +2030,43 @@ def proximity_watch(state, interval=20):
                 for mid, t0 in list(seen.items()):
                     if now - t0 > 1800:
                         del seen[mid]
-                if now - PROX_LAST.get(ep, 0) < 120:
-                    continue
                 near = []
+                urgent = []
                 for m in live:
                     if m["id"] in seen:
                         continue
                     # the stored point is a ~10 km cell, not a house, so the test is widened by half a
                     # cell: nobody inside their own radius is missed because their village was rounded
                     d = haversine_km(home["lat"], home["lon"], m["lat"], m["lon"])
-                    if d <= radius + HOME_CELL_KM / 2:
+                    # A ballistic missile crosses any radius a person can choose in seconds. Filtering it by
+                    # that radius does not filter, it deletes the warning. These bypass it and alert the
+                    # whole region — see geo.IMMEDIATE_TYPES for why the list is exactly this short.
+                    if geo and geo.is_immediate(m["type"]):
+                        if d <= geo.REGION_ALERT_KM:
+                            urgent.append((d, m))
+                    elif d <= radius + HOME_CELL_KM / 2:
                         near.append((d, m))
-                if not near:
+                if not (near or urgent):
+                    continue
+                # A ballistic warning is never held back by the every-two-minutes throttle the rest obey.
+                if not urgent and now - PROX_LAST.get(ep, 0) < 120:
+                    continue
+                if urgent:
+                    urgent.sort(key=lambda x: x[0])
+                    m = urgent[0][1]
+                    for _, mm in urgent:
+                        seen[mm["id"]] = now
+                    PROX_LAST[ep] = now
+                    kind = THREAT_EN.get(m["type"], "Ballistic threat")
+                    place = m.get("place") or "?"
+                    # No distance and no direction: at this speed neither is something the reader can act on,
+                    # and the stored home is a grid cell that could not support a distance anyway.
+                    pusher.queue_direct(
+                        f"\U0001f6a8 {kind} in your region — shelter now",
+                        f"Reported near {place} at {fmt_kyiv(m['ts'])} \u00b7 position from a public post, not radar",
+                        "threat", ep)
+                    # Nothing else goes out in the same breath. A Shahed 8 km away still matters, but not in
+                    # the same second as this, and it will be re-reported on the next pass.
                     continue
                 near.sort(key=lambda x: x[0])
                 d, m = near[0]

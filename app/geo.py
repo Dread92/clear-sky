@@ -729,6 +729,120 @@ def _is_oblast_header(seg):
     return bool(toks) and all(w.startswith(_OBL_STEMS) for w in toks)
 
 
+# ---------------------------------------------------------------------------
+# Where a threat is in its life, when the post says so
+# ---------------------------------------------------------------------------
+# A Tu-95 moving to Olenya, bombers reaching a launch line over the Caspian, "пуски", a group crossing the
+# border — the monitoring channels do report these stages, and the stage is what tells a reader whether to
+# keep half an eye on it or to move now. What the channels do NOT publish is where it will land, so there is
+# no "target region forecast" here and there will not be one: a stage is a thing that was reported, a
+# forecast is a thing that was guessed, and only one of those belongs on this map.
+#
+# A phase is set ONLY when the wording carries it. No stage word, no stage — the marker simply says nothing
+# about where in its flight the thing is, which is the truth in most posts.
+# Weapons that outrun the filter.
+#
+# A Shahed crosses a 10 km ring in about three minutes; that ring is a real warning, and filtering by it
+# spares somebody a dozen irrelevant alerts a night. An Iskander-M or a Kinzhal is doing Mach 5 to 10 — it
+# crosses the same ring in under four seconds. By the time one is "within 10 km of you" it has arrived. A
+# distance filter on these does not filter anything: it deletes the only warning there was, quietly, and the
+# person never learns it existed. So they are exempt from every radius anyone can set, and they alert their
+# whole region the moment they are reported.
+#
+# Kept deliberately short. A cruise missile at ~13 km/min still gives a useful 45 seconds inside a 10 km
+# ring, and widening this list to "anything fast" would put the whole map back into every alert.
+IMMEDIATE_TYPES = frozenset({"ballistic_missiles", "mig31k_departure"})
+# About one oblast across, and roughly two minutes of ballistic flight — the span over which "this concerns
+# you" is true for a weapon of this speed. It is a region test, never reported to anyone as a distance.
+REGION_ALERT_KM = 150.0
+
+
+def is_immediate(mtype):
+    """Does this weapon cross a person's chosen radius faster than they can act on being told?"""
+    return mtype in IMMEDIATE_TYPES
+
+
+PHASE_LADDER = {
+    # Ground-launched ballistic: there is no useful stage after the launch — the warning IS the launch.
+    "ballistic": ["prep", "launch"],
+    # Air-launched ballistic (Kinzhal): the take-off is the warning, an hour before anything is fired.
+    "airlaunch": ["prep", "takeoff", "launch", "entering"],
+    "cruise": ["prep", "redeploy", "takeoff", "line", "launch", "entering"],
+    "uav": ["prep", "launch", "entering"],
+    "kab": ["takeoff", "line", "drop", "exit"],
+}
+PHASE_FAMILY = {
+    "ballistic_missiles": "ballistic",
+    "mig31k_departure": "airlaunch",
+    "cruise_missiles": "cruise", "banderol_missiles": "cruise", "unspecified_missiles": "cruise",
+    "strategic_aircraft_activity": "cruise",
+    "drones": "uav",
+    "guided_aerial_bombs": "kab", "tactic_aircraft_activity": "kab",
+}
+# A launch somebody expects is not a launch that happened. This is tested before a bare "пуск", and
+# again as a guard in detect_phase(), because reporting a possibility as a fact is the one error that
+# cannot be walked back.
+PREP_HEDGE_RX = re.compile(
+    r"ймовірн|можлив|може\s+(?:відбу|ста|бути)|очікуєт|очікуєм|прогнозу|загроз|ризик"
+    r"|не\s+виключ|готуют\w*\s+до|будь-як\w*\s+момент", re.I)
+_SENT_SPLIT_RX = re.compile(r"[.!?\n;]+")
+
+
+def _hedged(text, at):
+    """Is the launch word inside a sentence that hedges? Scoped to the sentence on purpose: a post can
+    state one launch and speculate about the next, and only the speculation should be downgraded."""
+    left = max((m.end() for m in _SENT_SPLIT_RX.finditer(text, 0, at)), default=0)
+    right = _SENT_SPLIT_RX.search(text, at)
+    return bool(PREP_HEDGE_RX.search(text[left:right.start() if right else len(text)]))
+# Order matters: the most specific wording wins. "вийшли з рубежу" is an exit, not a launch line. And a
+# hedged launch is tested before a bare one, so "ймовірний пуск" can never be reported as a launch.
+PHASE_RX = [
+    ("exit", re.compile(r"відхід|відійшл|відход\w*|вийшл[аио]\s+з\s+руб[іе]ж|лягли\s+на\s+зворотн"
+                        r"|повертают\w*\s+на\s+аеродром", re.I)),
+    ("drop", re.compile(r"\bскид\w*|застосуванн\w*\s+каб"
+                        r"|пуск\w*\s+(?:керован\w*\s+авіаційн\w*\s+бомб|каб)", re.I)),
+    ("line", re.compile(r"руб[іе]ж\w*\s+пуск|на\s+руб[іе]ж|вихід\s+на\s+руб[іе]ж|в\s+зон[іи]\s+пуск", re.I)),
+    ("entering", re.compile(r"увійшл|зайшл\w*\s+(?:в|у)\s+повітрян|перетнул\w*\s+(?:держ\w*\s+)?кордон"
+                            r"|вхід\s+(?:в|у)\s+повітрян|перетин\w*\s+кордон", re.I)),
+    ("launch", re.compile(r"\b(?:за)?пуск(?:и|у|ів|ом|ами|ах|а)?\b|стартувал", re.I)),
+    ("takeoff", re.compile(r"\bзліт\b|злет[іи]л|піднял\w*\s+(?:в|у)\s+повітр|борт\w*\s+(?:в|у)\s+повітр"
+                           r"|у\s+повітрі\b", re.I)),
+    ("redeploy", re.compile(r"перебазув|передислок|завантаж\w*\s+(?:ракет|боєприпас)|озброюют|підвіс\w*\s+ракет", re.I)),
+    ("prep", re.compile(r"активн[іи]ст|готуют|підготовк", re.I)),
+]
+
+
+def detect_phase(text, mtype=None):
+    """The stage this post reports, or None when it reports no stage at all.
+
+    When a type is given, a stage that does not belong to that weapon's life is discarded: a Shahed has no
+    "drop", a KAB has no "entering". Reading one across families is how a plausible word becomes a wrong fact.
+    """
+    t = _norm(text)
+    fam = PHASE_FAMILY.get(mtype) if mtype else None
+    allowed = PHASE_LADDER.get(fam) if fam else None
+    for key, rx in PHASE_RX:
+        if not rx.search(t):
+            continue
+        if key == "launch" and all(_hedged(t, m.start()) for m in rx.finditer(t)):
+            # Every launch this post mentions is hedged. Never harden that into a launch, even if
+            # "prep" is not a rung on this ladder — one unhedged mention anywhere is enough to keep it.
+            key = "prep"
+        if allowed is not None and key not in allowed:
+            continue
+        return key
+    return None
+
+
+def phase_progress(mtype, phase):
+    """(index, total) along that weapon's ladder, for a UI that wants to show how far along it is."""
+    fam = PHASE_FAMILY.get(mtype)
+    ladder = PHASE_LADDER.get(fam) if fam else None
+    if not ladder or phase not in ladder:
+        return None
+    return (ladder.index(phase) + 1, len(ladder))
+
+
 def parse_post(text):
     """Return a list of marker dicts for one post (may be empty)."""
     t = _norm(text)
@@ -926,6 +1040,10 @@ def parse_post(text):
         alt = parse_altitude(seg) or parse_altitude(t)
         if alt:
             ev["altitude"] = {"matched": alt["matched"], "method": "stated in the post", "confidence": "high"}
+        # The sentence first: a post can open with a general assessment and then report one specific stage.
+        _ph = detect_phase(seg, mtype) or detect_phase(t, mtype)
+        if _ph:
+            ev["phase"] = {"matched": _ph, "method": "stage named in the post", "confidence": "high"}
         markers.append({"type": mtype, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None if heading is None else round(heading),
                         "place": where, "target": tgt_name, "target_uid": tgt_uid, "count": cnt, "jet": bool(re.search(r"реактив|jet", seg)),
                         "alt": alt, "likely": likely,
@@ -934,6 +1052,8 @@ def parse_post(text):
                         # "Харківщина: … Коломак" once drew five Shaheds over Kolomyia, 700 km west. The
                         # gazetteer's own oblast for the place it actually found always wins.
                         "oblast_uid": _uid_for(where, obl),
+                        "phase": _ph, "phase_step": phase_progress(mtype, _ph),
+                        "phase_ladder": PHASE_LADDER.get(PHASE_FAMILY.get(mtype)) if _ph else None,
                         "evidence": ev})
     return markers
 
