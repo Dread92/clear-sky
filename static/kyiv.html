@@ -819,7 +819,7 @@ function saveSlots(){ try{ localStorage.setItem('slots',JSON.stringify(SLOTS));
 function setSlot(id,place){ if(!SLOT_IDS.includes(id)) return; SLOTS[id]=place||null; useSlot(id); }
 function useSlot(id){ if(!SLOT_IDS.includes(id)) return; ACTIVE=id; HOME=SLOTS[id]||null; saveSlots();
   if(typeof drawHome==='function') drawHome(); if(typeof drawZones==='function') drawZones();
-  homeAlerted.clear();                      // a new place is a new set of alerts, not a continuation
+  homeAlerted.clear(); homeClosed.clear();  // a new place is a new set of alerts, not a continuation
   if(typeof render==='function') render(); if(typeof paintSlots==='function') paintSlots();
   if(typeof discHomeLabel==='function') discHomeLabel(); }
 let SHOW_UA=false; try{SHOW_UA=localStorage.getItem('ua')==='1';}catch(e){}
@@ -1285,7 +1285,7 @@ G.bomber='<path class="glyph" d="M0-12 L1.9-7.2 L1.9-1.2 L12.4 4.4 L12.4 6.6 L1.
 G.fighter='<path class="glyph" d="M0-12.8 L1.5-8.4 L1.5-2.6 L9.6 4.2 L9.6 6 L1.5 2.6 L1.5 7.4 L4.2 11.6 L4.2 12.8 L-4.2 12.8 L-4.2 11.6 L-1.5 7.4 L-1.5 2.6 L-9.6 6 L-9.6 4.2 L-1.5-2.6 L-1.5-8.4 Z"/>'
   +'<rect class="glyph" x="-5.4" y="8.2" width="1.5" height="4.2" rx="0.4"/><rect class="glyph" x="3.9" y="8.2" width="1.5" height="4.2" rx="0.4"/>';
 
-let built=new Map(); const homeAlerted=new Set();
+let built=new Map(); const homeAlerted=new Set(); const homeClosed=new Set();
 // Outcomes reported for a whole oblast, grouped by oblast id — filled by tick(), drawn by paintOblEvents().
 let OBLEVT={};
 const OBL_EVENT=new Set(['impact','fire','damage','down']);
@@ -1456,6 +1456,21 @@ function tick(){
       // act on, and printing "112 km" invites exactly the wrong decision — that there is time.
       if(hi.immediate) notify(`🚨 ${t('n_imm',THREAT[m.type]?.[1]||'')}`,`${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)} · ${t('n_imm_b')}`,'start',alertVol(m,hi));
       else notify(`🏠 ${hi.inbound?t('n_hto'):t('n_hnear')} ${homeName()} — ${m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):THREAT[m.type]?.[1]}`,`${Math.round(hi.dist)} km${hi.inbound?' · '+t('n_hway'):''} · ${t('n_rep')} ${pn(m.place)} ${fmtT(m.ts)}`,'start',alertVol(m,hi));} } }
+    // The other half of a warning: what became of it.
+    //
+    // Somebody was told a Shahed was coming at their place. When a later post says it was shot down, they
+    // are still sitting in a corridor with a phone, and nothing told them. So the app closes the loop — but
+    // only for a track it actually warned them about, never for an interception somewhere else in the
+    // country, and never in words that could be read as an all-clear. One target down is one target; the
+    // siren is what says the raid is over, and the body text says so when others are still up.
+    if(m.endedBy&&m.endedBy.status==='down'&&homeAlerted.has(m.id)&&!homeClosed.has(m.id)){
+      homeClosed.add(m.id);
+      const kind=m.type==='drones'?(m.jet?t('k_jet_l'):t('k_shahed')):(THREAT[m.type]?.[1]||'');
+      const others=MK.filter(o=>!o.status&&!o.endedBy&&!o.stale&&homeAlerted.has(o.id)).length;
+      notify(`✕ ${t('n_down',kind)}`,
+        `${pn(m.endedBy.place)} · ${fmtT(m.endedBy.ts)} · ${others?t('n_down_left',others):t('n_down_note')}`,
+        'end',0.8);
+    }
     const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?1.5:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
     b.g.dataset.tx=x.toFixed(2); b.g.dataset.ty=y.toFixed(2);
     b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);

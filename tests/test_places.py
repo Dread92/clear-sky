@@ -19,7 +19,8 @@ def _values(key, src):
     French for the most safety-critical caveat in the app, and a naive quote regex truncates it to "s\\"."""
     out = []
     for m in re.finditer(rf"\b{key}:'((?:[^'\\]|\\.)*)'", src):
-        out.append(m.group(1))
+        # unescape the JS quote escapes, or "n\'est pas" never matches "n'est pas"
+        out.append(m.group(1).replace("\\'", "'").replace('\\"', '"'))
     return out
 PAGE = open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
 SRV = open(os.path.join(ROOT, "app", "server.py"), encoding="utf-8").read()
@@ -204,3 +205,42 @@ def test_every_new_string_exists_in_all_three_languages():
               "fo_on", "fo_off", "fo_help", "z_near", "z_approach", "z_observe",
               "eta_band", "eta_if", "tel_gs", "tel_gs_src", "lost_t", "lost_b"):
         assert I18N.count(f"{k}:") == 3, f"{k} is missing from a language"
+
+
+# ── closing the loop on a warning ───────────────────────────────────────────────────────────────────────
+def test_a_warning_is_closed_when_the_target_it_named_comes_down():
+    """Somebody was told a Shahed was coming at their place and is now sitting in a corridor with a phone.
+    When a later post says it was shot down, nothing used to tell them."""
+    i = PAGE.index("if(m.endedBy&&m.endedBy.status==='down'")
+    body = PAGE[i:i + 900]
+    assert "homeAlerted.has(m.id)" in body, (
+        "it fires for interceptions anywhere in the country, not only for what this reader was warned about")
+    assert "homeClosed" in body, "the same shoot-down would be announced on every render"
+    assert "'down'" in body, "it fires on outcomes other than a confirmed shoot-down"
+
+
+def test_the_shoot_down_notice_can_never_be_read_as_an_all_clear():
+    """One target down is one target. A person who reads it as "the raid is over" walks outside."""
+    for k in ("n_down_note", "n_down_left"):
+        vals = _values(k, I18N)
+        assert len(vals) == 3, f"{k} is missing from a language"
+    for v in _values("n_down_note", I18N):
+        assert any(w in v.lower() for w in ("not mean", "не відбій", "n'est pas")), (
+            f"the wording does not rule out an all-clear: {v!r}")
+    i = PAGE.index("if(m.endedBy&&m.endedBy.status==='down'")
+    body = PAGE[i:i + 900]
+    assert "n_down_left" in body and "n_down_note" in body, (
+        "it never says whether anything else is still in the air")
+
+
+def test_the_shoot_down_notice_is_quieter_than_a_warning():
+    """It is good news. It does not need the volume that "take cover" needs."""
+    i = PAGE.index("if(m.endedBy&&m.endedBy.status==='down'")
+    body = PAGE[i:i + 900]
+    assert "'end'" in body, "it uses an alarm tone for good news"
+
+
+def test_switching_watched_place_forgets_the_closed_ones_too():
+    body = _fn("useSlot")
+    assert "homeClosed.clear()" in body.replace(" ", "") or "homeClosed.clear()" in PAGE[
+        PAGE.index("homeAlerted.clear()"):PAGE.index("homeAlerted.clear()") + 120]
