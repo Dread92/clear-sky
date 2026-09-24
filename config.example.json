@@ -3,6 +3,7 @@
   "alerts_in_ua_token": "",
   "ukrainealarm_key": "",
   "use_ubilling_fallback": true,
+  "use_siren_proxy": true,
   "telegram_channels": [
     "kyiv_airdef",
     "chyste_nebo",
@@ -20,6 +21,7 @@
   "access_key": "",
   "poll_alerts_seconds": 15,
   "poll_ubilling_seconds": 30,
+  "poll_ukrainealarm_seconds": 10,
   "poll_telegram_seconds": 30,
   "history_backfill_hours": 6,
   "desktop_notifications": true,

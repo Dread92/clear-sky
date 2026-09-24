@@ -90,6 +90,14 @@ body.lite .tstrip.old{background:#111;color:#ddd;border-color:#555}
 #top .name small{display:block;font:500 9.5px/1 var(--mono);letter-spacing:.14em;color:var(--ink3);margin-top:3px}
 .srcs{display:flex;gap:4px;margin-left:2px;align-items:center}.srcs i{width:6px;height:6px;background:var(--ink3);display:inline-block}.srcs i.ok{background:var(--green)}.srcs i.warn{background:var(--yellow)}.srcs i.bad{background:var(--red)}.srcs .sn{font:600 10px var(--mono);color:var(--ink3);letter-spacing:.02em}@media (max-width:999px){.srcs .sn{display:none}}
 #top .sp{flex:1}
+/* Light | Tactical — the two versions, one tap apart, where the eye lands first */
+#top .vsw{display:flex;flex:none;border:1px solid #3a3f4a;border-radius:4px;overflow:hidden}
+#top .vsw>*{font:800 11px/1 var(--sans);letter-spacing:.07em;padding:7px 9px;color:var(--ink2);text-decoration:none;background:var(--panel);white-space:nowrap}
+#top .vsw .on{background:var(--orange,#ff8a3d);color:#14100a}
+#top .vsw a:hover,#top .vsw a:focus{color:var(--ink);background:var(--panel2,#1b2029)}
+@media (max-width:430px){#top .name{display:none}#top .vsw>*{padding:7px 7px;font-size:10.5px}}
+body.m-day #top .vsw{border-color:#b9b2a4}body.m-day #top .vsw>*{background:#fff;color:#333}body.m-day #top .vsw .on{background:#e0701f;color:#fff}
+body.lite #top .vsw .on{background:#fff;color:#000}
 #top .clock{font:600 13px var(--mono);color:var(--ink2);white-space:nowrap;letter-spacing:.02em}
 .ib{width:34px;height:30px;border:1px solid var(--line);background:var(--panel);color:var(--ink2);border-radius:2px;font:600 12px var(--mono);display:inline-flex;align-items:center;justify-content:center;padding:0}
 .ib.on{color:var(--ua-yellow);border-color:#5a4d00;background:#1e1a05}
@@ -618,6 +626,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
   <div class="r1">
     <img class="logo" src="/static/logo-64.png" alt="07300">
     <div class="name">Clear Sky</div>
+    <nav class="vsw" data-t-title="sw_title" title="Two versions"><a href="/light" data-t="sw_light">LIGHT</a><span class="on" data-t="sw_tac">TACTICAL</span></nav>
     <span class="srcs" id="srcs"></span>
     <span class="sp"></span>
     <span class="clock" id="clock">--:--</span>
@@ -1995,6 +2004,17 @@ document.addEventListener('click',e=>{ if(e.target.closest('#tsmore')){ TS_OPEN=
   else if(e.target.closest('#tsua')) setView(120,110,1400); });
 // Kyiv city (31) and Kyiv oblast (14) are one place to the person standing in it, in both directions.
 const oblPair=u=>u==='31'||u==='14'?['31','14']:[u];
+// The raion the home is in, found on the map's own outlines — a point-in-shape test on the phone, nothing sent.
+// It decides which official alert is the home's: the government app alerts by raion, so must this.
+let _HR=null;
+function homeRaion(){
+  if(!HOME||!MAP) return null; const ck=HOME.lon+','+HOME.lat; if(_HR&&_HR.ck===ck) return _HR.v;
+  const [x,y]=proj(HOME.lon,HOME.lat); const pt=new DOMPoint(x,y); let v=null;
+  for(const p of document.querySelectorAll('#raionsg .rn')){ try{ if(p.isPointInFill(pt)){ v={obl:p.dataset.r==='kyiv-city'?'31':'14',key:p.dataset.r}; break; } }catch(e){} }
+  if(!v) for(const p of document.querySelectorAll('#neighbors .nb')){ try{ if(p.isPointInFill(pt)){ v={obl:p.dataset.o,key:p.dataset.key}; break; } }catch(e){} }
+  if(document.querySelector('#raionsg .rn')) _HR={ck,v};   // only remember once the outlines are drawn
+  return v;
+}
 // What the official system says about the reader's own region: R, Y, or nothing. The banner takes its
 // colour from this and not from the threat type, so the strip can never be a different colour from the
 // alert it belongs to. When there is no official alert yet the strip keeps the threat's own colour — the
@@ -2002,13 +2022,16 @@ const oblPair=u=>u==='31'||u==='14'?['31','14']:[u];
 function officialLevel(){
   if(!S) return null; const mine=new Set(oblPair(MYOBL.uid));
   const a=(S.active||[]).filter(x=>mine.has(x.oblast_uid)&&(x.location_type==='oblast'||x.location_type==='city'));
+  // and the home's own raion: with the official data by raion, an oblast is rarely under one alert as a whole
+  const h=homeRaion(); if(h&&h.key) for(const x of S.active||[]) if(x.location_type==='raion'&&x.oblast_uid===h.obl&&x.raion_key===h.key) a.push(x);
   if(!a.length) return null;
   return a.some(x=>x.alert_level!=='yellow')?'R':'Y';   // no level reported (mirror) = full red
 }
 // The calm line: counts of what is already known, for the whole country. No projection, no "heading to".
 function idleLine(){
   if(!S) return '';
-  const act=(S.active||[]).filter(a=>a.location_type==='oblast'||a.location_type==='city');
+  // every alert, raion-level ones included: "✓ no alert in Kyiv oblast" under two raions on alert would be a lie
+  const act=(S.active||[]).filter(a=>a.alert_type==='air_raid'||!a.alert_type);
   // Checking the pair one way only would tell somebody who picked the city "no alert" while the oblast
   // around them was under one — a green line directly contradicting the red band above it.
   const mine=new Set(oblPair(MYOBL.uid));
@@ -2042,9 +2065,9 @@ function render(){
   const cityL=isK?(cityWide?lvl(cityWide.alert_level):(k.status==='A'?lvl(k.level):null)):null, oblL=oblWide?lvl(oblWide.alert_level):null;
   const maxL=(a,b)=>(a==='R'||b==='R')?'R':(a||b||'');
   const kW=S.active.find(a=>a.oblast_uid==='14'&&a.location_type==='oblast'); const kFill=kW?lvl(kW.alert_level):null; const kc=S.active.find(a=>a.oblast_uid==='31'&&(a.location_type==='oblast'||a.location_type==='city')); const kCity=kc?lvl(kc.alert_level):(k.status==='A'?lvl(k.level):null);
-  const krst={}; for(const a of S.active.filter(a=>a.oblast_uid==='14'&&a.location_type!=='oblast')){const rk=raionKey(a.location_title); if(rk) krst[rk]=(krst[rk]==='R'||lvl(a.alert_level)==='R')?'R':'Y';}
+  const krst={}; for(const a of S.active.filter(a=>a.oblast_uid==='14'&&a.location_type!=='oblast')){const rk=a.raion_key||raionKey(a.location_title); if(rk) krst[rk]=(krst[rk]==='R'||lvl(a.alert_level)==='R')?'R':'Y';}
   const rname=r=>RAION[r]||r;
-  const rst={}; for(const a of raionAlerts){const rk=isK?raionKey(a.location_title):pn(String(a.location_title||'').replace(/\s*район\s*$/i,'')); if(rk) rst[rk]=(rst[rk]==='R'||lvl(a.alert_level)==='R')?'R':'Y';}
+  const rst={}; for(const a of raionAlerts){const rk=isK?(a.raion_key||raionKey(a.location_title)):pn(String(a.location_title||'').replace(/\s*район\s*$/i,'')); if(rk) rst[rk]=(rst[rk]==='R'||lvl(a.alert_level)==='R')?'R':'Y';}
   const anyR=cityL==='R'||oblL==='R'||Object.values(rst).includes('R'), anyY=cityL==='Y'||oblL==='Y'||Object.values(rst).includes('Y');
   const hasRaions=Object.keys(rst).length>0; const oblFill=oblL;
   const st=cityL?cityL:(oblL?maxL(oblL,anyR?'R':''):(hasRaions?(anyR?'R':'Y'):((isK&&k.status==='P')||ko.status==='P'?'P':'N')));
@@ -2060,7 +2083,7 @@ function render(){
     ${st!=='N'&&since?`<div class="dur">${dur(since)}</div>`:''}`;
   document.title=(st==='R'||st==='A'?'🔴 ':st==='Y'||st==='P'?'🟡 ':'')+'Clear Sky';
   // priority location row
-  const hr=$('homerow'); if(HOME){ const hraion=(()=>{const [hx,hy]=proj(HOME.lon,HOME.lat); let best=null; for(const f of (MAP?MAP.features:[])){ if(!f.raion) continue; const d=Math.hypot(f.cx-hx,f.cy-hy); if(!best||d<best.d) best={d,r:f.raion}; } return best?best.r:null;})();
+  const hr=$('homerow'); if(HOME){ const hraion=(()=>{const h=homeRaion(); if(h&&(h.obl==='14'||h.obl==='31')) return h.obl==='31'?'kyiv-city':h.key; const [hx,hy]=proj(HOME.lon,HOME.lat); let best=null; for(const f of (MAP?MAP.features:[])){ if(!f.raion) continue; const d=Math.hypot(f.cx-hx,f.cy-hy); if(!best||d<best.d) best={d,r:f.raion}; } return best?best.r:null;})();
     const hl=hraion==='kyiv-city'?kCity:(maxL(kFill,krst[hraion])||null);
     const live=MK.filter(m=>!m.status&&!m.endedBy).map(m=>{const [x,y]=posOf(m,Date.now());return {m,hi:homeInfo(m,x,y)};}).filter(o=>o.hi.dist!=null).sort((a,b)=>a.hi.dist-b.hi.dist);
     const nearest0=live[0]; const inb=live.filter(o=>o.hi.inbound);
@@ -2075,7 +2098,7 @@ function render(){
   for(const o0 of (MAP?MAP.oblasts:[])){ const uid=o0.uid; if(uid==='14'||uid==='31') continue; const o=ob[uid]; const isReg=REG.includes(uid); const occ=o0.occupied;
     const ra=S.active.filter(a=>a.oblast_uid===uid&&(a.location_type==='raion'||a.location_type==='hromada'||a.location_type==='city')).map(a=>({a,k:rkey(a.location_title),L:lvl(a.alert_level)}));
     const rl={}; document.querySelectorAll(`#neighbors .nb[data-o="${uid}"]`).forEach(pth=>{const st=pth.dataset.stem,key=pth.dataset.key; let l='';
-      for(const r of ra){ if((key&&r.k&&(r.k===key||key.startsWith(r.k.replace(/skyi$|ska$/,''))))||(st&&new RegExp(st,'i').test((r.a.location_title||'').toLowerCase()))){ l=(l==='R'||r.L==='R')?'R':'Y'; } }
+      for(const r of ra){ if((key&&r.a.raion_key===key)||(key&&r.k&&(r.k===key||key.startsWith(r.k.replace(/skyi$|ska$/,''))))||(st&&new RegExp(st,'i').test((r.a.location_title||'').toLowerCase()))){ l=(l==='R'||r.L==='R')?'R':'Y'; } }
       if(l) rl[key||st]=l; pth.setAttribute('class','nb '+(occ?'occ ':'')+l);});
     const ow=S.active.find(a=>a.oblast_uid===uid&&a.location_type==='oblast'); const oL=ow?lvl(ow.alert_level):''; const op=document.querySelector(`#oblastsg .ob[data-o="${uid}"]`); if(op) op.setAttribute('class',`ob ${isReg?'region':'far'} ${occ?'occ':''} ${oL}`);
     if(oL) document.querySelectorAll(`#neighbors .nb[data-o="${uid}"]`).forEach(pth=>{const cur=pth.getAttribute('class'); if(!/\b[RY]$/.test(cur)) pth.setAttribute('class','nb '+(occ?'occ ':'')+'o'+oL);});
@@ -2090,7 +2113,7 @@ function render(){
   // alerts tab
   const act=[...S.active].sort((a,b)=>((b.oblast_uid==='31'||b.oblast_uid==='14')-(a.oblast_uid==='31'||a.oblast_uid==='14'))||(a.started_at<b.started_at?1:-1));
   $('alerts').innerHTML=act.length?act.map(a=>`<div class="card plain ${a.alert_level||''} ${(a.oblast_uid==='31'||a.oblast_uid==='14')?'kyiv':''}"><div class="title">${esc(LANG==='uk'?a.location_title:(a.location_title_en||a.location_title))} ${LANG==='uk'?'':`<span style="color:var(--muted);font-weight:400">· ${esc(a.location_title)}</span>`}</div>
-     <div class="meta">${ATYPE[a.alert_type]||a.alert_type} · ${LT(a.location_type)} · ${t('al_since')} ${fmtT(a.started_at)} (${dur(a.started_at)})${a.notes?' · '+esc(a.notes):''}${(a.threats||[]).length?' · '+a.threats.map(x=>THREAT[x.threat_type]?.[0]||'').join(''):''}</div></div>`).join('')
+     <div class="meta">${ATYPE[a.alert_type]||a.alert_type} · ${LT(a.location_type)}${a.since_known===false?'':` · ${t('al_since')} ${fmtT(a.started_at)} (${dur(a.started_at)})`}${a.notes?' · '+esc(a.notes):''}${(a.threats||[]).length?' · '+a.threats.map(x=>THREAT[x.threat_type]?.[0]||'').join(''):''}</div></div>`).join('')
      :`<div class="empty">${t('al_none')}</div>`;
 }
 let feedFilter='kyiv',lastPosts=[];

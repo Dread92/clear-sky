@@ -56,7 +56,7 @@ def test_a_channel_post_is_not_labelled_official():
 
 
 def test_the_alert_sources_that_remain_are_the_official_data():
-    for cls in ("AlertsInUa(state, cfg).start()", "UkraineAlarm(state, cfg).start()", "Ubilling(state, cfg"):
+    for cls in ("AlertsInUa(state, cfg).start()", "detail = UkraineAlarm(state, cfg)", "Ubilling(state, cfg"):
         assert cls in SRC, f"{cls} is no longer started"
 
 

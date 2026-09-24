@@ -37,9 +37,22 @@ def test_it_is_part_of_the_build_hash():
 
 
 def test_it_stays_light():
-    assert len(LIGHT.encode("utf-8")) < 32_000, "the light page is no longer light"
+    """Measured as it travels: the server gzips text. Page + map outlines stay under 60 KB on the wire —
+    a few seconds on 2G, and the status is painted before the outlines arrive."""
+    import gzip
+    page = len(gzip.compress(LIGHT.encode("utf-8"), 6))
+    with open(os.path.join(ROOT, "static", "light-map.json"), "rb") as f:
+        outlines = len(gzip.compress(f.read(), 6))
+    assert page < 14_000, f"the light page is no longer light ({page} B gzipped)"
+    assert page + outlines < 60_000, f"page + outlines = {page + outlines} B gzipped"
     for heavy in ("kyiv-map.json", "EventSource", "tile.openstreetmap", "/api/feed"):
         assert heavy not in LIGHT, f"the light page loads {heavy}"
+
+
+def test_the_status_is_painted_before_the_outlines_arrive():
+    i = LIGHT.index("async function usePlace()")
+    body = LIGHT[i:LIGHT.index("}", LIGHT.index("paint(); }", i))]
+    assert body.index("paint()") < body.index("await loadLM()")
 
 
 # ── the promise about places ───────────────────────────────────────────────────────────────────────────
@@ -70,7 +83,7 @@ def test_the_city_is_tested_before_the_oblast_around_it():
 # ── the rules it inherits ──────────────────────────────────────────────────────────────────────────────
 def test_the_status_comes_only_from_the_alert_state():
     js = _script()
-    body = js[js.index("function statusOf"):js.index("\n}", js.index("function statusOf"))]
+    body = js[js.index("function placeStatus"):js.index("\n}", js.index("function placeStatus"))]
     assert "STATE.active" in body
     for banned in ("MKS", "markers", "clear"):
         assert banned not in body, f"the status is decided by {banned!r}, not by the official alert data"

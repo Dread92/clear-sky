@@ -1,0 +1,209 @@
+[
+ {
+  "regionId": "16",
+  "regionType": "State",
+  "regionName": "Луганська область",
+  "regionEngName": "Luhanska region",
+  "lastUpdate": "2022-04-04T16:45:00Z",
+  "activeAlerts": [
+   {
+    "regionId": "16",
+    "regionType": "State",
+    "type": "AIR",
+    "lastUpdate": "2022-04-04T16:45:00Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Red",
+      "reason": "",
+      "createdAt": "2022-04-04T16:45:00Z"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "regionId": "9999",
+  "regionType": "State",
+  "regionName": "Автономна Республіка Крим",
+  "regionEngName": "",
+  "lastUpdate": "2022-12-10T22:22:00Z",
+  "activeAlerts": [
+   {
+    "regionId": "9999",
+    "regionType": "State",
+    "type": "AIR",
+    "lastUpdate": "2022-12-10T22:22:00Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Red",
+      "reason": "",
+      "createdAt": "2022-12-10T22:22:00Z"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "regionId": "1313",
+  "regionType": "Community",
+  "regionName": "Вовчанська територіальна громада",
+  "regionEngName": "Vovchanska community",
+  "lastUpdate": "2025-08-01T22:52:43Z",
+  "activeAlerts": [
+   {
+    "regionId": "1313",
+    "regionType": "Community",
+    "type": "ARTILLERY",
+    "lastUpdate": "2024-05-20T09:31:37Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Red",
+      "reason": "",
+      "createdAt": "2024-05-20T09:31:37Z"
+     }
+    ]
+   },
+   {
+    "regionId": "1313",
+    "regionType": "Community",
+    "type": "URBAN_FIGHTS",
+    "lastUpdate": "2024-05-20T09:31:41Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Red",
+      "reason": "",
+      "createdAt": "2024-05-20T09:31:41Z"
+     }
+    ]
+   },
+   {
+    "regionId": "122",
+    "regionType": "District",
+    "type": "AIR",
+    "lastUpdate": "2026-09-24T19:05:46.11279Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Red",
+      "reason": "Ракетна загроза (червоний рівень)",
+      "createdAt": "2026-09-24T19:05:46.315575Z"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "regionId": "140",
+  "regionType": "District",
+  "regionName": "Чернігівський район",
+  "regionEngName": "Chernihivskyi district",
+  "lastUpdate": "2026-09-24T12:29:10.350986Z",
+  "activeAlerts": [
+   {
+    "regionId": "140",
+    "regionType": "District",
+    "type": "AIR",
+    "lastUpdate": "2026-09-23T21:54:39.20205Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Yellow",
+      "reason": "Дронова загроза (жовтий рівень)",
+      "createdAt": "2026-09-23T17:41:31.093117Z"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "regionId": "79",
+  "regionType": "District",
+  "regionName": "Броварський район",
+  "regionEngName": "Brovarskyi district",
+  "lastUpdate": "2026-09-24T14:11:44.399816Z",
+  "activeAlerts": [
+   {
+    "regionId": "79",
+    "regionType": "District",
+    "type": "AIR",
+    "lastUpdate": "2026-09-24T14:11:44.257033Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Yellow",
+      "reason": "Дронова загроза (жовтий рівень)",
+      "createdAt": "2026-09-24T14:11:44.399859Z"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "regionId": "51",
+  "regionType": "District",
+  "regionName": "Горлівський район",
+  "regionEngName": "Horlivskyi district",
+  "lastUpdate": "2026-09-24T17:08:21.029402Z",
+  "activeAlerts": [
+   {
+    "regionId": "51",
+    "regionType": "District",
+    "type": "AIR",
+    "lastUpdate": "2026-09-24T17:08:20.597943Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Red",
+      "reason": "Ракетна загроза (червоний рівень)",
+      "createdAt": "2026-09-24T17:08:21.149353Z"
+     },
+     {
+      "alertLevel": "Yellow",
+      "reason": "Дронова загроза (жовтий рівень)",
+      "createdAt": "2026-09-24T16:43:03.066921Z"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "regionId": "74",
+  "regionType": "District",
+  "regionName": "Вишгородський район",
+  "regionEngName": "Vyshhorodskyi district",
+  "lastUpdate": "2026-09-24T18:16:15.887592Z",
+  "activeAlerts": [
+   {
+    "regionId": "74",
+    "regionType": "District",
+    "type": "AIR",
+    "lastUpdate": "2026-09-24T18:16:15.833628Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Yellow",
+      "reason": "Дронова загроза (жовтий рівень)",
+      "createdAt": "2026-09-24T18:16:15.888055Z"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "regionId": "58",
+  "regionType": "District",
+  "regionName": "Коростенський район",
+  "regionEngName": "Korostenskyi district",
+  "lastUpdate": "2026-09-24T18:59:26.475493Z",
+  "activeAlerts": [
+   {
+    "regionId": "58",
+    "regionType": "District",
+    "type": "AIR",
+    "lastUpdate": "2026-09-24T18:59:26.025726Z",
+    "activeAlertLevels": [
+     {
+      "alertLevel": "Yellow",
+      "reason": "Дронова загроза (жовтий рівень)",
+      "createdAt": "2026-09-24T18:59:26.475534Z"
+     }
+    ]
+   }
+  ]
+ }
+]

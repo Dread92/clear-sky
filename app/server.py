@@ -14,6 +14,7 @@ Sources (all optional except at least one alert source):
 Standard library only. Optional: `pip install plyer` for OS desktop notifications.
 """
 import argparse
+import gzip
 import hashlib
 import html
 import json
@@ -70,6 +71,8 @@ DEFAULT_CONFIG = {
     "alerts_in_ua_token": "",
     "ukrainealarm_key": "",
     "use_ubilling_fallback": True,
+    "use_siren_proxy": True,          # keyless proxy of the official API (siren.pp.ua) — raion-level alerts without a key
+    "poll_ukrainealarm_seconds": 10,
     "telegram_channels": ["kyiv_airdef", "chyste_nebo", "kievinfo_kyiv", "war_monitor", "eRadarrua", "kpszsu"],   # informational: AUTHORITATIVE_CHANNELS is what is read
     "favourites": ["31", "14"],
     "poll_alerts_seconds": 15,
@@ -289,7 +292,7 @@ def parse_iso(s):
         return None
 
 
-BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
+BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/light-map.json", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
 
 
 def build_id():
@@ -505,6 +508,19 @@ def parse_af_summary(text):
         return None
     dm = _AF_DOWN_RX.search(text)
     return {"drones": drones, "missiles": min(missiles, 400), "down": int(dm.group(1)) if dm else 0}
+
+
+_GZ = {}
+
+
+def _gzipped(path, body):
+    """gzip of a static file, kept until the file changes."""
+    k = (path, len(body), hashlib.md5(body).digest())
+    if k not in _GZ:
+        if len(_GZ) > 64:
+            _GZ.clear()
+        _GZ[k] = gzip.compress(body, 6)
+    return _GZ[k]
 
 
 def http_get(url, headers=None, timeout=20):
@@ -1360,9 +1376,10 @@ class State:
         now = datetime.now(timezone.utc)
         obl_status = {}
         with self.lock:
+            # any alert in the oblast keeps its reports alive: with alerts by raion, an oblast whose three raions
+            # are under alert has no oblast-wide alert at all, and its drones must not vanish after 3 minutes
             for a in self.active.values():
-                if a["location_type"] == "oblast" or a["oblast_uid"] in ("31", "14"):
-                    obl_status[a["oblast_uid"]] = "A"
+                obl_status[a["oblast_uid"]] = "A"
         ms = sorted(ms, key=lambda m: m["ts"])
         tracks = [m for m in ms if not m.get("status")]
         for m in tracks:
@@ -1446,7 +1463,7 @@ class State:
                 k = (a["location_uid"], a["alert_type"])
                 if k in merged:
                     b = merged[k]
-                    m = dict(b if b["source"] in ("alerts_in_ua", "ukrainealarm") else a)
+                    m = dict(b if b["source"] in ("alerts_in_ua", "ukrainealarm", "ukrainealarm_proxy") else a)
                     m["started_at"] = min(a["started_at"] or "9", b["started_at"] or "9")
                     thr = list(b.get("threats") or [])
                     for t in a.get("threats") or []:
@@ -1468,7 +1485,8 @@ class State:
                 continue
             if a["location_type"] == "oblast":
                 o["status"] = "A"
-                o["since"] = a["started_at"] if not o["since"] or a["started_at"] < o["since"] else o["since"]
+                if a.get("since_known", True):   # a mirror alert with no start time has no "since"
+                    o["since"] = a["started_at"] if not o["since"] or a["started_at"] < o["since"] else o["since"]
             elif o["status"] != "A":
                 o["status"] = "P"
             if a["alert_type"] not in o["types"]:
@@ -1613,8 +1631,48 @@ class AlertsInUa(threading.Thread):
             time.sleep(35)
 
 
+# The raion table: official region id → oblast, parent raion, and the raion's shape on the map.
+# Built by scripts/build_geo.py from the ukrainealarm region list; read once.
+REGIONS_PATH = os.path.join(ROOT, "data", "ua_regions.json")
+_UAR = None
+
+
+def ua_regions():
+    global _UAR
+    if _UAR is None:
+        try:
+            with open(REGIONS_PATH, encoding="utf-8") as f:
+                _UAR = json.load(f)
+        except Exception as e:
+            log("ua_regions.json:", e)
+            _UAR = {"states": {}, "districts": {}, "communities": {}}
+    return _UAR
+
+
+def _iso_s(t):
+    """'2026-09-24T14:11:44.399859Z' (any number of decimals) → '2026-09-24T14:11:44Z', the form used everywhere else."""
+    if not t:
+        return None
+    d = parse_iso(re.sub(r"\.\d+", "", t))
+    return d.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ") if d else None
+
+
 class UkraineAlarm(threading.Thread):
-    NAME = "ukrainealarm"
+    """The official «Повітряна тривога» data, down to the raion and the hromada.
+
+    api.ukrainealarm.com is the backend of the government app. With a key (config ukrainealarm_key, or env
+    UKRAINEALARM_KEY) this reads it directly. Without one it reads siren.pp.ua, a keyless read-only proxy that
+    serves the same API responses — the source the Home Assistant integration falls back to.
+
+    This is the source that knows WHICH raion. The ubilling mirror only says "something in Kyiv oblast is under
+    alert": it turned the whole oblast red, and a person in Boryspil raion saw red ten minutes after the
+    government app had lifted their alert. A raion here comes as a bare numeric id; data/ua_regions.json turns
+    it into its oblast and its shape on the map.
+
+    Each alert also carries the government app's own danger level (since 11 Sep 2026): red — massed drone,
+    missile or drone-and-missile threat; yellow — drone threat. Both are air-raid alerts. The official reason
+    text ("Дронова загроза (жовтий рівень)") is kept as the alert's note, word for word.
+    """
     TYPE_MAP = {"AIR": "air_raid", "ARTILLERY": "artillery_shelling", "URBAN_FIGHTS": "urban_fights",
                 "CHEMICAL": "chemical", "NUCLEAR": "nuclear", "INFO": "info"}
     LEVEL_MAP = {"State": "oblast", "District": "raion", "Community": "hromada"}
@@ -1622,64 +1680,113 @@ class UkraineAlarm(threading.Thread):
     def __init__(self, state, cfg):
         super().__init__(daemon=True)
         self.state, self.cfg = state, cfg
-        self.key = cfg["ukrainealarm_key"]
-        self.last_action = None
+        self.key = cfg.get("ukrainealarm_key") or ""
+        if self.key:
+            self.NAME, self.base = "ukrainealarm", "https://api.ukrainealarm.com/api/v3"
+        else:
+            self.NAME, self.base = "ukrainealarm_proxy", (cfg.get("siren_proxy_url") or "https://siren.pp.ua/api/v3").rstrip("/")
         self.primary = not cfg.get("alerts_in_ua_token")
+        self.last_action = None
+        self.last_full = 0.0
+        self.last_ok = 0.0
+        self.born = time.time()
+        self.unknown = set()
+
+    def healthy(self, within=90):
+        """Answered in the last `within` seconds — or still starting up (the mirror must not jump in during
+        the first seconds of a boot and paint whole oblasts that this source then has to take back)."""
+        now = time.time()
+        return now - self.last_ok < within or (not self.last_ok and now - self.born < within)
 
     def run(self):
-        interval = max(10, int(self.cfg.get("poll_alerts_seconds", 15)))
+        interval = max(8, int(self.cfg.get("poll_ukrainealarm_seconds", 10)))
         while True:
             try:
                 self.poll()
+                self.last_ok = time.time()
             except Exception as e:
                 self.state.set_source(self.NAME, False, error=str(e)[:200])
-                log("ukrainealarm error:", e)
+                log(f"{self.NAME} error:", e)
             time.sleep(poll_gap(self.state, interval))
 
     def poll(self):
-        h = {"Authorization": self.key, "Accept": "application/json"}
-        st, _, body = http_get("https://api.ukrainealarm.com/api/v3/alerts/status", h)
+        h = {"Accept": "application/json"}
+        if self.key:
+            h["Authorization"] = self.key
+        _, _, body = http_get(self.base + "/alerts/status", h)
         action = json.loads(body.decode()).get("lastActionIndex")
-        if action == self.last_action:
-            self.state.set_source(self.NAME, True, note=f"unchanged ({action})")
+        if action is not None and action == self.last_action and time.time() - self.last_full < 120:
+            self.state.set_source(self.NAME, True, note="unchanged")
             return
-        self.last_action = action
-        st, _, body = http_get("https://api.ukrainealarm.com/api/v3/alerts", h)
-        regions = json.loads(body.decode())
-        alerts = []
-        for r in regions:
-            ltype = self.LEVEL_MAP.get(r.get("regionType"), "unknown")
-            name = r.get("regionName") or ""
-            ouid = norm_uk(name) if ltype == "oblast" else None
-            for a in r.get("activeAlerts") or []:
-                atype = self.TYPE_MAP.get(a.get("type"), "air_raid")
-                alerts.append({
-                    "key": f"ua:{r.get('regionId')}:{atype}",
-                    "source": self.NAME,
-                    "location_uid": f"ua-{r.get('regionId')}",
-                    "location_title": name, "location_title_en": None,
-                    "location_type": ltype,
-                    "oblast_uid": ouid or (self._oblast_of(r) or "?"),
-                    "alert_type": atype, "alert_level": None,
-                    "started_at": a.get("lastUpdate"), "finished_at": None, "notes": None, "threats": [],
-                })
+        _, _, body = http_get(self.base + "/alerts", h)
+        alerts = self.normalise(json.loads(body.decode()))
+        self.last_action, self.last_full = action, time.time()
         self.state.set_source(self.NAME, True, count=len(alerts))
         if self.primary:
-            self.state.apply_snapshot(self.NAME, alerts, {"oblast", "raion", "hromada"})
+            self.state.apply_snapshot(self.NAME, alerts, {"oblast", "raion", "hromada", "city", "unknown"})
 
-    @staticmethod
-    def _oblast_of(r):
-        # /alerts doesn't carry parent info; best effort from name
-        return norm_uk(r.get("regionName"))
+    def place(self, rid, rtype, r):
+        """Where an official region id is. None only for the API's own test region."""
+        uar = ua_regions()
+        if rid in (uar.get("ignore") or []):
+            return None
+        if rtype == "State":
+            uid = uar["states"].get(rid)
+            if uid:
+                return {"type": "oblast", "obl": uid, "name": NAME_BY_UID.get(uid, (r.get("regionName"),))[0]}
+        if rtype == "District":
+            d = uar["districts"].get(rid)
+            if d:
+                return {"type": "raion", "obl": d["obl"], "name": d["name"], "raion_uid": rid, "raion_key": d["key"], "raion_title": d["name"]}
+        c = uar["communities"].get(rid)
+        if c:   # a hromada — including a city the API lists at the top level ("м. Харків та … громада")
+            d = uar["districts"].get(c.get("d") or "") or {}
+            return {"type": "hromada", "obl": c.get("obl") or d.get("obl") or "?", "name": c["name"],
+                    "raion_uid": c.get("d"), "raion_key": d.get("key"), "raion_title": d.get("name")}
+        # An id the table does not know yet (a new hromada, a renamed raion). The alert is kept — an alert is
+        # never dropped for being hard to place — as precisely as its name allows, and logged once.
+        if rid not in self.unknown:
+            self.unknown.add(rid)
+            log(f"{self.NAME}: region id {rid} ({rtype}) not in ua_regions.json — rebuild it with scripts/build_geo.py")
+        name = r.get("regionName") if str(r.get("regionId")) == rid else f"#{rid}"
+        return {"type": self.LEVEL_MAP.get(rtype, "unknown"), "obl": norm_uk(name) or "?", "name": name}
+
+    def normalise(self, regions):
+        out = {}
+        for r in regions or []:
+            for a in r.get("activeAlerts") or []:
+                # an entry can carry its parent's alert too (a hromada listing its raion's): each alert names its own region
+                rid = str(a.get("regionId") or r.get("regionId") or "")
+                rtype = a.get("regionType") or r.get("regionType")
+                p = self.place(rid, rtype, r)
+                if not p:
+                    continue
+                atype = self.TYPE_MAP.get(a.get("type"), str(a.get("type") or "air_raid").lower())
+                levels = a.get("activeAlertLevels") or []
+                names = [x.get("alertLevel") for x in levels]
+                level = "red" if "Red" in names else ("yellow" if "Yellow" in names else None)
+                times = [s for s in [_iso_s(a.get("lastUpdate"))] + [_iso_s(x.get("createdAt")) for x in levels] if s]
+                reason = next((x.get("reason") for x in sorted(levels, key=lambda x: x.get("alertLevel") != "Red") if x.get("reason")), None)
+                key = f"ua:{rid}:{atype}"
+                out[key] = {"key": key, "source": self.NAME, "location_uid": f"ua-{rid}", "location_title": p["name"],
+                            "location_title_en": r.get("regionEngName") if str(r.get("regionId")) == rid else None,
+                            "location_type": p["type"], "oblast_uid": p["obl"], "alert_type": atype, "alert_level": level,
+                            "started_at": min(times) if times else now_iso(), "finished_at": None, "notes": reason, "threats": [],
+                            "raion_uid": p.get("raion_uid"), "raion_key": p.get("raion_key"), "raion_title": p.get("raion_title")}
+        return list(out.values())
 
 
 class Ubilling(threading.Thread):
-    """Keyless mirror (oblast-level booleans). Used only when no keyed source is configured."""
+    """Keyless mirror: one on/off per OBLAST, nothing finer, and usually no start time.
+
+    It lights an oblast as soon as any raion in it is under alert, so it can only be a fallback: it stands in
+    when no raion-level source answers (`detail` unhealthy), and otherwise just reports its own health.
+    """
     NAME = "ubilling_mirror"
 
-    def __init__(self, state, cfg, primary):
+    def __init__(self, state, cfg, primary, detail=None):
         super().__init__(daemon=True)
-        self.state, self.cfg, self.primary = state, cfg, primary
+        self.state, self.cfg, self.primary, self.detail = state, cfg, primary, detail
 
     def run(self):
         interval = max(20, int(self.cfg.get("poll_ubilling_seconds", 30)))
@@ -1698,15 +1805,21 @@ class Ubilling(threading.Thread):
                         if "+" not in started and not started.endswith("Z"):
                             started += "+03:00"  # mirror reports Kyiv local time
                         d = parse_iso(started)
-                        if not d or d.year < 2022:  # mirror often reports epoch 0 — start time unknown
+                        known = bool(d and d.year >= 2022)
+                        if not known:
+                            # the mirror reports epoch 0: the start time is unknown. The time it is first seen is kept
+                            # for ordering only — shown as "since", it was the moment the server rebooted.
                             started = now_iso()
                         uk, en = NAME_BY_UID[uid]
                         alerts.append({"key": f"ub:{uid}", "source": self.NAME, "location_uid": uid,
                                        "location_title": uk, "location_title_en": en, "location_type": "oblast",
                                        "oblast_uid": uid, "alert_type": "air_raid", "alert_level": None,
-                                       "started_at": started, "finished_at": None, "notes": "keyless mirror", "threats": []})
-                self.state.set_source(self.NAME, True, count=len(alerts), cached_at=data.get("cachedat"))
-                if self.primary:
+                                       "started_at": started, "finished_at": None, "notes": "keyless mirror — oblast level only",
+                                       "threats": [], "since_known": known})
+                standing_in = self.primary and not (self.detail and self.detail.healthy())
+                self.state.set_source(self.NAME, True, count=len(alerts), cached_at=data.get("cachedat"),
+                                      note="standing in: oblast level only" if standing_in and self.detail else None)
+                if standing_in:
                     self.state.apply_snapshot(self.NAME, alerts, {"oblast"})
             except Exception as e:
                 self.state.set_source(self.NAME, False, error=str(e)[:200])
@@ -2496,11 +2609,29 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"error": "not found"}, 404)
         with open(p, "rb") as f:
             body = f.read()
+        ext = p.rsplit(".", 1)[-1]
         if ctype is None:
-            ctype = {"js": "text/javascript; charset=utf-8", "css": "text/css; charset=utf-8", "png": "image/png", "svg": "image/svg+xml", "json": "application/json", "html": "text/html; charset=utf-8", "md": "text/markdown"}.get(p.rsplit(".", 1)[-1], "application/octet-stream")
+            ctype = {"js": "text/javascript; charset=utf-8", "css": "text/css; charset=utf-8", "png": "image/png", "svg": "image/svg+xml", "json": "application/json", "html": "text/html; charset=utf-8", "md": "text/markdown"}.get(ext, "application/octet-stream")
+        # On 2G every kilobyte is a second. Text goes out gzipped (the map outlines shrink to a third), and a
+        # file the phone already holds is answered with a 304 instead of being sent again. "no-cache" still
+        # makes the browser ask every time, so a new version is picked up exactly as with "no-store".
+        etag = '"' + hashlib.md5(body).hexdigest()[:16] + '"'
+        if self.headers.get("If-None-Match") == etag:
+            self.send_response(304)
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            return
+        enc = None
+        if ext in ("js", "css", "json", "html", "svg", "md") and len(body) > 1400 and "gzip" in (self.headers.get("Accept-Encoding") or ""):
+            body, enc = _gzipped(p, body), "gzip"
         self.send_response(200)
         self.send_header("Content-Type", ctype)
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("ETag", etag)
+        self.send_header("Vary", "Accept-Encoding")
+        if enc:
+            self.send_header("Content-Encoding", enc)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -2549,6 +2680,8 @@ def load_config(args):
         cfg["bind"] = "0.0.0.0"
     if os.environ.get("ALERTS_IN_UA_TOKEN"):
         cfg["alerts_in_ua_token"] = os.environ["ALERTS_IN_UA_TOKEN"]
+    if os.environ.get("UKRAINEALARM_KEY"):
+        cfg["ukrainealarm_key"] = os.environ["UKRAINEALARM_KEY"]
     return cfg
 
 
@@ -2613,12 +2746,16 @@ def main():
         if cfg.get("alerts_in_ua_token"):
             AlertsInUa(state, cfg).start(); keyed = True
             log("source: alerts.in.ua (primary)")
-        if cfg.get("ukrainealarm_key"):
-            UkraineAlarm(state, cfg).start()
-            log("source: ukrainealarm.com" + ("" if keyed else " (primary)")); keyed = True
+        # the official data by raion: the API itself with a key, the keyless proxy of it without one
+        detail = None
+        if cfg.get("ukrainealarm_key") or cfg.get("use_siren_proxy", True):
+            detail = UkraineAlarm(state, cfg)
+            detail.start()
+            log(f"source: {detail.NAME} — official alerts by raion" + ("" if keyed else " (primary)"))
         if cfg.get("use_ubilling_fallback", True):
-            Ubilling(state, cfg, primary=not keyed).start()
-            log("source: ubilling keyless mirror" + (" (primary — oblast level only, add a token for full detail)" if not keyed else " (cross-check)"))
+            Ubilling(state, cfg, primary=not keyed, detail=detail).start()
+            log("source: ubilling keyless mirror" + (" (cross-check)" if keyed else
+                " (stands in, oblast level only, when the raion-level source is down)" if detail else " (primary — oblast level only)"))
     if cfg.get("telegram_channels"):
         Telegram(state, cfg).start()
         log("feed:", ", ".join("t.me/" + c for c in cfg["telegram_channels"]))
