@@ -70,10 +70,7 @@ DEFAULT_CONFIG = {
     "alerts_in_ua_token": "",
     "ukrainealarm_key": "",
     "use_ubilling_fallback": True,
-    "telegram_channels": ["kpszsu", "povitryanatrivogaaa", "war_monitor", "monitor_ukr", "kyivoda", "KyivCityOfficial", "kyiv_airdef",
-                          "UkraineAlarmSignal", "cherkasy_alerts", "cherkasy_monitor", "poltavskaODA", "zhytomyrskaODA",
-                          "chernihiv_alert", "Zhytomyr_alert", "sumy_alert", "sumy_alerts", "eRadarrua", "kyiv_times_official",
-                          "kharkiv_alert", "odesa_alert", "dnipro_alert", "lviv_alert", "zaporizhzhia_alert", "mykolaiv_alert", "kherson_alert", "vinnytsia_alert", "khmelnytskyi_alert", "lutsk_alert", "ternopil_alert", "ivanofrankivsk_alert", "chernivtsi_alert", "uzhhorod_alert", "kropyvnytskyi_alert", "kryvyirih_alert", "kremenchuk_alert", "cherkasy_alert"],
+    "telegram_channels": ["kyiv_airdef", "chyste_nebo", "kievinfo_kyiv", "war_monitor", "eRadarrua", "kpszsu"],   # informational: AUTHORITATIVE_CHANNELS is what is read
     "favourites": ["31", "14"],
     "poll_alerts_seconds": 15,
     "poll_ubilling_seconds": 30,
@@ -162,9 +159,27 @@ FEED_TAGS = [
 THREAT_TAGS = {n for n, _ in FEED_TAGS}
 
 
+# The only Telegram channels this app reads, for Kyiv and the oblasts around it.
+#
+# This is deliberately in code and not in config.json. The config on each machine already lists thirty-odd
+# channels, and a config-level whitelist would change nothing until someone edited every deployed config by
+# hand — the old list would keep running silently. Here, the list IS the behaviour: anything else in the
+# config is ignored and logged once at start.
+#
+# kyiv_airdef, chyste_nebo and kievinfo_kyiv are the fast live trackers; war_monitor and eRadarrua the wider
+# picture; kpszsu is the Air Force itself. None of them sets an alert's colour — see OFFICIAL_ALERTS_FROM_TELEGRAM.
+AUTHORITATIVE_CHANNELS = ["kyiv_airdef", "chyste_nebo", "kievinfo_kyiv", "war_monitor", "eRadarrua", "kpszsu"]
+
+# Whether a Telegram post may start or end an alert. It may not. The colour of the alert — red, yellow,
+# green — comes only from the official «Повітряна тривога» data (alerts.in.ua / ukrainealarm, or the ubilling
+# mirror of it). A channel writing "відбій" or "чисто" turned the band green while the government app was still
+# red; the one thing this app must never do is tell somebody it is over before the state does.
+OFFICIAL_ALERTS_FROM_TELEGRAM = False
+
 LIVE_TAGS = {"drones", "ballistic_missiles", "cruise_missiles", "banderol_missiles", "unspecified_missiles",
              "mig31k_departure", "strategic_aircraft_activity", "tactic_aircraft_activity", "guided_aerial_bombs", "clear"}
-NEWS_CHANNELS = {"kyiv_times_official", "eRadarrua"}   # big mixed channels: only short live-threat posts are kept
+# Mixed channels: live tracking at night, city news in the day. Only short posts that read as a threat are kept.
+NEWS_CHANNELS = {"kyiv_times_official", "eRadarrua", "kievinfo_kyiv"}
 
 
 def is_relevant(text, tags, channel=None):
@@ -194,6 +209,18 @@ REGION_CHANNELS = {"cherkasy_alerts", "cherkasy_monitor", "poltavskaODA", "zhyto
 REGION_RE = re.compile(r"житомир|чернігів|чернигов|сум(и|ськ|щин)|полтав|черкас|вінниц|ніжин|прилук|конотоп|шостк|охтир|ромн|кременчу|лубн|миргород|умань|уман[сь]|золотонош|бердич|коростен|звягел|гайсин|жмерин|тульчин", re.I)
 
 
+SCOPE_KM = 330          # Kyiv to the far edge of Sumy or Vinnytsia oblast
+
+
+def in_scope(m):
+    uid = m.get("oblast_uid")
+    if uid is not None:
+        return str(uid) in REGION_UIDS
+    if m.get("lat") is None or m.get("lon") is None:
+        return True          # an outcome with no place of its own is resolved against its track later
+    return haversine_km(50.45, 30.52, m["lat"], m["lon"]) <= SCOPE_KM
+
+
 # nightly / daily *assessments* ("Загальна оцінка загроз на ніч…", "#обстановка", "може відбутись у будь-який момент") describe
 # what MIGHT happen — they must never light the ballistic / MiG strip or place a marker. They keep only 'forecast' + 'alert'.
 FORECAST_RX = re.compile(r"оцінка\s+загроз|загальна\s+оцінка|прогноз\s+(?:на|загроз)|#обстановка|на\s+ніч\s+\d|може\s+відбутись\s+у\s+будь-який\s+момент|впродовж\s+ночі\s+(?:ймовірн|можлив)|(?:ймовірн|можлив)\w*\s+(?:додаткові\s+)?запуск", re.I)
@@ -203,6 +230,11 @@ def tag_feed_text(text, channel=None):
     tags = [name for name, rx in FEED_TAGS if rx.search(text)]
     if FORECAST_RX.search(text) and not re.search(r"\bпуск\b|зафіксовано\s+пуск|швидкісн\w*\s+ціл|зліт\s+міг|злетів|у\s+повітрі\s+міг", text, re.I):
         return [t for t in tags if t == "alert"] + ["forecast"]
+    # An article is tagged as one and nothing else. Its threat words used to become threat tags, and a
+    # ballistic_missiles tag on a news item is what lit "БАЛІСТИЧНА ЗАГРОЗА — НЕГАЙНО В УКРИТТЯ" on the page.
+    # After the forecast check on purpose: a nightly assessment is a forecast, which says more than "news".
+    if geo and geo.looks_like_news(geo._norm(text)):
+        return ["news"]
     if KYIV_RE.search(text):
         tags.append("kyiv")
     if REGION_RE.search(text):
@@ -221,7 +253,11 @@ def tag_feed_text(text, channel=None):
                 tags.append("region")
         if ms and "geo" not in tags:
             tags.append("geo")
-    if channel and geo and channel in geo.OFFICIAL_PARSERS:
+    # A Banderol post says "ракета" too, and the keyword pass tags that as a cruise missile. Once the post has been
+    # read as a Banderol, the vaguer tag goes — otherwise the feed shows a "cruise missiles" chip on it.
+    if "banderol_missiles" in tags:
+        tags = [t for t in tags if t not in ("cruise_missiles", "unspecified_missiles")]
+    if OFFICIAL_ALERTS_FROM_TELEGRAM and channel and geo and channel in geo.OFFICIAL_PARSERS:
         tags.append("official")
     if geo and channel in geo.OFFICIAL_PARSERS and geo.OFFICIAL_PARSERS[channel][0] == "city" and geo.OFFICIAL_PARSERS[channel][1] not in REGION_UIDS:
         tags.append("ua")
@@ -253,7 +289,7 @@ def parse_iso(s):
         return None
 
 
-BUILD_FILES = ("static/kyiv.html", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
+BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
 
 
 def build_id():
@@ -1076,6 +1112,11 @@ class State:
                     else:
                         ev = cached
                 out.append(dict(m, id=f"{p['post_id']}#{i}", ts=p["ts"], text=p["text"], text_en=p.get("text_en"), channel=p["channel"], tags=p["tags"], evidence=ev))
+        # Kyiv, its oblast, the five oblasts around it, and Sumy — the corridor most Shaheds into Kyiv arrive
+        # through. Everything else is dropped here rather than hidden in the page, so a raid over Odesa never
+        # reaches the Kyiv map, the counts, the proximity pushes or the light page. A mark with no oblast is kept
+        # only if it sits close enough to still be about Kyiv.
+        out = [m for m in out if in_scope(m)]
         out = self._chain_and_prune(out, ttl)
         out.sort(key=lambda m: m["ts"], reverse=True)
         # Keep what the app decided, not just what it was told. INSERT OR IGNORE keyed on the marker id, so
@@ -1330,6 +1371,12 @@ class State:
         def km(a, b):
             return math.hypot((a["lon"] - b["lon"]) * 70.7, (a["lat"] - b["lat"]) * 111)
         def fam(m):
+            # Banderol is its own family. It used to share "missile" with cruise missiles because its type name
+            # contains the word, so a Banderol track could be continued by a later "ракета" report from another
+            # channel — and the later, vaguer report is what named the track. A Banderol never becomes a cruise
+            # missile by being chained to one.
+            if m["type"] == "banderol_missiles":
+                return "banderol"
             return "drone" if m["type"] == "drones" else ("missile" if "missile" in m["type"] else m["type"])
         for i, m in enumerate(tracks):
             t1 = parse_iso(m["ts"])
@@ -1679,7 +1726,10 @@ class Telegram(threading.Thread):
     def __init__(self, state, cfg):
         super().__init__(daemon=True)
         self.state, self.cfg = state, cfg
-        self.channels = cfg.get("telegram_channels") or []
+        self.channels = list(AUTHORITATIVE_CHANNELS)
+        extra = [c for c in (cfg.get("telegram_channels") or []) if c not in AUTHORITATIVE_CHANNELS]
+        if extra:
+            log(f"telegram: {len(extra)} channel(s) in config ignored — only {', '.join(AUTHORITATIVE_CHANNELS)} are read")
         self.official = OfficialAlerts(state)
         self.seen_channels = set()
 
@@ -1730,6 +1780,12 @@ class Telegram(threading.Thread):
                 en, fb = to_en(text), bool(_tr) and not _tr.LAST_OK[0]
             posts.append({"post_id": post_id, "channel": ch, "ts": dt, "text": text, "tags": tags, "text_en": en, "en_fallback": fb})
         new = self.state.store.add_feed(posts)
+        if 'tgme_widget_message_wrap' not in page:
+            # The owner has switched the web preview off: t.me/s/ shows the landing page and no posts at all.
+            # Reported as a failed source, not a quiet one — "no drones reported" and "we cannot read this
+            # channel" must never look the same in the sources panel.
+            self.state.set_source(f"tg:{ch}", False, error="web preview disabled by the channel — cannot be read via t.me/s/")
+            return
         self.state.set_source(f"tg:{ch}", True, count=len(posts), new=len(new))
         if ch == "eRadarrua" and geo:
             for p in sorted(posts, key=lambda p: p["ts"], reverse=True):
@@ -1739,7 +1795,7 @@ class Telegram(threading.Thread):
                     break
         for p in sorted(new, key=lambda p: p["ts"]):
             self.state.publish({"kind": "feed", "ts": p["ts"], "post": p})
-        if geo and ch in geo.OFFICIAL_PARSERS:
+        if OFFICIAL_ALERTS_FROM_TELEGRAM and geo and ch in geo.OFFICIAL_PARSERS:
             self.official.ingest(ch, sorted(new, key=lambda p: p["ts"]), initial=ch not in self.seen_channels)
         self.seen_channels.add(ch)
 
@@ -2282,6 +2338,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self._file("mobile.html", "text/html; charset=utf-8")
             if u.path == "/manifest.json":
                 return self._file("manifest.json", "application/manifest+json")
+            # The light page: one place, its official alert status, the threats within 60 km. Its own manifest,
+            # its own scope, so it installs on the phone as a separate app from the full map.
+            if u.path in ("/light", "/l"):
+                usage = getattr(st, "usage", None)
+                if usage:
+                    usage.hit(self._peer_ip(), self.headers.get("User-Agent") or "", "load", lang=None, pwa=False, lite=True)
+                return self._file("light.html", "text/html; charset=utf-8")
+            if u.path == "/light.webmanifest":
+                return self._file("light.webmanifest", "application/manifest+json")
             if u.path == "/api/places":
                 oq = q.get("oblast", ["14,31"])[0]
                 obl = None if oq == "all" else set(oq.split(","))

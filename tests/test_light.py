@@ -1,0 +1,101 @@
+"""Clear Sky Light: one place, what concerns it, nothing else.
+
+It inherits every promise the full app makes and adds two of its own: it has to be readable in seconds on a
+phone in a corridor, and it must never learn more about where somebody is than the full app does — which is
+nothing. The four places live in the browser, and the oblast a place sits in is worked out on the phone,
+because asking the server would mean sending it the coordinates of a school.
+"""
+import json
+import os
+import re
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+LIGHT = open(os.path.join(ROOT, "static", "light.html"), encoding="utf-8").read()
+SRC = open(os.path.join(ROOT, "app", "server.py"), encoding="utf-8").read()
+I18N = open(os.path.join(ROOT, "static", "i18n.js"), encoding="utf-8").read()
+
+
+def _script():
+    return LIGHT[LIGHT.index("<script>"):LIGHT.index("</script>", LIGHT.index("<script>"))]
+
+
+# ── it exists, separately ──────────────────────────────────────────────────────────────────────────────
+def test_it_is_served_at_its_own_address():
+    assert 'u.path in ("/light", "/l")' in SRC and '"light.html"' in SRC
+
+
+def test_it_installs_as_its_own_app():
+    man = json.load(open(os.path.join(ROOT, "static", "light.webmanifest"), encoding="utf-8"))
+    assert man["id"] == "/light" and man["start_url"] == "/light" and man["scope"] == "/light"
+    assert man["name"] != json.load(open(os.path.join(ROOT, "static", "manifest.json"), encoding="utf-8"))["name"]
+    assert '<link rel="manifest" href="/light.webmanifest">' in LIGHT
+
+
+def test_it_is_part_of_the_build_hash():
+    """Otherwise a change to it never tells an open page that a new version exists."""
+    assert '"static/light.html"' in SRC[SRC.index("BUILD_FILES"):SRC.index("BUILD_FILES") + 200]
+
+
+def test_it_stays_light():
+    assert len(LIGHT.encode("utf-8")) < 32_000, "the light page is no longer light"
+    for heavy in ("kyiv-map.json", "EventSource", "tile.openstreetmap", "/api/feed"):
+        assert heavy not in LIGHT, f"the light page loads {heavy}"
+
+
+# ── the promise about places ───────────────────────────────────────────────────────────────────────────
+def test_the_places_come_from_the_same_browser_storage_as_the_full_app():
+    js = _script()
+    assert "localStorage.getItem('slots')" in js and "localStorage.setItem('slots'" in js
+
+
+def test_no_request_ever_carries_a_place():
+    js = _script()
+    for call in re.findall(r"fetch\(([^)]*)\)", js):
+        assert not re.search(r"lat|lon|SLOTS|place\(|\bp\.", call), f"a request carries the place: fetch({call})"
+
+
+def test_the_oblast_is_worked_out_on_the_phone():
+    js = _script()
+    body = js[js.index("async function oblastOf"):js.index("\n}", js.index("async function oblastOf"))]
+    assert "isPointInFill" in body and "/static/ukraine-map.json" in body
+    assert "p.obl=found" in body.replace(" ", ""), "the answer is not cached with the place"
+
+
+def test_the_city_is_tested_before_the_oblast_around_it():
+    """Kyiv city sits inside Kyiv oblast. Testing the oblast first would put everyone in the city in it."""
+    js = _script()
+    assert "u.uid==='31'" in js.replace(" ", "")
+
+
+# ── the rules it inherits ──────────────────────────────────────────────────────────────────────────────
+def test_the_status_comes_only_from_the_alert_state():
+    js = _script()
+    body = js[js.index("function statusOf"):js.index("\n}", js.index("function statusOf"))]
+    assert "STATE.active" in body
+    for banned in ("MKS", "markers", "clear"):
+        assert banned not in body, f"the status is decided by {banned!r}, not by the official alert data"
+
+
+def test_empty_is_never_called_safe():
+    for pat in (r"lt_none:'([^']*)'", r"lt_none_b:'((?:[^'\\]|\\.)*)'"):
+        for v in re.findall(pat, I18N):
+            assert not re.search(r"\bsafe\b|безпечн[оа]\b(?!\s*—)|\bsûr\b(?!\s*»)", v.replace("the same as safe", "").replace("те саме, що безпечно", "").replace("« sûr »", "")), v
+
+
+def test_eta_only_on_a_stated_course_pointing_here_and_never_for_immediate_weapons():
+    js = _script()
+    assert "statedCourse=m=>m.heading!=null&&" in js.replace(" ", "")
+    i = js.index("if(IMMEDIATE.has(m.type))")
+    assert "continue" in js[i:i + 80], "an immediate weapon falls through to the ETA list"
+
+
+def test_a_shot_down_target_leaves_the_list():
+    js = _script()
+    assert "function link(" in js and "returntr.filter(m=>!m.endedBy)" in js.replace(" ", "")
+
+
+def test_every_light_string_is_in_all_three_languages():
+    keys = {k for k in re.findall(r"t\('(lt_[a-zA-Z_]+)'", LIGHT) if not k.endswith("_")} | {"lt_R", "lt_Y", "lt_G", "lt_U", "lt_z_near", "lt_z_approach", "lt_z_observe"}
+    for k in sorted(keys):
+        n = len(re.findall(rf"(?<![A-Za-z_]){k}:", I18N))
+        assert n == 3, f"{k} appears {n} times"

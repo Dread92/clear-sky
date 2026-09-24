@@ -235,14 +235,19 @@ TYPE_RX = [
     # The S8000 "Бандероль" is a small jet-powered missile launched from an Orion drone: cruise-like in what
     # it does, but slower and smaller than a Kalibr, and the channels name it by its own name. Folding it into
     # "cruise missiles" throws away a distinction the source made, and it would be drawn with a Kalibr's speed.
-    ("banderol_missiles", re.compile(r"бандерол", re.I)),
+    # Also by what it is and what launches it, which is how it is written when the name is not: "S8000",
+    # "реактивна ракета", "ракета з БпЛА / з Оріона". All of these used to fall through to the bare "ракет"
+    # below and be drawn as a cruise missile.
+    ("banderol_missiles", re.compile(r"бандерол|[sс]-?8000|оріон|орион|реактивн\w*\s+ракет|ракет\w*\s+(?:з|із|зі)\s+(?:бпла|безпілотник|дрон|оріон)", re.I)),
     # Kh-22 / Kh-32 are Mach 4+ anti-ship missiles fired at cities from a Tu-22M3. Folded into
     # "cruise missiles" they were drawn at a fifth of their speed and filtered by a radius they cross in
     # seven seconds. Tested before cruise, because the cruise pattern used to swallow them.
     ("supersonic_missiles", re.compile(r"х-?22|х-?32|надзвуков", re.I)),
     ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|\bракет", re.I)),
     ("guided_aerial_bombs", re.compile(r"\bкаб", re.I)),
-    ("strategic_aircraft_activity", re.compile(r"ту-?95|ту-?160|ту-?22|стратегічн", re.I)),
+    # "стратегічн" alone matched "стратегічний форум", "стратегічна сесія", "стратегічне партнерство" —
+    # a youth forum in Poltava oblast was drawn as three Tu-95 formations. It has to be the aviation.
+    ("strategic_aircraft_activity", re.compile(r"ту-?95|ту-?160|ту-?22|стратегічн\w*\s+авіац|стратегіч\w*\s+борт", re.I)),
     ("tactic_aircraft_activity", re.compile(r"тактичн", re.I)),
     ("drones", re.compile(r"бпла|шахед|дрон|безпілотн|мопед|герань|реактив|\d+\s*звичайн", re.I)),
     # A bare rocket emoji means "a missile" on these channels, not "a ballistic missile". Reading it as
@@ -279,6 +284,11 @@ ALT = {"Київ": ["києв"], "Львів": ["львов"], "Харків": [
        "Суми": ["сум "], "Ромни": ["ромен"], "Гола Пристань": ["голу пристан", "голої пристан"], "Черкаси": ["черкас"],
        "Кам'янець-Подільський": ["кам'янц"], "Дніпро": ["дніпр"], "Кропивницький": ["кропивницьк"], "Хмельницький": ["хмельницьк"],
        "Столиця": ["столиц"], "Троєщина": ["троєщин"], "Солом'янка": ["солом'янськ"],
+       # The Kyiv live channels write the short form. "Димерка" used to fall to Dymer — the stem "димер" plus
+       # up to three letters swallows "димерка" — which put a drone 35 km away on the far side of the
+       # reservoir. The longer stem wins the same span. "Петрівці" is Нові Петрівці (Старі is 4 km off,
+       # inside the position tolerance, and is not in the gazetteer).
+       "Велика Димерка": ["димерк"], "Нові Петрівці": ["петрівц"],
        "Івано-Франківськ": ["івано-франківськ"], "Луцьк": ["луцьк"], "Керч": ["керч"], "Ізюм": ["ізюм"], "Бар": ["\bбар[іау]?\b"],
        "Кременчуцьке водосховище": ["кременчуцьк[а-яіїє]* водосховищ[а-яіїє]*\\b", "кременчуцьк"], "Каховське водосховище": ["каховськ[а-яіїє]* водосховищ[а-яіїє]*\\b", "каховськ"],
        "Канівське водосховище": ["канівськ[а-яіїє]* водосховищ[а-яіїє]*\\b", "канівськ"],
@@ -577,6 +587,22 @@ NEWS_RX = re.compile(
     r"меморандум|угод[ауи]\s+про|засіданн|指", re.I)
 NEWS_MAX_CHARS = 700
 
+# A post that is ABOUT an attack rather than a sighting of one. Any one of these is enough on its own.
+NEWS_STRONG_RX = re.compile(
+    r"форум|конференц|фестивал|концерт|виставк|презентац|семінар|тренінг|нарад[аиі]|інтерв'?ю|подкаст|"
+    r"прокурат|кримінальн\w*\s+(?:провадж|справ)|оголошено\s+підозр|затрима\w*|вирок|розслідуванн|"
+    r"читайте\s+також|детальніше\s+(?:за\s+посиланням|на\s+сайті)|підписуйтесь|#новини|"
+    r"відбудов|реконструкц|ремонтн\w*\s+робот|відновлен\w*\s+(?:будин|школ|лікарн|об'єкт|енерго)", re.I)
+# Signs of a report. One of them in a short post is normal ("за даними моніторингу, шахед над Броварами");
+# two of them, or one in a long post, is an article.
+NEWS_SOFT_RX = re.compile(
+    r"повідомив|повідомила|заявив|заявила|зазначив|зазначила|розповів|розповіла|за\s+(?:його|її|їхніми)?\s*словами|"
+    r"внаслідок|наслідк|загинул|загибел|поранен|постраждал|госпіталізов|рятувальник|дснс|поліці|"
+    r"вчора|учора|позавчора|минулого\s+тижня|минулої\s+доби|напередодні|"
+    r"\d{1,2}\s+(?:січня|лютого|березня|квітня|травня|червня|липня|серпня|вересня|жовтня|листопада|грудня)|"
+    r"президент|зеленськ|кличк|міністр|депутат|голова\s+(?:ова|кмва|ода|оп)\b|\bмер\b", re.I)
+NEWS_SOFT_LONG = 250
+
 
 # The morning tally: "В ніч на 17.09.26 … противник застосував … 8× балістичних ракет по Києву". It is a
 # count of what was fired LAST NIGHT, and it was being drawn as eight ballistic missiles on Kyiv right now,
@@ -592,8 +618,15 @@ def looks_like_summary(t):
 
 
 def looks_like_news(t):
-    """Policy, money and programmes — a press release, whatever destruction words it happens to contain."""
-    return bool(NEWS_RX.search(t)) or len(t) > NEWS_MAX_CHARS or looks_like_summary(t)
+    """A post about something rather than a sighting of something — whatever threat words it contains.
+
+    Policy and money, a long post, a retrospective tally, an event, a court case; or the voice of a report
+    (who said it, what happened as a result, when). A news item that mentions ballistic missiles in its fourth
+    sentence used to put a ballistic missile on the map and light the red strip telling people to shelter."""
+    if NEWS_RX.search(t) or NEWS_STRONG_RX.search(t) or len(t) > NEWS_MAX_CHARS or looks_like_summary(t):
+        return True
+    soft = len(NEWS_SOFT_RX.findall(t))
+    return soft >= 2 or (soft >= 1 and len(t) > NEWS_SOFT_LONG)
 
 
 def _status_of(t):
@@ -859,8 +892,8 @@ def parse_post(text):
     # балістики") describe an ALERT, not a target position — never a marker unless the sentence says where it flies
     if ALERT_MSG_RX.search(t) and not MOVE_RX.search(t):
         return []
-    # a retrospective tally of the night is a report, not a sky: no live markers, at all
-    if looks_like_summary(t):
+    # a retrospective tally of the night, or an article: a report, not a sky — no marker of any kind
+    if looks_like_news(t):
         return []
     st = _status_of(t)
     if st and not re.search(r"курс|у бік|напрям|летить|летять|перелітає", t):
@@ -1148,12 +1181,47 @@ def parse_kyiv_airdef(text):
     return _parse_live(text, "31")
 
 
+_HYPH_RX = re.compile(r"([а-яіїєґ']+)\s+[-–]\s+([а-яіїєґ']+)")
+_ROUTE_RX = re.compile(r"^\W*([а-яіїєґ' ]+?)\s+[-–→]\s+([а-яіїєґ' ]+?)(?=\s|$|[.,!])")
+_PLANE_RX = re.compile("\u2708")          # ✈
+
+
+def _join_hyphenated(t):
+    """"конча - заспа" is one suburb, Конча-Заспа, not a route from Koncha to Zaspa. Joined only when the joined
+    form is a place the gazetteer knows, so "димерка - бровари" stays a route."""
+    known = {_norm(k) for k in PLACES}
+    return _HYPH_RX.sub(lambda m: f"{m.group(1)}-{m.group(2)}" if f"{m.group(1)}-{m.group(2)}" in known else m.group(0), t)
+
+
+def _live_lines(text, uid):
+    """"✈️Вишневе / ✈️Петрівці" is two drones at two places. Split one post into one mark per line, but only
+    when every line is short and names exactly one place — otherwise it is a sentence and goes whole."""
+    lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
+    if len(lines) < 2:
+        return None
+    out = []
+    for ln in lines:
+        tl = _join_hyphenated(_norm(ln))
+        if len(tl.split()) > 4:
+            return None
+        pl = _find_places(tl, uid)
+        if len(pl) != 1:
+            if pl or _status_of(tl):
+                return None          # a line with two places or an outcome word: not a simple list
+            continue                 # a line with no place at all ("нові з чернігівщини") adds nothing
+        out.append(ln)
+    return out if len(out) >= 2 else None
+
+
 def _parse_live(text, uid):
     """@kyiv_airdef live tracking: bare place names, one per post ('ДВРЗ', 'Позняки', 'ТЕЦ-5 уважно'),
     outcome words on their own ('Впав', 'Знижується', 'Збили'), occasionally full sentences.
     Returns markers; status posts without a place get 'needs_context' so the server can place them at the
     channel's previous position."""
-    t = _norm(text)
+    split = _live_lines(text, uid)
+    if split:
+        return [m for ln in split for m in _parse_live(ln, uid)]
+    t = _join_hyphenated(_norm(text))
     kept = _drop_clear_sentences(t)         # "Чисте небо … Київ. Васильків увага" → only Vasylkiv is a warning
     if kept != t and kept.strip():
         text, t = kept, kept
@@ -1183,7 +1251,13 @@ def _parse_live(text, uid):
         if rx.search(t):
             mtype = n
             break
-    # a bare place name on a live-tracking channel says WHERE, not WHAT: shown as an unspecified threat
+    # A bare place name on a live-tracking channel says WHERE, not WHAT: shown as an unspecified threat.
+    # Except ✈️: these channels prefix every drone report with it ("✈️Новий БпЛА з Чернігівщини", "БпЛА на
+    # Бориспіль✈️"), so on them it is the type, written as a symbol. Not globally — elsewhere ✈️ also marks
+    # aviation, and "✈️ активність авіації" read as a Shahed would be a type nobody stated.
+    plane = mtype is None and bool(_PLANE_RX.search(text)) and not re.search(r"авіац|літак|борт", t)
+    if plane:
+        mtype = "drones"
     stated = mtype is not None
     mtype = mtype or "unknown"
     cnt = None
@@ -1193,12 +1267,26 @@ def _parse_live(text, uid):
     alt = parse_altitude(t) or parse_altitude_bare(t)
     if alt and alt.get("m") and cnt == alt["m"]:
         cnt = None                      # "1600, Вороньків" is a height, never a count of 1600 drones
-    return [{"type": mtype, "status": st, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None, "place": name, "target": None, "count": cnt,
+    heading, hev = None, {"matched": None, "method": "derived from the previous report of this channel when available", "confidence": "medium"}
+    rm = _ROUTE_RX.search(t)
+    if rm and len(places) >= 2:
+        a = _find_places(rm.group(1), uid)
+        b = _find_places(rm.group(2), uid)
+        if a and b and a[0][2] != b[0][2]:
+            name, bname = a[0][2], b[0][2]
+            lon, lat, uid = PLACES[name]
+            blon, blat, _ = PLACES[bname]
+            heading = round(bearing(lon, lat, blon, blat))
+            hev = {"matched": rm.group(0).strip(), "method": "route written 'A - B' in the post: at A, heading for B", "confidence": "medium"}
+    kind_ev = ("keyword" if (stated and not plane) else
+               "✈️ — this channel's mark for a drone report" if plane else
+               "the post names only a place — this channel tracks strike drones, but it did not say so here")
+    return [{"type": mtype, "status": st, "lon": round(lon, 3), "lat": round(lat, 3), "heading": heading, "place": name, "target": None, "count": cnt,
              "alt": alt,
              "jet": bool(re.search(r"реактив", t)), "oblast_uid": uid, "live": True, "likely": (None if stated else "drones"),
-             "evidence": {"segment": t.strip(), "type": {"matched": "(none)", "method": ("keyword" if stated else "the post names only a place — this channel tracks strike drones, but it did not say so here"), "confidence": ("high" if stated else "none")},
-                          "position": {"matched": t[s:e], "place": name, "method": "bare place name = current position of the tracked target (gazetteer)", "confidence": "high"},
-                          "heading": {"matched": None, "method": "derived from the previous report of this channel when available", "confidence": "medium"}, "count": None}}]
+             "evidence": {"segment": t.strip(), "type": {"matched": ("✈️" if plane else "(none)"), "method": kind_ev, "confidence": ("high" if (stated and not plane) else "medium" if plane else "none")},
+                          "position": {"matched": name, "place": name, "method": "bare place name = current position of the tracked target (gazetteer)", "confidence": "high"},
+                          "heading": hev, "count": None}}]
 
 
 _ERADAR_LIVE = re.compile(r"(\d{1,3})\s+на\s+([А-ЯІЇЄҐ][^\d\n]+?)(?=\s+\d{1,3}\s+на\s|\s*$|[.,;!])", re.M)
@@ -1259,7 +1347,9 @@ def parse_eradar(text):
     return out
 
 
+# kievinfo_kyiv and chyste_nebo post the same way kyiv_airdef does: a place, sometimes a route, an outcome word.
 CHANNEL_PARSER = {"povitryanatrivogaaa": parse_arrows, "kyiv_airdef": parse_kyiv_airdef, "eRadarrua": parse_eradar,
+                  "kievinfo_kyiv": parse_kyiv_airdef, "chyste_nebo": parse_kyiv_airdef,
                   "cherkasy_monitor": lambda t: _parse_live(t, "24"), "sumy_alerts": lambda t: _parse_live(t, "20"),
                   "xydessa_live": lambda t: _parse_live(t, "18")}
 

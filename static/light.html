@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b0d11">
+<title>Clear Sky Light</title>
+<link rel="manifest" href="/light.webmanifest">
+<link rel="icon" href="/static/logo-64.png">
+<link rel="apple-touch-icon" href="/static/logo-192.png">
+<style>
+/* Clear Sky Light — one place, what concerns it, nothing else.
+   No map tiles, no oblast shapes, no feed: it has to load and be read on 2G, at night, in a corridor. */
+:root{--bg:#0b0d11;--panel:#12151b;--panel2:#181c24;--line:#242830;--ink:#e8e6df;--ink2:#a9a79f;--ink3:#6c6b66;
+  --red:#e0342c;--yel:#f2c200;--grn:#2fbf71;--ora:#ff8a3d;--amb:#ffb15c;--msl:#ff5b52;--vio:#b07cff;--cri:#ff2d55;--blu:#5b9cff;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace}
+*{box-sizing:border-box;margin:0}
+html,body{background:var(--bg);color:var(--ink);font:15px/1.4 var(--sans)}
+body{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);max-width:520px;margin:0 auto}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+header{display:flex;align-items:center;gap:8px;padding:10px 14px}
+header b{font:800 17px/1 var(--sans);letter-spacing:.06em}
+header .lt{font:700 10px var(--mono);letter-spacing:.14em;color:var(--ink3);border:1px solid var(--line);padding:2px 5px}
+header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
+.slots{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}
+.slots button{flex:0 0 auto;display:flex;gap:5px;align-items:center;padding:8px 11px;border:1px solid var(--line);background:var(--panel);border-radius:3px;font:600 13px var(--sans);color:var(--ink2)}
+.slots button.on{border-color:var(--ora);color:var(--ink);background:#281e12}
+.slots button.empty{opacity:.5}
+#imm{margin:0 14px 10px;padding:12px 14px;background:#4a0d12;border:1px solid #8a2a2a;border-left:5px solid var(--red);border-radius:3px}
+#imm b{display:block;font:800 16px/1.25 var(--sans);text-transform:uppercase;letter-spacing:.02em}
+#imm small{display:block;color:#ffd6d6;margin-top:4px;font-size:12.5px}
+.status{margin:0 14px;padding:16px 16px 14px;border-radius:4px;border:1px solid var(--line);background:var(--panel)}
+.status .big{font:800 22px/1.15 var(--sans);letter-spacing:.02em}
+.status .pl{font-size:14px;color:var(--ink2);margin-top:4px}
+.status .src{font:11px var(--mono);color:var(--ink3);margin-top:8px}
+.status.R{background:#3a0b10;border-color:#8a2a2a}.status.R .big{color:#ffd6d6}
+.status.Y{background:#332905;border-color:#7a6212}.status.Y .big{color:#ffe9a8}
+.status.G{background:#0e2018;border-color:#25503c}.status.G .big{color:#b8e6cc}
+.status.U .big{color:var(--ink2)}
+#radar{display:block;width:100%;max-width:340px;margin:12px auto 4px}
+#radar .ring{fill:none;stroke:#2f5480;stroke-width:.5;stroke-dasharray:1.6 2}
+#radar .ring.r10{stroke:var(--ora);stroke-dasharray:none;stroke-opacity:.7}
+#radar .rl{fill:#56637a;font:3.4px var(--mono)}
+#radar .nn{fill:var(--ink3);font:700 4.2px var(--mono)}
+#radar .me{fill:var(--ink)}
+#radar .t{stroke:#0b0d11;stroke-width:.5}
+#radar .t.gone{opacity:.35}
+#list{padding:4px 14px 8px}
+.row{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
+.row .ic{flex:0 0 26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px var(--mono);color:#0b0d11}
+.row .bd{flex:1;min-width:0}
+.row .l1{display:flex;gap:8px;align-items:baseline}
+.row .l1 b{font:700 15px var(--sans)}
+.row .l1 .d{margin-left:auto;font:700 15px var(--mono)}
+.row .l2{font-size:12.5px;color:var(--ink2);margin-top:2px}
+.row .l3{font-size:12.5px;margin-top:3px}
+.row .l3 b{color:var(--ink)}.row .l3 span{color:var(--ink3)}
+.row.here .l1 b,.row.here .hr{color:#ff8fa3}
+.row.gone{opacity:.5}
+.none{padding:18px 4px;text-align:center}
+.none b{display:block;font-size:15px}.none small{display:block;color:var(--ink3);margin-top:4px;font-size:12.5px}
+#off{margin:8px 14px 0;padding:8px 10px;border:1px solid #6a5a1a;background:#221d0b;color:#ffe9a8;font-size:12.5px;border-radius:3px}
+footer{padding:14px 14px 24px;font-size:12px;color:var(--ink3);text-align:center}
+footer a{color:var(--blu)}
+#pick{position:fixed;inset:0;background:rgba(5,6,9,.94);display:none;flex-direction:column;padding:16px 14px;z-index:9}
+#pick.show{display:flex}
+#pick h3{font:700 17px var(--sans)}#pick p{color:var(--ink2);font-size:13px;margin:6px 0 12px}
+#pick input{width:100%;padding:12px;font-size:16px;border-radius:3px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+#pick .loc{margin:10px 0;padding:12px;border:1px solid var(--ora);border-radius:3px;font-weight:600;text-align:left}
+#pick .res{flex:1;overflow-y:auto;margin-top:6px}
+#pick .res button{display:block;width:100%;text-align:left;padding:11px 4px;border-bottom:1px solid var(--line)}
+#pick .res button small{color:var(--ink3);margin-left:6px}
+#pick .x{align-self:flex-end;padding:10px 4px;color:var(--ink2)}
+</style>
+</head>
+<body>
+<header><b>CLEAR SKY</b><span class="lt">LIGHT</span><span class="up" id="up"></span></header>
+<div class="slots" id="slots"></div>
+<div id="imm" hidden></div>
+<div class="status U" id="status"><div class="big">…</div></div>
+<svg id="radar" viewBox="-66 -66 132 132" aria-hidden="true"></svg>
+<div id="list"></div>
+<div id="off" hidden></div>
+<footer><div id="disc"></div><div style="margin-top:8px"><a href="/m" id="full"></a></div></footer>
+<div id="pick"><button class="x" id="pickx">✕</button><h3 id="pickh"></h3><p id="pickp"></p>
+  <input id="pickq" autocomplete="off"><button class="loc" id="pickloc"></button><div class="res" id="pickres"></div></div>
+<script src="/static/i18n.js"></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const NS='http://www.w3.org/2000/svg';
+document.documentElement.lang=LANG;
+const fmtT=ts=>{try{return new Date(ts).toLocaleTimeString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}};
+const agoMin=ts=>Math.max(0,Math.round((Date.now()-Date.parse(ts))/60000));
+
+// ---- the four places: the same browser storage as the full app, never sent anywhere ----------------------
+const SLOT_IDS=['home','work','kids','pin'], SLOT_ICO={home:'🏠',work:'💼',kids:'🏫',pin:'📍'};
+let SLOTS={home:null,work:null,kids:null,pin:null}, ACTIVE='home';
+try{const r=JSON.parse(localStorage.getItem('slots')||'null'); if(r&&typeof r==='object') for(const k of SLOT_IDS) if(r[k]) SLOTS[k]=r[k];
+    const a=localStorage.getItem('slot_active'); if(SLOT_IDS.includes(a)) ACTIVE=a;
+    const old=JSON.parse(localStorage.getItem('home')||'null'); if(old&&!SLOTS.home) SLOTS.home=old;}catch(e){}
+function save(){try{localStorage.setItem('slots',JSON.stringify(SLOTS));localStorage.setItem('slot_active',ACTIVE);}catch(e){}}
+const place=()=>SLOTS[ACTIVE]||null;
+const placeName=p=>!p?'':p.dropped?t('sl_pin_dropped'):(LANG==='uk'&&p.uk?p.uk:(p.name||p.uk||''));
+
+// ---- geometry ----------------------------------------------------------------------------------------------
+const rad=d=>d*Math.PI/180;
+function km(la1,lo1,la2,lo2){const a=Math.sin(rad(la2-la1)/2)**2+Math.cos(rad(la1))*Math.cos(rad(la2))*Math.sin(rad(lo2-lo1)/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(a)));}
+function brg(la1,lo1,la2,lo2){const y=Math.sin(rad(lo2-lo1))*Math.cos(rad(la2)),x=Math.cos(rad(la1))*Math.sin(rad(la2))-Math.sin(rad(la1))*Math.cos(rad(la2))*Math.cos(rad(lo2-lo1));return (Math.atan2(y,x)*180/Math.PI+360)%360;}
+const angDiff=(a,b)=>Math.abs(((a-b)+540)%360-180);
+
+// ---- which oblast the place is in, worked out here -----------------------------------------------------
+// Asking the server would send the coordinates of the place — one of which is a school — which is the one
+// thing these four places are promised never to do. So the outline file is fetched once and tested on the
+// phone, and the answer is cached inside the place itself.
+let UAMAP=null;
+async function oblastOf(p){
+  if(p.obl) return p.obl;
+  try{ if(!UAMAP) UAMAP=await (await fetch('/static/ukraine-map.json')).json(); }catch(e){ return null; }
+  const [a,b,c]=UAMAP.proj.x,[d,e,f]=UAMAP.proj.y, x=a*p.lon+b*p.lat+c, y=d*p.lon+e*p.lat+f;
+  const svg=document.createElementNS(NS,'svg'); svg.setAttribute('viewBox',UAMAP.viewBox);
+  svg.style.cssText='position:absolute;width:1px;height:1px;left:-9px;overflow:hidden'; document.body.appendChild(svg);
+  const order=[...UAMAP.oblasts].sort((u,v)=>(u.uid==='31'?-1:0)-(v.uid==='31'?-1:0));   // the city before the oblast around it
+  let found=null;
+  for(const o of order){ const el=document.createElementNS(NS,'path'); el.setAttribute('d',o.path); svg.appendChild(el);
+    try{ if(el.isPointInFill(new DOMPoint(x,y))){found=o.uid;break;} }catch(e){} }
+  svg.remove();
+  if(found){ p.obl=found; save(); }
+  return found;
+}
+
+// ---- the rules, the same as the full app's ------------------------------------------------------------
+// Weapons that outrun any radius: they concern the whole region, with no distance and no countdown.
+const IMMEDIATE=new Set(['ballistic_missiles','mig31k_departure','supersonic_missiles']); const REGION_R=150;
+const SPEED_BAND={drone:[2.2,3.2],jet:[5.5,8.0],cruise:[11,14]};
+const band=m=>m.type==='drones'?(m.jet?SPEED_BAND.jet:SPEED_BAND.drone):(m.type==='cruise_missiles'||m.type==='unspecified_missiles'||m.type==='banderol_missiles')?SPEED_BAND.cruise:null;
+const statedCourse=m=>m.heading!=null&&!!(m.evidence&&m.evidence.heading&&m.evidence.heading.confidence&&m.evidence.heading.confidence!=='none');
+const ZONES=[[10,'near'],[30,'approach'],[60,'observe']];
+const zoneOf=d=>{for(const [r,k] of ZONES) if(d<=r) return k; return null;};
+const CLOSING=new Set(['down','impact','lost','clear']);
+const COL={drones:'--ora',jet:'--amb',cruise_missiles:'--msl',unspecified_missiles:'--msl',banderol_missiles:'--amb',ballistic_missiles:'--msl',
+  supersonic_missiles:'--msl',guided_aerial_bombs:'--vio',tactic_aircraft_activity:'--vio',strategic_aircraft_activity:'--ink2',mig31k_departure:'--vio',unknown:'--ink2'};
+const colOf=m=>getComputedStyle(document.documentElement).getPropertyValue(m.type==='drones'&&m.jet?COL.jet:(COL[m.type]||'--ink2')).trim();
+const label=m=>m.type==='drones'?(m.jet?t('k_jet'):t('k_shahed')):({ballistic_missiles:t('th_bal'),cruise_missiles:t('th_cruise'),unspecified_missiles:t('th_msl'),
+  banderol_missiles:t('th_band'),supersonic_missiles:t('th_super'),guided_aerial_bombs:t('th_kab'),tactic_aircraft_activity:t('th_tac'),
+  strategic_aircraft_activity:t('th_strat'),mig31k_departure:t('th_mig')}[m.type]||t('th_unknown2'));
+const ico=m=>m.type==='unknown'?'!':m.type==='drones'?'✈':/missile/.test(m.type)?'▲':m.type==='guided_aerial_bombs'?'▼':'•';
+
+// An outcome reported after a track closes it — same family, within 40 min, within 60 km, roughly ahead of
+// it. Otherwise a Shahed already shot down stays on this list as if it were still flying.
+function link(ms){
+  const tr=ms.filter(m=>!m.status), st=ms.filter(m=>m.status&&CLOSING.has(m.status)&&m.lat!=null&&m.lon!=null);   // an oblast-wide outcome has no point to link from
+  for(const s of st){ let best=null;
+    for(const m of tr){ if(m.endedBy) continue; const dt=(Date.parse(s.ts)-Date.parse(m.ts))/60000; if(dt<-2||dt>40) continue;
+      if((m.type==='drones')!==(s.type==='drones')) continue;
+      const d=km(m.lat,m.lon,s.lat,s.lon); if(d>60) continue;
+      if(m.heading!=null&&d>8&&angDiff(m.heading,brg(m.lat,m.lon,s.lat,s.lon))>55) continue;
+      if(s.status==='clear'&&d>25) continue;
+      const sc=d+dt*.5; if(!best||sc<best.sc) best={m,sc}; }
+    if(best) best.m.endedBy=s; }
+  return tr.filter(m=>!m.endedBy);
+}
+
+// ---- state -------------------------------------------------------------------------------------------------
+let STATE=null, MKS=[], LAST_OK=0, OBL=null, OBL_GUESS=false; const SEEN=new Set();
+
+function statusOf(uid){
+  if(!STATE) return {k:'U'};
+  const act=(STATE.active||[]).filter(a=>a.oblast_uid===uid);
+  const lvl=a=>a.alert_level==='yellow'?'Y':'R';      // no level reported (mirror) = full red, as in the full app
+  const whole=act.filter(a=>a.location_type==='oblast'||a.location_type==='city');
+  if(whole.length) return {k:whole.some(a=>lvl(a)==='R')?'R':'Y',since:whole.map(a=>a.started_at).sort()[0]};
+  if(act.length) return {k:'Y',since:act.map(a=>a.started_at).sort()[0]};   // raions only: part of the region
+  return {k:'G'};
+}
+
+function paintSlots(){
+  $('slots').innerHTML=SLOT_IDS.map(id=>{const p=SLOTS[id];
+    return `<button data-s="${id}" class="${id===ACTIVE&&p?'on':''}${p?'':' empty'}">${SLOT_ICO[id]}<span>${esc(t('sl_'+id))}</span></button>`;}).join('');
+}
+
+function paint(){
+  paintSlots();
+  const p=place();
+  $('disc').textContent=t('lt_disc'); $('full').textContent=t('lt_full')+' →';
+  if(!p){ $('status').className='status U'; $('status').innerHTML=`<div class="big">${esc(t('lt_noplace'))}</div><div class="pl">${esc(t('lt_noplace_b'))}</div>`;
+    $('radar').innerHTML=''; $('list').innerHTML=''; $('imm').hidden=true; return; }
+
+  // the status: official data only
+  const uid=OBL||'31', s=statusOf(uid);
+  const where=placeName(p)+(OBL_N[uid]?' · '+(typeof oblFull==='function'?oblFull(uid):OBL_N[uid][0]):'');
+  $('status').className='status '+s.k;
+  $('status').innerHTML=`<div class="big">${esc(t('lt_'+s.k))}</div><div class="pl">${esc(where)}${s.since?' · '+esc(t('lt_since',fmtT(s.since))):''}</div>`
+    +`<div class="src">${esc(t('lt_src'))}${OBL_GUESS?' · '+esc(t('lt_obl_unknown')):''}</div>`;
+
+  // what is near the place
+  const live=link(MKS.map(m=>({...m})));
+  const rows=[]; const imm=[];
+  for(const m of live){ if(m.lat==null||m.lon==null) continue;
+    const d=km(p.lat,p.lon,m.lat,m.lon);
+    if(IMMEDIATE.has(m.type)){ if(d<=REGION_R) imm.push(m); continue; }
+    if(d>60) continue;
+    const toHere=statedCourse(m)&&(d<=10||angDiff(m.heading,brg(m.lat,m.lon,p.lat,p.lon))<=28);
+    let eta=null; const bd=band(m);
+    if(toHere&&bd&&!m.stale&&d>1){ const lo=Math.floor(d/bd[1]),hi=Math.ceil(d/bd[0]); if(hi<=90) eta=[lo,hi]; }
+    rows.push({m,d,zone:zoneOf(d),toHere,eta});
+  }
+  rows.sort((a,b)=>a.d-b.d);
+
+  // weapons that outrun a radius: named, no distance, no countdown
+  if(imm.length){ const m=imm[0]; $('imm').hidden=false;
+    $('imm').innerHTML=`<b>🚨 ${esc(t('n_imm',label(m)))}</b><small>${esc(t('n_imm_b'))}</small>`; }
+  else $('imm').hidden=true;
+
+  // the radar: the place in the middle, north up, one kilometre per unit
+  const kx=111*Math.cos(rad(p.lat));
+  let g=`<circle class="ring" r="60"/><circle class="ring" r="30"/><circle class="ring r10" r="10"/>`
+    +`<text class="rl" x="1.5" y="-60.8">60</text><text class="rl" x="1.5" y="-30.8">30</text><text class="rl" x="1.5" y="-10.8">10</text>`
+    +`<text class="nn" x="-1.4" y="-62.5">N</text><circle class="me" r="1.8"/>`;
+  for(const r of rows){ const m=r.m, x=(m.lon-p.lon)*kx, y=-(m.lat-p.lat)*111, c=r.toHere?getComputedStyle(document.documentElement).getPropertyValue('--cri').trim():colOf(m);
+    if(statedCourse(m)&&m.type!=='unknown')
+      g+=`<path class="t${m.stale?' gone':''}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${m.heading})" d="M0 -3.4 L2.4 2.4 L0 1.2 L-2.4 2.4 Z" fill="${c}"/>`;
+    else g+=`<circle class="t${m.stale?' gone':''}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.9" fill="${c}"/>`;
+  }
+  $('radar').innerHTML=g;
+
+  // the list
+  if(!rows.length){ $('list').innerHTML=`<div class="none"><b>${esc(t('lt_none'))}</b><small>${esc(t('lt_none_b'))}</small></div>`; }
+  else $('list').innerHTML=rows.map(({m,d,zone,toHere,eta})=>{
+    const n=(m.count&&m.count>1)?' ×'+m.count:'';
+    const bits=[t('lt_z_'+zone)]; if(toHere) bits.push(`<b class="hr">${esc(t('lt_here'))}</b>`);
+    bits.push(m.stale?`${esc(t('lt_lost'))} · ${esc(t('tp_ago',m.stale))}`:esc(t('tp_ago',agoMin(m.ts))));
+    return `<div class="row${toHere?' here':''}${m.stale?' gone':''}"><div class="ic" style="background:${toHere?'var(--cri)':colOf(m)}">${ico(m)}</div><div class="bd">`
+      +`<div class="l1"><b>${esc(label(m))}${n}</b><span class="d">${Math.round(d)} ${esc(t('lt_km'))}</span></div>`
+      +`<div class="l2">${bits.map(x=>x.startsWith('<b')?x:esc(x)).join(' · ')}</div>`
+      +(eta?`<div class="l3"><b>${esc(t('eta_band',eta[0],eta[1]))}</b> <span>${esc(t('eta_if'))}</span></div>`:'')
+      +`</div></div>`;}).join('');
+
+  // a buzz for something new inside 10 km, or anything that outruns a radius — once per target
+  for(const r of rows) if(r.zone==='near'&&!SEEN.has(r.m.id)){ SEEN.add(r.m.id); if(navigator.vibrate) navigator.vibrate([200,100,200]); }
+  for(const m of imm) if(!SEEN.has(m.id)){ SEEN.add(m.id); if(navigator.vibrate) navigator.vibrate([300,80,300,80,300]); }
+}
+
+async function refresh(){
+  try{
+    const [a,b]=await Promise.all([fetch('/api/state',{cache:'no-store'}),fetch('/api/markers',{cache:'no-store'})]);
+    STATE=await a.json(); MKS=((await b.json()).markers)||[]; LAST_OK=Date.now(); $('off').hidden=true;
+  }catch(e){ if(Date.now()-LAST_OK>60000){ $('off').hidden=false; $('off').textContent=t('lt_offline'); } }
+  $('up').textContent=LAST_OK?t('lt_upd',fmtT(new Date(LAST_OK).toISOString())):'';
+  paint();
+}
+
+async function usePlace(){ const p=place(); OBL=null; OBL_GUESS=false;
+  if(p){ OBL=await oblastOf(p); if(!OBL){ OBL='31'; OBL_GUESS=true; } }
+  paint(); }
+
+// ---- choosing a place ------------------------------------------------------------------------------------
+let PICK=null, PLACES=null;
+async function openPick(slot){ PICK=slot; $('pick').classList.add('show');
+  $('pickh').textContent=SLOT_ICO[slot]+' '+t('sl_'+slot); $('pickp').textContent=t('lt_noplace_b');
+  $('pickq').placeholder=t('lt_search'); $('pickq').value=''; $('pickloc').textContent=t('lt_locate');
+  if(!PLACES){ try{ PLACES=(await (await fetch('/api/places?oblast=31,14,10,25,19,24,4,20')).json()).places
+      .filter(x=>!/громада|берег|столиця|водосховище|море|АЕС|ГЕС|траса|шосе|проспект/i.test(x.name)); }catch(e){ PLACES=[]; } }
+  listPick(''); setTimeout(()=>$('pickq').focus(),80); }
+function listPick(q){ const s=q.trim().toLowerCase();
+  const r=(PLACES||[]).filter(x=>!s||x.name.toLowerCase().includes(s)).slice(0,60);
+  $('pickres').innerHTML=r.map((x,i)=>`<button data-i="${PLACES.indexOf(x)}">${esc(x.name)}<small>${esc(OBL_N[x.oblast_uid]?(typeof oblFull==='function'?oblFull(x.oblast_uid):''):'')}</small></button>`).join(''); }
+function setPlace(p){ SLOTS[PICK]=p; ACTIVE=PICK; save(); $('pick').classList.remove('show'); usePlace(); }
+$('pickq').addEventListener('input',e=>listPick(e.target.value));
+$('pickres').addEventListener('click',e=>{const b=e.target.closest('[data-i]'); if(!b) return; const x=PLACES[+b.dataset.i];
+  setPlace({name:x.name,uk:x.name,lon:x.lon,lat:x.lat,obl:x.oblast_uid});});
+$('pickloc').onclick=()=>{ if(!navigator.geolocation){ $('pickloc').textContent=t('lt_locate_fail'); return; }
+  $('pickloc').textContent=t('lt_locating');
+  navigator.geolocation.getCurrentPosition(pos=>setPlace({lon:+pos.coords.longitude.toFixed(4),lat:+pos.coords.latitude.toFixed(4),dropped:true}),
+    ()=>{ $('pickloc').textContent=t('lt_locate_fail'); },{enableHighAccuracy:false,timeout:12000,maximumAge:300000}); };
+$('pickx').onclick=()=>$('pick').classList.remove('show');
+
+// tap a place to watch it; tap an empty one — or hold any — to set it
+(()=>{ let hold=null, held=false;
+  $('slots').addEventListener('pointerdown',e=>{const b=e.target.closest('[data-s]'); if(!b) return; held=false;
+    hold=setTimeout(()=>{held=true; openPick(b.dataset.s);},550);});
+  const stop=()=>{clearTimeout(hold);hold=null;};
+  $('slots').addEventListener('pointerup',e=>{stop(); const b=e.target.closest('[data-s]'); if(!b||held) return;
+    const id=b.dataset.s; if(SLOTS[id]){ACTIVE=id; save(); usePlace();} else openPick(id);});
+  $('slots').addEventListener('pointercancel',stop); $('slots').addEventListener('pointerleave',stop); })();
+
+usePlace(); refresh(); setInterval(refresh,15000);
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
+</script>
+</body>
+</html>

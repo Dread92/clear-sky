@@ -133,23 +133,11 @@ def test_the_eta_is_not_offered_for_a_target_flying_elsewhere():
     assert re.search(r"off\s*>\s*\d+", body), "there is no bearing test at all"
 
 
-# ── focus ──────────────────────────────────────────────────────────────────────────────────────────────
-def test_a_target_with_no_reported_course_is_never_filtered_out():
-    """Unknown is not the same as not coming. Hiding it would be the app asserting a negative it cannot know."""
-    body = _fn("towardsMe")
-    assert "m.heading==null" in body.replace(" ", "") and "return true" in body
-    assert "confidence==='none'" in body.replace(" ", "")
-
-
-def test_the_immediate_weapons_are_never_filtered_out_either():
-    body = _fn("towardsMe")
-    assert "IMMEDIATE.has(m.type)" in body
-
-
-def test_focus_dims_rather_than_deletes():
-    """A target removed from the map is a target somebody cannot check. It goes quiet, it does not vanish."""
-    assert ".mk.defocus{opacity:" in PAGE
-    assert "display:none" not in PAGE[PAGE.index(".mk.defocus{"):PAGE.index(".mk.defocus{") + 40]
+# ── focus (removed 2026-09-24) ─────────────────────────────────────────────────────────────────────────
+def test_the_towards_me_toggle_is_gone_and_nothing_is_dimmed_by_course():
+    """Removed on request. What must not survive it is a half-removed filter still dimming targets."""
+    assert "focusbtn" not in PAGE and "towardsMe" not in PAGE and "FOCUS" not in PAGE
+    assert ".mk.defocus" not in PAGE and "'defocus'" not in PAGE
 
 
 # ── contact lost ───────────────────────────────────────────────────────────────────────────────────────
@@ -202,9 +190,10 @@ def test_the_alert_volume_follows_what_the_reader_can_still_do():
 
 def test_every_new_string_exists_in_all_three_languages():
     for k in ("sl_home", "sl_work", "sl_kids", "sl_pin", "sl_pin_set", "sl_pin_how", "sl_pin_dropped",
-              "fo_on", "fo_off", "fo_help", "z_near", "z_approach", "z_observe",
+              "z_near", "z_approach", "z_observe",
               "eta_band", "eta_if", "tel_gs", "tel_gs_src", "lost_t", "lost_b"):
-        assert I18N.count(f"{k}:") == 3, f"{k} is missing from a language"
+        n = len(re.findall(rf"(?<![A-Za-z_]){k}:", I18N))      # whole key: lt_z_near must not count as z_near
+        assert n == 3, f"{k} appears {n} times — expected once per language"
 
 
 # ── closing the loop on a warning ───────────────────────────────────────────────────────────────────────

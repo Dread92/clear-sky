@@ -109,8 +109,7 @@ body.lite .tstrip.old{background:#111;color:#ddd;border-color:#555}
 svg#map{display:block;width:100%;height:100%}
 /* situation overlay (raions + home) */
 #situ{position:absolute;left:8px;top:8px;display:flex;flex-direction:column;gap:6px;max-width:calc(100% - 60px);pointer-events:none}
-.mk.defocus{opacity:.22}
-.mk.defocus .lbl,.mk.defocus .lbl2,.mk.defocus .cnt{display:none}
+.mk.gone{opacity:.45}
 /* Contact lost: two minutes of a faded mark, then gone. The gap between "it stopped being reported" and
    "it vanished from the screen" is where somebody decides it was shot down. It says which it is. */
 .mk.lostc{opacity:.45;filter:grayscale(1)}
@@ -639,9 +638,9 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 
     <div class="mg" data-t="m_g_view">Display</div>
     <button class="mi" id="langbtn"></button>
-    <button class="mi" id="lang" data-t="m_ua">Show original Ukrainian</button>
     <div class="mrow z"><span class="ml" data-t="m_mode">Display mode</span><button class="mi2" id="mdstd" data-t="m_md_std">Standard</button><button class="mi2" id="mdday" data-t="m_md_day">Daylight</button><button class="mi2" id="mdnight" data-t="m_md_night">Night</button></div>
     <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
+    <a class="mi" href="/light" data-t="m_light">Clear Sky Light — only your place</a>
 
     <div class="mg" data-t="m_g_info">About</div>
     <button class="mi" id="helpbtn" data-t="m_help">How this app works</button>
@@ -822,13 +821,12 @@ function useSlot(id){ if(!SLOT_IDS.includes(id)) return; ACTIVE=id; HOME=SLOTS[i
   homeAlerted.clear(); homeClosed.clear();  // a new place is a new set of alerts, not a continuation
   if(typeof render==='function') render(); if(typeof paintSlots==='function') paintSlots();
   if(typeof discHomeLabel==='function') discHomeLabel(); }
-let SHOW_UA=false; try{SHOW_UA=localStorage.getItem('ua')==='1';}catch(e){}
+let SHOW_UA=false;   // the "show original Ukrainian" switch is gone; Ukrainian readers see the original anyway
 let ESTIMATE=false; try{ESTIMATE=localStorage.getItem('est')==='1';}catch(e){}
 let MAP=null,S=null,MK=[],ttl=45,hist=[],soundOn=true,vibOn=false,seen=new Set(),firstFeed=true,seenMk=new Set();
 try{soundOn=localStorage.getItem('snd')!=='0';vibOn=localStorage.getItem('vib')==='1';}catch(e){}
-$('snd').classList.toggle('on',soundOn);$('vib').classList.toggle('on',vibOn);$('lang').classList.toggle('on',SHOW_UA);
-const showUA=()=>SHOW_UA||LANG==='uk'; const ptxt=p=>p._txt||(showUA()?p.text:(p.text_en||p.text)); if(LANG==='uk')$('lang').hidden=true;
-$('lang').onclick=()=>{SHOW_UA=!SHOW_UA;$('lang').classList.toggle('on',SHOW_UA);try{localStorage.setItem('ua',SHOW_UA?'1':'0')}catch(e){};renderFeed(lastPosts,false);};
+$('snd').classList.toggle('on',soundOn);$('vib').classList.toggle('on',vibOn);
+const showUA=()=>SHOW_UA||LANG==='uk'; const ptxt=p=>p._txt||(showUA()?p.text:(p.text_en||p.text));
 $('snd').onclick=()=>{soundOn=!soundOn;$('snd').classList.toggle('on',soundOn);try{localStorage.setItem('snd',soundOn?'1':'0')}catch(e){}};
 // ---- Web Push: works with the page closed (Android Chrome; iPhone: add to home screen first) ----
 let PUSH_SUB=null;
@@ -1117,8 +1115,7 @@ function etaBand(m,dist){
 function drawHome(){ if(!MAP) return; if(!HOME){$('homeg').innerHTML='';return;} const [x,y]=proj(HOME.lon,HOME.lat);
   $('homeg').innerHTML=`<g class="homemk"><circle class="ring" cx="${x}" cy="${y}" r="5" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><circle class="ring" cx="${x}" cy="${y}" r="10" fill="none" style="stroke-width:1px;vector-effect:non-scaling-stroke"/><text class="ico" x="${x}" y="${y+1}" text-anchor="middle" dominant-baseline="middle">🏠</text><text class="hl" x="${x}" y="${(y-8*KPX).toFixed(1)}" text-anchor="middle">${esc(homeName())}</text></g>`; }
 function paintSlots(){ const el=$('slotrow'); if(!el) return;
-  el.innerHTML=(HOME?`<button type="button" id="focusbtn" class="${FOCUS?'on':''}" title="${esc(t('fo_help'))}">${FOCUS?'◎':'○'}<span class="sl">${esc(t(FOCUS?'fo_on':'fo_off'))}</span></button>`:'')
-    +SLOT_IDS.map(id=>{const p=SLOTS[id]; const on=id===ACTIVE&&p;
+  el.innerHTML=SLOT_IDS.map(id=>{const p=SLOTS[id]; const on=id===ACTIVE&&p;
     // The role, not the place. Shorter, so five chips fit one line on a phone — and the place a child is at
     // does not sit permanently on screen for whoever is standing behind you. The place itself is named in
     // the row below, and in the button's own tooltip.
@@ -1133,17 +1130,10 @@ function paintSlots(){ const el=$('slotrow'); if(!el) return;
   row().addEventListener('pointerdown',e=>{const b=e.target.closest('[data-slot]'); if(!b) return;
     held=false; hold=setTimeout(()=>setFor(b.dataset.slot),550);});
   const cancel=()=>{clearTimeout(hold);hold=null;};
-  row().addEventListener('click',e=>{ if(!e.target.closest('#focusbtn')) return;
-    FOCUS=!FOCUS; try{localStorage.setItem('focus',FOCUS?'1':'0');}catch(e2){}
-    paintSlots(); render(); });
   row().addEventListener('pointerup',e=>{cancel(); const b=e.target.closest('[data-slot]'); if(!b||held) return;
     const id=b.dataset.slot; if(SLOTS[id]) useSlot(id); else setFor(id);});
   row().addEventListener('pointercancel',cancel); row().addEventListener('pointerleave',cancel);
 })();
-// "Only threats towards me" can only ever mean: the post said which way it is going, and that way is here.
-// A target whose course nobody reported is not filtered out — it is shown, because "we do not know" is not
-// the same as "not coming", and hiding it would be the app inventing a negative.
-let FOCUS=false; try{FOCUS=localStorage.getItem('focus')==='1';}catch(e){}
 // The two minutes between a track going quiet and its mark disappearing.
 //
 // A mark that simply vanishes gets read as "it was shot down" — people watch one fade off the screen over
@@ -1160,28 +1150,17 @@ function lostGoneIn(m){                       // minutes left before the mark is
   const over=agoMin(m.ts)-(ttl||45);
   return over>=0?Math.max(0,LOST_FADE_MIN-over):null;
 }
-function towardsMe(m){
-  if(!HOME||m.status||m.endedBy) return true;
-  if(IMMEDIATE.has(m.type)) return true;              // these concern the whole region, course or no course
-  if(m.heading==null) return true;                    // no reported course: unknown, so never hidden
-  const ev=m.evidence&&m.evidence.heading;
-  if(!ev||!ev.confidence||ev.confidence==='none') return true;
-  const [hx,hy]=proj(HOME.lon,HOME.lat); const [x,y]=posOf(m,Date.now());
-  const d=Math.hypot(x-hx,y-hy); if(d<=10) return true;   // already on top of the place
-  const bTo=(Math.atan2(hx-x,-(hy-y))*180/Math.PI+360)%360;
-  return Math.abs(((m.heading-bTo)+540)%360-180)<=35;
-}
 let SLOT_PICKING=null;   // which slot the place picker is currently filling
 let PLACES_ALL=[];
 const homeName=()=>!HOME?'':HOME.dropped?t('sl_pin_dropped'):(LANG==='uk'&&HOME.uk?HOME.uk:townName(HOME.name));
-async function loadPlacesList(){try{const pl=(await (await fetch('/api/places?oblast=14,31,10,25,20,19,24,4')).json()).places;PLACES_ALL=pl.filter(p=>!/громада|берег|столиця|водосховище|море|АЕС|ГЕС|траса|шосе|проспект/i.test(p.name)).map(p=>({name:translit(p.name),uk:p.name,lon:p.lon,lat:p.lat,kind:OBL_N[p.oblast_uid]?oblFull(p.oblast_uid):t('kd_region')}));
-  for(const [r,n] of Object.entries(RAION)) if(r!=='kyiv-city'){const c=RAION_LBL[r];PLACES_ALL.push({name:RAION_N[r][0]+' raion',uk:RAION_N[r][1]+' район',lon:C[0]+c[0]/KX,lat:C[1]-c[1]/KY,kind:t('kd_raion')});}
+async function loadPlacesList(){try{const pl=(await (await fetch('/api/places?oblast=14,31,10,25,20,19,24,4')).json()).places;PLACES_ALL=pl.filter(p=>!/громада|берег|столиця|водосховище|море|АЕС|ГЕС|траса|шосе|проспект/i.test(p.name)).map(p=>({name:translit(p.name),uk:p.name,lon:p.lon,lat:p.lat,obl:p.oblast_uid,kind:OBL_N[p.oblast_uid]?oblFull(p.oblast_uid):t('kd_region')}));
+  for(const [r,n] of Object.entries(RAION)) if(r!=='kyiv-city'){const c=RAION_LBL[r];PLACES_ALL.push({name:RAION_N[r][0]+' raion',uk:RAION_N[r][1]+' район',lon:C[0]+c[0]/KX,lat:C[1]-c[1]/KY,obl:'14',kind:t('kd_raion')});}
   PLACES_ALL.sort((a,b)=>a.name.localeCompare(b.name));}catch(e){}}
 function renderHomeList(q){const s=(q||'').toLowerCase();const rows=PLACES_ALL.filter(p=>!s||p.name.toLowerCase().includes(s)||p.uk.toLowerCase().includes(s)).slice(0,60);
   $('homelist').innerHTML=rows.map((p,i)=>`<div class="hitem" data-i="${PLACES_ALL.indexOf(p)}"><div>${esc(LANG==='uk'?p.uk:p.name)} <span>${esc(LANG==='uk'?p.name:p.uk)}</span></div><span>${esc(p.kind)}</span></div>`).join('')||`<div class="empty">${t('hl_nomatch')}</div>`;
   $('homelist').querySelectorAll('.hitem').forEach(el=>el.onclick=()=>{const p=PLACES_ALL[+el.dataset.i];
     const slot=SLOT_PICKING||ACTIVE; SLOT_PICKING=null;
-    setSlot(slot,{name:p.name,uk:p.uk,lon:p.lon,lat:p.lat});
+    setSlot(slot,{name:p.name,uk:p.uk,lon:p.lon,lat:p.lat,obl:p.obl});
     $('homesheet').classList.remove('show');
     notify(t('n_home',homeName()),t('n_home_b'),'end');});}
 $('menubtn').onclick=e=>{e.stopPropagation();$('menu').hidden=!$('menu').hidden;};
@@ -1257,11 +1236,11 @@ const G={drone:SHAHED_BODY+'<rect class="glyph" x="-2.8" y="6" width="5.6" heigh
     +'<rect class="glyph" x="-3.2" y="6" width="6.4" height="4.6" rx="0.8"/>'
     +'<g class="jetfx"><path class="flame" d="M-3 10.6 L0 19.5 L3 10.6 Z"/><path class="flame2" d="M-1.5 10.6 L0 15.6 L1.5 10.6 Z"/></g>',
   // swept wings: a cruise missile at a glance, and not the same shape as anything else here
-  missile:'<path class="glyph" d="M0-11 L2.3-4.6 L2.3-2.4 L9 4.4 L9 6.4 L2.3 3.2 L2.3 6.4 L4.6 10 L-4.6 10 L-2.3 6.4 L-2.3 3.2 L-9 6.4 L-9 4.4 L-2.3-2.4 L-2.3-4.6 Z"/>',
+  missile:'<path class="glyph" d="M0 -12 L1.3 -9 L1.3 9 L-1.3 9 L-1.3 -9 Z"/><path class="glyph" d="M1.3 -0.6 L5.4 1.8 L5.4 2.8 L1.3 1.9 Z"/><path class="glyph" d="M-1.3 -0.6 L-5.4 1.8 L-5.4 2.8 L-1.3 1.9 Z"/><path class="glyph" d="M1.3 6 L3.5 10.2 L1.3 9 Z"/><path class="glyph" d="M-1.3 6 L-3.5 10.2 L-1.3 9 Z"/>',
   // the S8000 is a small straight-winged airframe with the jet on its back — drawn as such, so it can never
   // be mistaken for the Kalibr-class shape above
   banderol:'<rect class="glyph" x="-9.8" y="-1.4" width="19.6" height="2.8" rx="1.3"/><rect class="glyph" x="-5" y="7" width="10" height="2.4" rx="1.1"/><path class="glyph" d="M0-11 L2.3-5 L2.3 10 L-2.3 10 L-2.3-5 Z"/><path class="glyph" d="M-2.5-8.4 h5 a1.8 1.8 0 0 1 1.8 1.8 v2.1 h-8.6 v-2.1 a1.8 1.8 0 0 1 1.8-1.8 Z"/>',
-  ballistic:'<path class="glyph" d="M0-12 L2.1-3.6 L2.1 5.4 L5.8 10.6 L2.1 8.8 L-2.1 8.8 L-5.8 10.6 L-2.1 5.4 L-2.1-3.6 Z"/>',
+  ballistic:'<path class="glyph" d="M0 -12 L1.6 -7.6 L2.1 -4 L2.1 8 L-2.1 8 L-2.1 -4 L-1.6 -7.6 Z"/><path class="glyph" d="M2.1 4.2 L4.6 9.6 L2.1 8 Z"/><path class="glyph" d="M-2.1 4.2 L-4.6 9.6 L-2.1 8 Z"/><rect class="glyph" x="-1.3" y="8" width="2.6" height="1.8" rx="0.4"/>',
   bomb:'<path class="glyph" d="M0-10.5 C 3.6-6.5 4.4-1.5 4.4 3 L4.4 7 L-4.4 7 L-4.4 3 C -4.4-1.5 -3.6-6.5 0-10.5 Z"/>'
     +'<path class="glyph" d="M-4.4 4 L-8.2 11 L-4.4 9.6 Z"/><path class="glyph" d="M4.4 4 L8.2 11 L4.4 9.6 Z"/>'
     +'<path class="glyph" d="M-1.6 6.4 L1.6 6.4 L1.6 11.4 L-1.6 11.4 Z"/>',
@@ -1288,7 +1267,7 @@ G.fighter='<path class="glyph" d="M0-12.8 L1.5-8.4 L1.5-2.6 L9.6 4.2 L9.6 6 L1.5
 let built=new Map(); const homeAlerted=new Set(); const homeClosed=new Set();
 // Outcomes reported for a whole oblast, grouped by oblast id — filled by tick(), drawn by paintOblEvents().
 let OBLEVT={};
-const OBL_EVENT=new Set(['impact','fire','damage','down']);
+const OBL_EVENT=new Set(['impact','down']);   // fire and damage are no longer drawn at all
 function paintOblEvents(){
   const g=$('oblevt'); if(!g||!MAP) return;
   const uids=Object.keys(OBLEVT);
@@ -1333,14 +1312,23 @@ function oblEventSheet(uid){
 // The uncertainty ring has to keep growing between server updates. A ballistic missile adds half a kilometre
 // of doubt every second, so a circle that only moved when new data arrived would sit perfectly still exactly
 // when it matters most — and a still circle reads as a known position, which is the one thing it is not.
+// No ring for ballistic at all. It is minutes from launch to impact and it already raises a region-wide alert;
+// a circle growing 35 km a minute covered the whole oblast in five and said nothing the alert had not.
+// For the others the ring is drawn only while it is small enough to mean "around here". Past that it is not
+// shrunk to fit — a ring smaller than where the missile could be tells somebody just outside it they are
+// clear. It is dropped, and the label says in words that the position is no longer known.
+const REACH_DRAW_MAX=25;
 function reachOf(m){ const mk=(!m.status&&!m.endedBy)?mslKind(m):null; if(!mk) return 0;
+  if(m.type==='ballistic_missiles') return 0;
   const over=(Date.now()-new Date(m.ts).getTime())/60000-mk.valid;
-  return over>0?Math.min(over*mk.v,REACH_CAP):0; }
-function paintReach(b,m){ const reach=reachOf(m); m._reach=reach;
-  const rc=b.g.querySelector('.reach'); b.g.classList.toggle('uncert',reach>0);
+  if(over<=0) return 0;
+  const r=over*mk.v; return r>REACH_DRAW_MAX?-1:r; }
+function paintReach(b,m){ const reach=reachOf(m); m._reach=reach; m._gone=reach<0;
+  const rc=b.g.querySelector('.reach'); b.g.classList.toggle('uncert',reach>0); b.g.classList.toggle('gone',reach<0);
   if(rc){ if(reach>0){ rc.style.display=''; rc.setAttribute('r',reach.toFixed(1)); } else rc.style.display='none'; }
-  if(reach>0){ const pl=m.place==='\u043e\u0431\u043b\u0430\u0441\u0442\u044c'?'':pn(m.place);
-    b.g.querySelector('.lbl2').textContent=`${t('msl_reach',Math.round(reach))} \u00b7 ${pl?t('msl_seen',pl,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`; }
+  if(reach!==0){ const pl=m.place==='\u043e\u0431\u043b\u0430\u0441\u0442\u044c'?'':pn(m.place);
+    const seen=pl?t('msl_seen',pl,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts));
+    b.g.querySelector('.lbl2').textContent=reach>0?`${t('msl_reach',Math.round(reach))} \u00b7 ${seen}`:`${t('msl_gone')} \u00b7 ${seen}`; }
   return reach; }
 // every second, for missiles only — not a full render: during a raid there can be dozens of markers and a
 // phone on 2G has better things to do than re-lay out all of them once a second.
@@ -1373,7 +1361,7 @@ const glyphKey=m=>m.status?m.status
   // Night mode: plain arrows, not silhouettes. A detailed shape needs more light to resolve than an arrow
   // does, and in the dark it resolves to a grey blob anyway. The type is still on the label and in the
   // panel; what the arrow has to carry is only "something is there, going that way".
-  :(MODE==='night'&&!IMMEDIATE.has(m.type))?'arrow'
+  :(MODE==='night'&&!IMMEDIATE.has(m.type)&&m.type!=='unknown')?'arrow'
   :(m.type==='drones'&&m.jet)?'jetdrone'
   :(GLYPH_BY_TYPE[m.type]||'missile');
 // Which way a mark points.
@@ -1384,12 +1372,23 @@ const glyphKey=m=>m.status?m.status
 // and the ? above it says why. Upright is not a direction, which is exactly the point.
 function orientOf(m){
   if(m.status||m.endedBy) return 0;
+  // A warning sign is a sign, not a silhouette: a tilted ⚠ reads as a broken icon, not as a course. It stays
+  // upright, and the orange course ray beside it — drawn separately, from the same reported heading — is
+  // what turns.
+  if(m.type==='unknown') return 0;
   if(m.heading==null) return 0;
   const ev=m.evidence&&m.evidence.heading;
   if(!ev||!ev.confidence||ev.confidence==='none') return 0;
   return m.heading;
 }
 const upright=()=>0;   // kept for outcome marks, which have no course at all
+// Outcomes the map no longer draws.
+//   clear  — a channel writing "чисто" is not an all-clear. It painted a green ✓ that read as the raid being
+//            over while the official alert was still red, and only the official alert may say that. It still
+//            closes the track it refers to; it just does not get a green mark of its own.
+//   fire, damage — what a strike left on the ground. Real, but not what this map is for, and the reports
+//            arrive late, are rarely placed precisely, and crowded out the targets still in the air.
+const HIDDEN_STATUS=new Set(['clear','fire','damage']);
 function tick(){
   if(!MAP){setTimeout(tick,300);return;}
   // An explosion is a moment, not a state. Left on the map for 25 minutes it read as "it is still going on
@@ -1403,7 +1402,7 @@ function tick(){
   // reads as "it is still going on", and one reported for a whole oblast says least of all.
   const OUTCOME_TTL=15;
   const outcomeTtl=m=>m.status!=='impact'?OUTCOME_TTL:(m.place==='область'?5:10);
-  const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?outcomeTtl(m):ttl));
+  const now=Date.now(); let live=MK.filter(m=>agoMin(m.ts)<=(m.status?outcomeTtl(m):ttl)&&!HIDDEN_STATUS.has(m.status));
   // "Київщина - вибухи" names no town. Drawn as a pin it claimed the oblast centre, which for Kyiv oblast
   // is near Vasylkiv — so a report about the whole region read as an explosion in one village. These become
   // a mark on the region itself, handled below, and never a position.
@@ -1471,7 +1470,9 @@ function tick(){
         `${pn(m.endedBy.place)} · ${fmtT(m.endedBy.ts)} · ${others?t('n_down_left',others):t('n_down_note')}`,
         'end',0.8);
     }
-    const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?1.5:1.2)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
+    // Missiles used to be drawn half as big again as a drone and sat on top of whole districts. A mark says where,
+    // not how dangerous — that is what the colour, the label and the alert are for.
+    const gs=(m.status?1.05:m.type==='drones'?1.05:/missile/.test(m.type)?0.95:1.0)*KPX; const nTot=m.csum||m.count||1; const cb=b.g.querySelector('.cnt'); if(nTot>1&&!m.status){cb.style.display='';cb.setAttribute('transform',`translate(${(8*KPX).toFixed(2)} ${(-8*KPX).toFixed(2)}) scale(${KPX.toFixed(3)})`);cb.querySelector('text').textContent=nTot;}else cb.style.display='none';
     b.g.dataset.tx=x.toFixed(2); b.g.dataset.ty=y.toFixed(2);
     b.g.setAttribute('transform',`translate(${x.toFixed(2)} ${y.toFixed(2)})`);
     // a later post can add the course that the first one lacked: swap the blind mark for a pointed one
@@ -1489,7 +1490,6 @@ function tick(){
     b.g.classList.toggle('desc',dsc); b.g.classList.toggle('hasalt',!!altM);
     {const dn=b.g.querySelector('.dn'); if(dn){ dn.setAttribute('y',(16*KPX).toFixed(2));
       dn.textContent=altM?((dsc?'↓':'')+altM+' '+t('m_unit')):(dsc?'↓':''); }}
-    b.g.classList.toggle('defocus',FOCUS&&!towardsMe(m));
     b.g.classList.toggle('lostc',contactLost(m));
     b.g.classList.toggle('inbound',info.inbound&&!m.stale); b.g.classList.toggle('old',age>ttl*0.65); b.g.classList.toggle('ended',!!m.endedBy); b.g.classList.toggle('stale',!!m.stale&&!m.endedBy&&!m.status); b.g.classList.toggle('s2',!!m.stale&&m.stale>=8); b.g.classList.toggle('s3',!!m.stale&&m.stale>=11); b.g.querySelector('.qm').setAttribute('y',(-12*KPX).toFixed(2));
     const v=SPEED(m); const ah=b.g.querySelector('.ahead'); const cone=b.g.querySelector('.cone');
@@ -1508,7 +1508,7 @@ function tick(){
     b.g.querySelector('.lbl').textContent=name;
     const placeEn=m.place==='область'?'':pn(m.place);
     const descTxt=(m.alt&&m.alt.state==='descending'&&!m.status&&!m.endedBy&&!m.stale)?('↓ '+t('alt_desc')+' · '):'';
-    b.g.querySelector('.lbl2').textContent=descTxt+(m._reach>0?`${t('msl_reach',Math.round(m._reach))} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||statusName(m.endedBy.status),pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
+    b.g.querySelector('.lbl2').textContent=descTxt+(m._gone?`${t('msl_gone')} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m._reach>0?`${t('msl_reach',Math.round(m._reach))} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||statusName(m.endedBy.status),pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
     if(m.status){ if(m.status!=='clear') downed++; } else if(!m.endedBy){ tracked++; const c=m.csum||m.count||1; if(m.stale) totStale+=c; else if(m.type==='drones'){ if(m.jet) totJet+=c; else totShahed+=c; } else if(m.type==='unknown') totUnk+=c; else totMsl+=c; if(info.inbound&&!m.stale){inboundCount++; if(!nearest||info.dist<nearest.dist) nearest={...info,m};} }
     if(!m.status&&!m.endedBy&&(x<VB.x||x>VB.x+VB.w||y<VB.y||y>VB.y+VB.h)) edges.push({m,x,y,info,name});
     lblPos.push({b,m,sx:x/KPX,sy:y/KPX});
@@ -1707,6 +1707,7 @@ function openSheet(id){
       return `<div class="kv1">${zl}${el}</div>`; })()}
     ${m.type==='unknown'&&!m.status?`<div class="kv1 yellow">${esc(t('unk_note'))}${m.likely==='drones'?' '+esc(m.alt&&m.alt.m?t('alt_likely'):t('unk_likely_l')):''}</div>`:''}
     ${mk?`<div class="kv1 muted" style="font-size:12px">${esc(m.type==='ballistic_missiles'?t('msl_bal'):m.type==='banderol_missiles'?t('msl_band'):t('msl_cru'))}</div>`:''}
+    ${m._gone?`<div class="kv1 yellow"><b>${esc(t('msl_gone'))}</b> — ${esc(t('msl_seen',placeEn,fmtT(m.ts)))}</div>`:''}
     ${(m._reach>0)?`<div class="kv1 yellow"><b>${esc(t('msl_reach',Math.round(m._reach)))}</b> — ${esc(t('msl_seen',placeEn,fmtT(m.ts)))}<div style="color:var(--muted);font-size:11.5px;margin-top:3px">${esc(t('msl_note',mk.v))}</div></div>`:''}
     <div class="txt" style="border-left-color:var(--orange);margin-top:8px">${esc(showUA()?(ev.segment||m.text):(ev.segment_en||ev.segment||m.text_en||m.text))}</div>
     <div class="kv1 muted" style="font-size:11.5px">${conf}</div>
@@ -1791,7 +1792,8 @@ const IMP_STEPS=[0,24]; let IMP_H=0,IMP=[],impTimer=null;
 // all night — and in neither case does it belong on a live map as if it had just happened. A new post about
 // the same place brings it back, because that post carries a fresh timestamp.
 const FIRE_TTL_MIN=60;
-const liveImpacts=()=>IMP.filter(m=>m.status!=='fire'||(Date.now()-Date.parse(m.ts))/60000<=FIRE_TTL_MIN);
+// The history layer drops the same statuses the live map does — fire and damage are not drawn anywhere.
+const liveImpacts=()=>IMP.filter(m=>!HIDDEN_STATUS.has(m.status));
 try{IMP_H=+localStorage.getItem('imph')||0;}catch(e){}
 // The same place reported over and over across 24 h is one dot with a count — nine glyphs stacked on one
 // village told you nothing that "×9" does not, and buried everything around it.

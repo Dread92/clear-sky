@@ -164,3 +164,61 @@ def test_the_history_layer_keeps_its_key_while_it_is_switched_on():
     i = PAGE.index("$('livebar').innerHTML=")
     line = PAGE[i:PAGE.index("\n", i)]
     assert "IMP_H" in line
+
+
+# ── 2026-09-24: the warning sign, the missile shapes, the ring ────────────────────────────────────────
+def test_the_warning_sign_never_tilts_but_its_course_ray_still_turns():
+    body = _fn("orientOf")
+    assert "m.type==='unknown'" in body.replace(" ", ""), "a ⚠ still rotates with its course"
+    assert "rotate(${m.heading})" in PAGE, "the course ray no longer follows the reported heading"
+
+
+def test_the_warning_sign_stays_a_warning_sign_in_night_mode():
+    i = PAGE.index("const glyphKey=")
+    body = PAGE[i:PAGE.index(";", PAGE.index("GLYPH_BY_TYPE[m.type]", i))]
+    assert "m.type!=='unknown'" in body.replace(" ", "")
+
+
+def test_missiles_are_not_drawn_bigger_than_drones():
+    m = re.search(r"const gs=\(m\.status\?([\d.]+):m\.type==='drones'\?([\d.]+):/missile/\.test\(m\.type\)\?([\d.]+)", PAGE)
+    assert m, "the size rule moved"
+    assert float(m.group(3)) <= float(m.group(2)), "a missile is drawn bigger than a drone again"
+
+
+def test_the_cruise_missile_has_short_wings_not_a_fighters():
+    """The old dart had an 18-unit wingspan and read as a jet. A Kalibr's wings are stubs."""
+    m = re.search(r"missile:'(.*?)',", PAGE)
+    xs = [abs(float(x)) for x in re.findall(r"L(-?[\d.]+) ", m.group(1))]
+    assert max(xs) <= 6, f"wingspan is {2 * max(xs)} units — that is an aircraft"
+
+
+def test_the_ballistic_missile_has_no_wings():
+    m = re.search(r"ballistic:'(.*?)',", PAGE)
+    xs = [abs(float(x)) for x in re.findall(r"L(-?[\d.]+) ", m.group(1))]
+    assert max(xs) <= 5, "the ballistic silhouette has grown wings"
+
+
+def test_no_uncertainty_ring_for_ballistic():
+    """It already raises a region-wide alert; a ring growing 35 km a minute covered the oblast in five."""
+    body = _fn("reachOf")
+    assert "m.type==='ballistic_missiles')return0" in body.replace(" ", "")
+
+
+def test_the_ring_is_dropped_rather_than_shrunk_when_it_stops_meaning_around_here():
+    """A ring smaller than where the missile could be tells somebody just outside it they are clear."""
+    body = _fn("reachOf")
+    assert "REACH_DRAW_MAX" in body and "?-1:" in body.replace(" ", "")
+    assert re.search(r"const REACH_DRAW_MAX=(\d+)", PAGE) and int(re.search(r"const REACH_DRAW_MAX=(\d+)", PAGE).group(1)) <= 30
+    i18n = open(os.path.join(ROOT, "static", "i18n.js"), encoding="utf-8").read()
+    assert i18n.count("msl_gone:") == 3, "the words that replace the ring are missing in a language"
+
+
+def test_the_show_original_ukrainian_switch_is_gone():
+    assert 'id="lang"' not in PAGE and "$('lang')" not in PAGE
+
+
+def test_fire_damage_and_channel_clear_marks_are_not_drawn():
+    m = re.search(r"const HIDDEN_STATUS=new Set\(\[(.*?)\]\)", PAGE)
+    assert m and {x.strip().strip("'") for x in m.group(1).split(",")} == {"clear", "fire", "damage"}
+    assert "!HIDDEN_STATUS.has(m.status)" in PAGE, "the live map still draws them"
+    assert "IMP.filter(m=>!HIDDEN_STATUS.has(m.status))" in PAGE, "the history layer still draws them"
