@@ -39,6 +39,14 @@ set /p KEY=Choose a dashboard key (12+ letters/digits, Enter to keep the current
 if not "%KEY%"=="" fly secrets set ADMIN_KEY=%KEY% -a %APP% --stage
 if not "%KEY%"=="" set SHOWKEY=%KEY%
 echo.
+echo  Translation key (optional). The free Google translator refuses servers, so without a key the
+echo  English feed uses the built-in glossary and there is no French. A DeepL API key makes EN and FR
+echo  clear - free plan: 500,000 characters a month, https://www.deepl.com/pro-api . Posts are only
+echo  translated while somebody is reading that language, so the allowance goes to what is read.
+set DK=
+set /p DK=DeepL API key (Enter to skip or keep the current one): 
+if not "%DK%"=="" fly secrets set DEEPL_KEY=%DK% -a %APP% --stage
+echo.
 echo === 5/5 Deploy ===
 fly deploy -a %APP% --ha=false --depot=false
 if errorlevel 1 goto fail

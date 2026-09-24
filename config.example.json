@@ -2,6 +2,8 @@
   "port": 8642,
   "alerts_in_ua_token": "",
   "ukrainealarm_key": "",
+  "deepl_key": "",
+  "google_translate_key": "",
   "use_ubilling_fallback": true,
   "use_siren_proxy": true,
   "telegram_channels": [

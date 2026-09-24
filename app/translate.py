@@ -197,7 +197,7 @@ G = [
     (r"година", "hour"), (r"хвилин[а-яіїє]*", "minutes"), (r"протягом", "within"), (r"підліт", "arrival"),
     (r"\bта\b", "and"), (r"\bі\b", "and"), (r"\bй\b", "and"), (r"\bна\b", "on"), (r"\bв\b", "in"), (r"\bу\b", "in"), (r"\bз\b", "from"), (r"\bзі\b", "from"), (r"\bіз\b", "from"),
     (r"\bдо\b", "to"), (r"\bвід\b", "from"), (r"\bпо\b", "along"), (r"\bпід\b", "under"), (r"\bпро\b", "about"), (r"\bдля\b", "for"), (r"\bне\b", "not"), (r"\bце\b", "this"),
-    (r"\bще\b", "still"), (r"\bвже\b", "already"), (r"\bзараз\b", "now"), (r"\bтам\b", "there"), (r"\bтут\b", "here"),
+(r"\bще (од[на][ао]?|один)\b", "one more"), (r"\bще (два|дві|три)\b", lambda m: {"два": "two", "дві": "two", "три": "three"}[m.group(1).lower()] + " more"), (r"\bще\b", "still"), (r"\bвже\b", "already"), (r"\bзараз\b", "now"), (r"\bтам\b", "there"), (r"\bтут\b", "here"),
 ]
 _G = [(re.compile(p, re.I), r) for p, r in sorted(G, key=lambda t: -len(t[0]))]
 _RAION = re.compile(r"([а-яіїє'-]+ськ)(?:ий|ого|ому|им|ім)\s+район[а-яіїє]*", re.I)
@@ -216,6 +216,7 @@ def _norm(s):
 # ---------------------------------------------------------------------------
 import json as _json
 import os as _os
+import urllib.error as _ue
 import urllib.parse as _up
 import urllib.request as _ur
 
@@ -225,7 +226,7 @@ PRE = [  # Ukrainian phrase → English inserted before the call (Google leaves 
     (r"повітряна тривога", "air raid alert"), (r"повітряної тривоги", "air raid alert"), (r"повітряну тривогу", "air raid alert"),
     (r"дронова небезпека", "drone danger"), (r"дронова загроза", "drone threat"),
     (r"реактивн[а-яіїє]* бпла", "jet drones"), (r"реактивн[а-яіїє]* мопед[а-яіїє]*", "jet drones"), (r"реактив[а-яіїє]*", "jet drone"),
-    (r"мопед[а-яіїє]*", "Shahed"), (r"\bбпла\b", "strike drones (UAV)"), (r"шахед[а-яіїє]*", "Shahed"), (r"герань", "Geran"),
+    (r"мопед[а-яіїє]*", "Shahed"), (r"ударн[а-яіїє]*\s+бпла\b", "strike drones (UAV)"), (r"ударн[а-яіїє]*", "strike drones"), (r"\bбпла\b", "strike drones (UAV)"), (r"шахед[а-яіїє]*", "Shahed"), (r"герань", "Geran"),
     (r"\bкаб(и|і|ів|ами|ах)?\b", "KAB guided bombs"), (r"звичайн[а-яіїє]*", "regular Shahed (not jet)"), (r"\bппо\b", "air defence"), (r"сили ппо", "air defence"),
     (r"балістик[аиу]", "ballistic missiles"), (r"швидкісн[а-яіїє]* ціл[а-яіїє]*", "high-speed target"),
     (r"\(\s*(київськ|житомирськ|чернігівськ|сумськ|полтавськ|черкаськ|вінницьк|харківськ|дніпропетровськ|кіровоградськ|рівненськ|хмельницьк|миколаївськ|одеськ|запорізьк|херсонськ|донецьк|луганськ|волинськ|львівськ|тернопільськ|івано-франківськ|чернівецьк|закарпатськ)а\s+обл\.?\s*\)", lambda m: "(" + {"київськ":"Kyiv","житомирськ":"Zhytomyr","чернігівськ":"Chernihiv","сумськ":"Sumy","полтавськ":"Poltava","черкаськ":"Cherkasy","вінницьк":"Vinnytsia","харківськ":"Kharkiv","дніпропетровськ":"Dnipropetrovsk","кіровоградськ":"Kirovohrad","рівненськ":"Rivne","хмельницьк":"Khmelnytskyi","миколаївськ":"Mykolaiv","одеськ":"Odesa","запорізьк":"Zaporizhzhia","херсонськ":"Kherson","донецьк":"Donetsk","луганськ":"Luhansk","волинськ":"Volyn","львівськ":"Lviv","тернопільськ":"Ternopil","івано-франківськ":"Ivano-Frankivsk","чернівецьк":"Chernivtsi","закарпатськ":"Zakarpattia"}[m.group(1).lower()] + " oblast)"),
@@ -243,7 +244,7 @@ PRE = [  # Ukrainian phrase → English inserted before the call (Google leaves 
 ]
 _PRE = [(re.compile(p, re.I), r) for p, r in PRE]
 POST = [  # Google artefacts → domain wording
-    (r"\bair (?:raid )?alarm\b", "air raid alert"), (r"\bair anxiety\b", "air raid alert"), (r"\banxiety\b", "alert"),
+    (r"\bshock (?:guns?|drones?)\b", "strike drones"), (r"\bshock\b", "strike"), (r"\bair (?:raid )?alarm\b", "air raid alert"), (r"\bair anxiety\b", "air raid alert"), (r"\banxiety\b", "alert"),
     (r"\brepulse\b", "all clear"), (r"\bhang up\b", "all clear"), (r"\bmopeds?\b", "Shahed"), (r"\breactive\b", "jet"),
     (r"\bUAVs?\b", "UAV"), (r"\bCABs?\b", "KAB guided bombs"), (r"\bOblast\b", "region"), (r"\bdistrict\b", "raion"), (r"\bcourse\b", "heading"),
     (r"\bin the direction of\b", "toward"), (r"\bthe capital\b", "Kyiv (the capital)"), (r"\bshelters? of civil protection\b", "civil-defence shelter"),
@@ -253,22 +254,114 @@ _POST = [(re.compile(p, re.I), r) for p, r in POST]
 _UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
 
 
-def _google(text):
-    url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=uk&tl=en&dt=t&q=" + _up.quote(text)
+PRE_FR = [  # the same domain words, for French: the slang a general translator gets wrong
+    (r"відбій повітряної тривоги", "fin d'alerte — alerte aérienne levée"), (r"відбій тривоги", "fin d'alerte"),
+    (r"відбій загрози[а-яіїє]*", "menace terminée"), (r"\bвідбій\b", "fin d'alerte"),
+    (r"повітряна тривога", "alerte aérienne"), (r"повітряної тривоги", "alerte aérienne"), (r"повітряну тривогу", "alerte aérienne"),
+    (r"дронова небезпека", "danger drones"), (r"дронова загроза", "menace de drones"),
+    (r"реактивн[а-яіїє]* бпла", "drones à réaction"), (r"реактивн[а-яіїє]* мопед[а-яіїє]*", "drones à réaction"), (r"реактив[а-яіїє]*", "drone à réaction"),
+    (r"мопед[а-яіїє]*", "Shahed"), (r"ударн[а-яіїє]*\s+бпла\b", "drones d'attaque"), (r"ударн[а-яіїє]*", "drones d'attaque"), (r"\bбпла\b", "drones d'attaque"), (r"шахед[а-яіїє]*", "Shahed"), (r"герань", "Geran"),
+    (r"\bкаб(и|і|ів|ами|ах)?\b", "bombes guidées KAB"), (r"\bппо\b", "défense antiaérienne"), (r"сили ппо", "défense antiaérienne"),
+    (r"балістик[аиу]", "missiles balistiques"), (r"швидкісн[а-яіїє]* ціл[а-яіїє]*", "cible rapide"),
+    (r"прямуйте в укриття", "allez aux abris"), (r"н\.п\.\s*", ""), (r"\bр-н\b", "raion"), (r"(\d+)\s*х\b", r"\1×"),
+    (r"мінус[а-яіїє]*", "abattu"), (r"зниженн[а-яіїє]*", "descente"), (r"знижується", "descend"),
+    (r"\bчисто\b", "dégagé (aucune cible)"), (r"зліт", "décollage"), (r"міг-?31к?", "MiG-31K"),
+]
+_PRE_FR = [(re.compile(p, re.I), r) for p, r in PRE_FR]
+POST_FR = [
+    (r"\bde choc\b", "d'attaque"), (r"\bcyclomoteurs?\b", "Shahed"), (r"\bmobylettes?\b", "Shahed"), (r"\bréactifs?\b", "à réaction"), (r"\bdistrict\b", "raion"),
+    (r"\banxiété\b", "alerte"), (r"\bsirène aérienne\b", "alerte aérienne"), (r"\bla capitale\b", "Kyiv (la capitale)"),
+]
+_POST_FR = [(re.compile(p, re.I), r) for p, r in POST_FR]
+
+
+# ---- machine translators ---------------------------------------------------------------------------------
+# In order: DeepL (key), Google Cloud Translation (key), then the free Google endpoint. The free endpoint
+# answers from a home connection but refuses a data-centre address ("Sorry…", HTTP 429) — which is where the
+# server lives. A key is what makes translation work on the server; without one the offline glossary is used.
+KEYS = {"deepl": _os.environ.get("DEEPL_KEY") or "", "google_cloud": _os.environ.get("GOOGLE_TRANSLATE_KEY") or ""}
+_DOWN = {}          # backend → until when it is not tried again
+_TARGET = {"en": ("EN-GB", "en"), "fr": ("FR", "fr")}
+
+
+def configure(deepl=None, google_cloud=None):
+    if deepl:
+        KEYS["deepl"] = deepl
+    if google_cloud:
+        KEYS["google_cloud"] = google_cloud
+
+
+def _google(text, target="en"):
+    url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=uk&tl={target}&dt=t&q=" + _up.quote(text)
     with _ur.urlopen(_ur.Request(url, headers={"User-Agent": _UA}), timeout=6) as r:
         d = _json.loads(r.read().decode("utf-8"))
     return "".join(seg[0] for seg in d[0] if seg and seg[0])
 
 
-def translate_online(text):
+def _deepl(text, target="en"):
+    key = KEYS["deepl"]
+    host = "api-free.deepl.com" if key.endswith(":fx") else "api.deepl.com"
+    body = _json.dumps({"text": [text], "source_lang": "UK", "target_lang": _TARGET[target][0], "preserve_formatting": True}).encode()
+    req = _ur.Request(f"https://{host}/v2/translate", data=body, method="POST",
+                      headers={"Authorization": "DeepL-Auth-Key " + key, "Content-Type": "application/json", "User-Agent": "clear-sky"})
+    with _ur.urlopen(req, timeout=10) as r:
+        return _json.loads(r.read().decode("utf-8"))["translations"][0]["text"]
+
+
+def _google_cloud(text, target="en"):
+    body = _json.dumps({"q": text, "source": "uk", "target": _TARGET[target][1], "format": "text"}).encode()
+    req = _ur.Request("https://translation.googleapis.com/language/translate/v2?key=" + _up.quote(KEYS["google_cloud"]), data=body,
+                      method="POST", headers={"Content-Type": "application/json", "User-Agent": "clear-sky"})
+    with _ur.urlopen(req, timeout=10) as r:
+        return _json.loads(r.read().decode("utf-8"))["data"]["translations"][0]["translatedText"]
+
+
+def backends():
+    """The machine translators that may be tried right now, in order."""
+    now = _time.time()
+    out = []
+    if KEYS["deepl"]:
+        out.append(("deepl", _deepl))
+    if KEYS["google_cloud"]:
+        out.append(("google_cloud", _google_cloud))
+    if MODE == "google":
+        out.append(("google", _google))
+    return [(n, f) for n, f in out if _DOWN.get(n, 0) <= now]
+
+
+def machine(text, target="en"):
+    """(translation, backend) from the first machine translator that answers, or (None, None).
+
+    A backend that fails is left alone for a while — 30 min after a refusal (429, quota, bad key), 5 min after
+    anything else — so a blocked one never costs a second per post again."""
     t = _norm(text)
-    for rx, rep in _PRE:
+    for rx, rep in (_PRE if target == "en" else _PRE_FR):
         t = rx.sub(rep, t)
-    out = _google(t)
-    for rx, rep in _POST:
-        out = rx.sub(rep, out)
-    out = _CYR.sub(lambda m: translit(m.group(0)), out)
-    return out.strip()
+    for name, fn in backends():
+        try:
+            wait = 0.35 - (_time.time() - _last_call[0])
+            if wait > 0:
+                _time.sleep(wait)
+            _last_call[0] = _time.time()
+            out = fn(t, target)
+        except _ue.HTTPError as e:
+            _DOWN[name] = _time.time() + (1800 if e.code in (401, 403, 429, 456) else 300)
+            continue
+        except Exception:
+            _DOWN[name] = _time.time() + 300
+            continue
+        for rx, rep in (_POST if target == "en" else _POST_FR):
+            out = rx.sub(rep, out)
+        out = _CYR.sub(lambda m: translit(m.group(0)), out)
+        return out.strip(), name
+    return None, None
+
+
+def translate_online(text):
+    out, _ = machine(text, "en")
+    if out is None:
+        raise RuntimeError("no machine translator answered")
+    return out
 
 
 MODE = (_os.environ.get("TRANSLATOR") or "google").lower()
@@ -329,21 +422,95 @@ def clean(text):
 
 
 def translate(text):
+    """English: a machine translator if one answers, else the offline glossary. LAST_OK says which."""
     text = clean(text)
-    if MODE == "google" and text and re.search(r"[А-ЯІЇЄа-яіїє]", text):
-        for attempt in range(2):
-            try:
-                wait = 0.35 - (_time.time() - _last_call[0])   # be polite: ≤ ~3 calls/s
-                if wait > 0:
-                    _time.sleep(wait)
-                _last_call[0] = _time.time()
-                out = translate_online(text)
-                LAST_OK[0] = True
-                return out
-            except Exception:
-                _time.sleep(1.5)
-        LAST_OK[0] = False
+    if text and re.search(r"[А-ЯІЇЄа-яіїє]", text) and backends():
+        out, _ = machine(text, "en")
+        if out is not None:
+            LAST_OK[0] = True
+            return out
+    LAST_OK[0] = not re.search(r"[А-ЯІЇЄа-яіїє]", text or "")
     return translate_offline(text)
+
+
+def translate_to(text, lang):
+    """(text, machine) for 'en' or 'fr'. French has no offline fallback: (None, False) — the page then shows English."""
+    text = clean(text)
+    if not re.search(r"[А-ЯІЇЄа-яіїє]", text or ""):
+        return text, True
+    out, _ = machine(text, lang)
+    if out is not None:
+        return out, True
+    return (translate_offline(text), False) if lang == "en" else (None, False)
+
+
+# Everyday words of these channels that the phrase glossary above does not cover. Without them the fallback
+# printed "oblast zahalom clear, poky dykhaiemo" — a transliteration, which reads as noise to anyone who needs
+# the translation. Collected from ~1,000 posts of the six channels the app reads (Sep 2026): each is a word the
+# glossary used to leave in Cyrillic, most frequent first. Rough grammar, right words.
+WORDS = {
+    # whole phrases first (the longest key wins)
+    "поки дихаємо": "breathing easy for now", "поки що": "for now", "баражуючих боєприпасів": "loitering munitions",
+    "в повітряному просторі": "in the airspace", "у повітряному просторі": "in the airspace", "повітряному просторі": "airspace",
+    "повітряного простору": "airspace", "зона відчуження": "exclusion zone", "зоні відчуження": "exclusion zone",
+    "силайте в анонімний бот": "send it to the anonymous bot", "анонімний бот": "anonymous bot", "робота ппо": "air defence at work",
+    "на даний момент": "at the moment", "в даний момент": "at the moment", "тим часом": "meanwhile", "з боку": "from the side of",
+    "ще один": "one more", "ще одна": "one more", "ще одне": "one more", "ще два": "two more", "ще дві": "two more",
+    "нас атакують": "we are under attack", "атакують": "attacking", "пролунав": "was heard", "пролунали": "were heard",
+    "чути": "heard", "квартирі": "an apartment", "квартира": "an apartment", "жк": "residential complex",
+    "в бік": "toward", "у бік": "toward", "в сторону": "toward", "у напрямку": "toward", "так само": "likewise",
+    # movement
+    "йде": "heading", "іде": "heading", "йдуть": "heading", "ідуть": "heading", "далі": "further", "назад": "back",
+    "кружляє": "circling", "кружляють": "circling", "маневрує": "manoeuvring", "довернув": "turned", "розвернувся": "turned back",
+    "вилітають": "taking off", "вилітає": "taking off", "залітають": "entering", "залітає": "entering", "відлітає": "leaving",
+    "виходить": "leaving", "виходять": "leaving", "заходить": "coming in", "заходять": "coming in", "летить": "flying", "летять": "flying",
+    "транзит": "transit", "транзитом": "in transit", "руху": "movement", "рух": "movement", "напрямок": "direction", "напрям": "direction",
+    "готується": "preparing", "готуються": "preparing", "повертає": "turning", "змінив": "changed", "змінили": "changed",
+    # what
+    "ударний": "strike drone", "ударних": "strike drones", "ударні": "strike drones", "ударна": "strike", "керований": "guided", "керовані": "guided",
+    "керованих": "guided", "звичайний": "regular", "звичайних": "regular", "звичайні": "regular", "типу": "type", "типів": "types",
+    "бандероль": "Banderol (jet drone)", "бандеролі": "Banderol (jet drones)", "бандеролей": "Banderol (jet drones)",
+    "циркон": "Zircon", "іскандер": "Iskander", "гербера": "Gerbera (decoy)", "гербер": "Gerbera (decoy)", "малогабаритних": "small",
+    "гіперзвукових": "hypersonic", "швидкісна": "high-speed", "масована": "massed", "атака": "attack", "атаки": "attacks", "атак": "attacks",
+    "влучання": "impact", "влучив": "hit", "уламок": "debris", "уламки": "debris", "пошкоджено": "damaged", "пошкоджені": "damaged",
+    "висота": "altitude", "пара": "a pair", "табун": "a swarm", "пачка": "a pack", "суміш": "a mix", "ворог": "the enemy", "противник": "the enemy",
+    # how many
+    "один": "one", "одна": "one", "одне": "one", "одного": "one", "два": "two", "дві": "two", "три": "three", "троє": "three",
+    "декілька": "several", "кілька": "several", "десяток": "about ten", "десятка": "about ten", "щонайменше": "at least",
+    "більше": "more", "менше": "fewer", "близько": "about", "приблизно": "about", "приблизна": "approximate", "всі": "all", "всіх": "all",
+    "одиниць": "units", "од": "units", "шт": "pcs", "перший": "first", "другий": "second", "наступний": "next", "наступна": "next",
+    "наступні": "next", "наступних": "next", "останній": "last",
+    # where
+    "захід": "west", "заході": "west", "заходу": "west", "схід": "east", "сході": "east", "сходу": "east", "північ": "north",
+    "півночі": "north", "південь": "south", "півдні": "south", "межі": "border", "межа": "border", "кордону": "the border",
+    "околиці": "outskirts", "передмісті": "suburbs", "передмістя": "suburbs", "центрі": "centre", "частині": "part",
+    "частина": "part", "частини": "part", "території": "territory", "територію": "territory", "зону": "zone", "зоні": "zone",
+    "зона": "zone", "десь": "somewhere", "поруч": "nearby", "між": "between", "моря": "sea", "десну": "the Desna", "десни": "the Desna",
+    "десна": "the Desna", "бучу": "Bucha", "бучі": "Bucha", "трою": "Troieshchyna", "трої": "Troieshchyna", "рф": "Russia",
+    "україни": "Ukraine", "білорусі": "Belarus", "білорусь": "Belarus", "орел": "Oryol", "орла": "Oryol", "курськ": "Kursk",
+    "курської": "Kursk oblast", "брянщини": "Bryansk oblast", "брянської": "Bryansk oblast", "ростовської": "Rostov oblast",
+    "шаталово": "Shatalovo", "шаталове": "Shatalovo",
+    # when / state
+    "поки": "for now", "загалом": "overall", "після": "after", "ніч": "night", "доби": "day", "час": "time", "момент": "moment",
+    "тиша": "quiet", "відмічено": "spotted", "зафіксовано": "recorded", "виявлено": "detected", "застосовано": "used",
+    "очікуємо": "we expect", "підтвердиться": "is confirmed", "інформація": "information", "окремо": "separately",
+    # small words
+    "він": "it", "вони": "they", "його": "it", "йому": "it", "нас": "us", "вами": "you", "цей": "this", "ті": "those", "тим": "that",
+    "є": "there is", "не": "not", "ні": "no", "так": "yes", "як": "as", "якщо": "if", "що": "that", "та": "and", "і": "and", "й": "and",
+    "а": "and", "о": "at", "чи": "or", "де": "where", "все": "all", "ще": "still", "вже": "already", "також": "also", "трішки": "a little",
+    "трошки": "a little", "варто": "worth", "робота": "work", "роботи": "work", "перемогу": "victory", "ймовірний": "probable",
+    "потенційно": "potentially", "чітко": "clearly", "повністю": "completely", "головне": "the main thing", "будинки": "houses",
+}
+_WORD = re.compile(r"(?<![а-яіїєґ'’ʼa-z])(" + "|".join(sorted(map(re.escape, WORDS), key=len, reverse=True)) + r")(?![а-яіїєґ'’ʼa-z])", re.I)
+
+
+def _words(t):
+    def rep(m):
+        w = m.group(0)
+        en = WORDS[re.sub(r"\s+", " ", w.lower())]
+        return en[0].upper() + en[1:] if w[0].isupper() and m.start() in (0,) else en
+    t = re.sub(r"\b[мс]\.\s*(?=[А-ЯІЇЄҐ])", "", t)     # "м. Бровари", "с. Гора": the name says it
+    return _WORD.sub(rep, t)
 
 
 def translate_offline(text):
@@ -385,9 +552,12 @@ def translate_offline(text):
     # 4. glossary
     for rx, rep in _G:
         t = rx.sub(rep, t)
+    # 4b. everyday words of these channels
+    t = _words(t)
     # 5. leftovers: transliterate any remaining Cyrillic
     t = _CYR.sub(lambda m: translit(m.group(0)), t)
     # tidy
+    t = re.sub(r"(^|\n)([^\w\n]*)([a-z])", lambda m: m.group(1) + m.group(2) + m.group(3).upper(), t)   # a line starts with a capital
     t = re.sub(r"[ \t]+", " ", t)
     t = re.sub(r" ([,.;:!?)])", r"\1", t)
     t = re.sub(r"\(\s+", "(", t)

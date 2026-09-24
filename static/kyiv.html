@@ -835,7 +835,7 @@ let ESTIMATE=false; try{ESTIMATE=localStorage.getItem('est')==='1';}catch(e){}
 let MAP=null,S=null,MK=[],ttl=45,hist=[],soundOn=true,vibOn=false,seen=new Set(),firstFeed=true,seenMk=new Set();
 try{soundOn=localStorage.getItem('snd')!=='0';vibOn=localStorage.getItem('vib')==='1';}catch(e){}
 $('snd').classList.toggle('on',soundOn);$('vib').classList.toggle('on',vibOn);
-const showUA=()=>SHOW_UA||LANG==='uk'; const ptxt=p=>p._txt||(showUA()?p.text:(p.text_en||p.text));
+const showUA=()=>SHOW_UA||LANG==='uk'; const ptxt=p=>p._txt||(showUA()?p.text:((LANG==='fr'&&p.text_fr)||p.text_en||p.text));
 $('snd').onclick=()=>{soundOn=!soundOn;$('snd').classList.toggle('on',soundOn);try{localStorage.setItem('snd',soundOn?'1':'0')}catch(e){}};
 // ---- Web Push: works with the page closed (Android Chrome; iPhone: add to home screen first) ----
 let PUSH_SUB=null;
@@ -2155,7 +2155,9 @@ function renderHist(){
 async function loadState(){try{S=await jget('/api/state',12000);render();if(CITY)paintDistricts();}catch(e){}}
 let STALE=5;
 async function loadMarkers(){try{const d=await jget('/api/markers',12000);MK=d.markers;ttl=d.ttl_minutes||45;STALE=d.stale_minutes||5;linkStatus();if(CITY)paintDistricts();}catch(e){}}
-async function loadFeed(flash){try{const posts=(await jget('/api/feed?limit='+((typeof LITE!=='undefined'&&LITE)?25:150),12000)).feed;renderFeed(posts,flash&&!firstFeed);firstFeed=false;}catch(e){}}
+// ?lang= tells the server somebody reads the feed in English or French: it then translates posts into it, in the
+// background, and says so with a 'tr' event — the post first shows the offline glossary, then the translation.
+async function loadFeed(flash){try{const posts=(await jget('/api/feed?limit='+((typeof LITE!=='undefined'&&LITE)?25:150)+(LANG!=='uk'?'&lang='+LANG:''),12000)).feed;renderFeed(posts,flash&&!firstFeed);firstFeed=false;}catch(e){}}
 async function loadHist(){try{hist=(await jget('/api/history?hours=24&oblast=31,14',12000)).alerts;renderHist();}catch(e){} loadStats();}
 // ---- statistics of past attacks (server-aggregated, Kyiv time) ----
 let STATS=null,STAT_DAYS=14;
@@ -2407,7 +2409,8 @@ $('livebar').addEventListener('click',e=>{ const b=e.target.closest('#lbexp,#lbd
 $('helpbtn').onclick=()=>{$('menu').hidden=true;helpSheet();};
 $('geobtn').onclick=()=>{$('menu').hidden=true;geoSheet();};
 
-let es; function connect(){ es=new EventSource('/api/stream');
+let es, trT=null; function connect(){ es=new EventSource('/api/stream'+(LANG!=='uk'?'?lang='+LANG:''));
+  es.addEventListener('tr',ev=>{const d=JSON.parse(ev.data); if(d.lang!==LANG) return; clearTimeout(trT); trT=setTimeout(()=>loadFeed(false),2500);});
   const onA=kind=>ev=>{const d=JSON.parse(ev.data),a=d.alert,fav=a.oblast_uid==='31'||a.oblast_uid==='14'; loadState(); if(kind!=='update')loadHist(); if(!fav)return;
     const lt=LANG==='uk'?a.location_title:(a.location_title_en||a.location_title);
     if(kind==='start')notify(`🔴 ${ATYPE[a.alert_type]||t('n_alert')} — ${lt}`,`${LT(a.location_type)} · ${fmtT(a.started_at)}${a.notes?' · '+a.notes:''}`,'start');

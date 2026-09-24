@@ -14,6 +14,7 @@ Sources (all optional except at least one alert source):
 Standard library only. Optional: `pip install plyer` for OS desktop notifications.
 """
 import argparse
+import collections
 import gzip
 import hashlib
 import html
@@ -71,7 +72,9 @@ DEFAULT_CONFIG = {
     "alerts_in_ua_token": "",
     "ukrainealarm_key": "",
     "use_ubilling_fallback": True,
-    "use_siren_proxy": True,          # keyless proxy of the official API (siren.pp.ua) — raion-level alerts without a key
+    "use_siren_proxy": True,
+    "deepl_key": "",                  # machine translation of the feed (EN/FR); or env DEEPL_KEY
+    "google_translate_key": "",       # alternative: Google Cloud Translation; or env GOOGLE_TRANSLATE_KEY          # keyless proxy of the official API (siren.pp.ua) — raion-level alerts without a key
     "poll_ukrainealarm_seconds": 10,
     "telegram_channels": ["kyiv_airdef", "chyste_nebo", "kievinfo_kyiv", "war_monitor", "eRadarrua", "kpszsu"],   # informational: AUTHORITATIVE_CHANNELS is what is read
     "favourites": ["31", "14"],
@@ -584,6 +587,10 @@ class Store:
         cols = [r[1] for r in c.execute("PRAGMA table_info(feed)").fetchall()]
         if "text_en" not in cols:
             c.execute("ALTER TABLE feed ADD COLUMN text_en TEXT")
+        if "text_fr" not in cols:
+            c.execute("ALTER TABLE feed ADD COLUMN text_fr TEXT")
+        if "en_mt" not in cols:     # 1 = the English came from a machine translator, not the offline glossary
+            c.execute("ALTER TABLE feed ADD COLUMN en_mt INTEGER")
         c.execute("CREATE TABLE IF NOT EXISTS kv(k TEXT PRIMARY KEY, v TEXT)")
         c.execute("CREATE TABLE IF NOT EXISTS push_subs(endpoint TEXT PRIMARY KEY, sub TEXT, home TEXT, created TEXT, last_ok TEXT)")
         # ---- the record of what the app itself said -------------------------------------------------
@@ -749,7 +756,6 @@ class Store:
                                ev.get("alert_type"), ev.get("oblast_uid"), json.dumps(ev.get("detail") or {}, ensure_ascii=False)))
             self.conn.commit()
 
-    retry_en = set()   # post_ids whose English text came from the offline fallback
 
     _seen_ids = None
 
@@ -774,10 +780,9 @@ class Store:
                 self._seen_ids = set()
             for p in posts:
                 self._seen_ids.add(p["post_id"])
-                if p.get("en_fallback"):
-                    self.retry_en.add(p["post_id"])
-                cur = self.conn.execute("INSERT OR IGNORE INTO feed(post_id,channel,ts,text,tags,text_en) VALUES(?,?,?,?,?,?)",
-                                        (p["post_id"], p["channel"], p["ts"], p["text"], json.dumps(p["tags"]), p.get("text_en")))
+                cur = self.conn.execute("INSERT OR IGNORE INTO feed(post_id,channel,ts,text,tags,text_en,en_mt) VALUES(?,?,?,?,?,?,?)",
+                                        (p["post_id"], p["channel"], p["ts"], p["text"], json.dumps(p["tags"]), p.get("text_en"),
+                                         0 if p.get("en_fallback") else 1))
                 if cur.rowcount:
                     new.append(p)
             self.conn.commit()
@@ -904,8 +909,17 @@ class Store:
 
     def feed(self, limit=80):
         with self.lock:
-            rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en FROM feed ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
-        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": json.loads(r[4]), "text_en": r[5] or to_en(r[3])} for r in rows]
+            rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en,text_fr,en_mt FROM feed ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
+        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": json.loads(r[4]),
+                 "text_en": r[5] or (_tr.translate_offline(r[3]) if _tr else r[3]), "text_fr": r[6], "en_mt": bool(r[7])} for r in rows]
+
+    def set_translation(self, post_id, lang, text):
+        with self.lock:
+            if lang == "en":
+                self.conn.execute("UPDATE feed SET text_en=?, en_mt=1 WHERE post_id=?", (text, post_id))
+            elif lang == "fr":
+                self.conn.execute("UPDATE feed SET text_fr=? WHERE post_id=?", (text, post_id))
+            self.conn.commit()
 
     def history(self, hours=24, oblast_uids=None):
         since = (datetime.now(timezone.utc) - timedelta(hours=hours)).isoformat()
@@ -1827,6 +1841,63 @@ class Ubilling(threading.Thread):
             time.sleep(interval)
 
 
+class Translations(threading.Thread):
+    """Machine translation of feed posts, off the alert path.
+
+    A post is stored and shown the moment it is read, with the offline English glossary. A machine translation
+    (DeepL, Google — see translate.py) replaces it afterwards, from here, so a slow or refusing translator can
+    never hold a drone report back. Only for a language somebody is reading: a page in English or French asks
+    for the feed with ?lang=, and for an hour after that, new posts are translated into that language too.
+    Nobody reading French, no French translated — a key's monthly allowance goes to what is read."""
+    DEMAND_S = 3600
+
+    def __init__(self, state):
+        super().__init__(daemon=True, name="translations")
+        self.state = state
+        self.q = collections.deque()
+        self.queued = set()
+        self.cond = threading.Condition()
+        self.seen = {}
+
+    def want(self, lang):
+        if lang in ("en", "fr"):
+            self.seen[lang] = time.time()
+
+    def wanted(self, lang):
+        return time.time() - self.seen.get(lang, 0) < self.DEMAND_S
+
+    def add(self, posts, lang, front=False):
+        if not (_tr and _tr.backends()):
+            return            # nothing here can do better than what is stored
+        with self.cond:
+            items = [p for p in posts if (p["post_id"], lang) not in self.queued]
+            for p in (reversed(items) if front else items):
+                self.queued.add((p["post_id"], lang))
+                (self.q.appendleft if front else self.q.append)((p["post_id"], p["text"], lang))
+            self.cond.notify()
+
+    def run(self):
+        while True:
+            with self.cond:
+                while not self.q:
+                    self.cond.wait()
+                pid, text, lang = self.q.popleft()
+            try:
+                out, ok = _tr.translate_to(text, lang)
+                if ok and out:
+                    self.state.store.set_translation(pid, lang, out)
+                    self.state.publish({"kind": "tr", "ts": now_iso(), "post_id": pid, "lang": lang})
+                elif not _tr.backends():
+                    with self.cond:           # every translator is resting: drop the queue, the next page view refills it
+                        self.q.clear()
+                        self.queued.clear()
+            except Exception as e:
+                log("translate:", e)
+            finally:
+                with self.cond:
+                    self.queued.discard((pid, lang))
+
+
 class Telegram(threading.Thread):
     """Reads public channel previews at t.me/s/<channel> (no API key)."""
     NAME = "telegram"
@@ -1886,11 +1957,10 @@ class Telegram(threading.Thread):
             if not is_relevant(text, tags, ch):
                 self.state.store.mark_seen(post_id)
                 continue          # news, fundraising, culture… — not an air-threat post, not stored
-            pts = parse_iso(dt)
-            if ch not in self.seen_channels and pts and (datetime.now(timezone.utc) - pts) > timedelta(hours=2) and _tr:
-                en, fb = _tr.translate_offline(text), True     # cold start: old posts get the fast offline glossary, re-translated later
-            else:
-                en, fb = to_en(text), bool(_tr) and not _tr.LAST_OK[0]
+            # The offline glossary, instantly. A machine translation replaces it later, off this path (Translations):
+            # on the server the free translator refuses every call, and each refusal cost ~3 s per post — a burst
+            # of ten posts held the drone reports in them back by half a minute.
+            en, fb = (_tr.translate_offline(text), True) if _tr else (text, True)
             posts.append({"post_id": post_id, "channel": ch, "ts": dt, "text": text, "tags": tags, "text_en": en, "en_fallback": fb})
         new = self.state.store.add_feed(posts)
         if 'tgme_widget_message_wrap' not in page:
@@ -1908,6 +1978,11 @@ class Telegram(threading.Thread):
                     break
         for p in sorted(new, key=lambda p: p["ts"]):
             self.state.publish({"kind": "feed", "ts": p["ts"], "post": p})
+        tr = getattr(self.state, "tr", None)
+        if tr and new:
+            for lang in ("en", "fr"):
+                if tr.wanted(lang):
+                    tr.add(sorted(new, key=lambda p: p["ts"], reverse=True), lang, front=True)
         if OFFICIAL_ALERTS_FROM_TELEGRAM and geo and ch in geo.OFFICIAL_PARSERS:
             self.official.ingest(ch, sorted(new, key=lambda p: p["ts"]), initial=ch not in self.seen_channels)
         self.seen_channels.add(ch)
@@ -2499,7 +2574,13 @@ class Handler(BaseHTTPRequestHandler):
             if u.path == "/api/state":
                 return self._json(st.snapshot())
             if u.path == "/api/feed":
-                return self._json({"feed": st.store.feed(int(q.get("limit", ["80"])[0]))})
+                posts = st.store.feed(int(q.get("limit", ["80"])[0]))
+                lang = q.get("lang", [""])[0]
+                tr = getattr(st, "tr", None)
+                if tr and lang in ("en", "fr"):
+                    tr.want(lang)
+                    tr.add([p for p in posts if not (p["en_mt"] if lang == "en" else p["text_fr"])], lang)
+                return self._json({"feed": posts})
             if u.path == "/api/history":
                 hours = int(q.get("hours", ["24"])[0])
                 obl = q.get("oblast", [None])[0]
@@ -2643,10 +2724,15 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Connection", "keep-alive")
         self.end_headers()
         q = self.state.subscribe()
+        # a page reading English or French keeps its language "wanted" for as long as it is open
+        lang = (parse_qs(urlparse(self.path).query).get("lang") or [""])[0]
+        tr = getattr(self.state, "tr", None)
         try:
             self.wfile.write(b"event: hello\ndata: {}\n\n")
             self.wfile.flush()
             last_beat = time.time()
+            if tr:
+                tr.want(lang)
             while True:
                 with self.state.cond:
                     self.state.cond.wait(timeout=15)
@@ -2656,6 +2742,8 @@ class Handler(BaseHTTPRequestHandler):
                 if time.time() - last_beat > 20:
                     self.wfile.write(b": ping\n\n")
                     last_beat = time.time()
+                    if tr:
+                        tr.want(lang)
                 self.wfile.flush()
         finally:
             self.state.unsubscribe(q)
@@ -2682,6 +2770,9 @@ def load_config(args):
         cfg["alerts_in_ua_token"] = os.environ["ALERTS_IN_UA_TOKEN"]
     if os.environ.get("UKRAINEALARM_KEY"):
         cfg["ukrainealarm_key"] = os.environ["UKRAINEALARM_KEY"]
+    for env, key in (("DEEPL_KEY", "deepl_key"), ("GOOGLE_TRANSLATE_KEY", "google_translate_key")):
+        if os.environ.get(env):
+            cfg[key] = os.environ[env]
     return cfg
 
 
@@ -2761,39 +2852,12 @@ def main():
         log("feed:", ", ".join("t.me/" + c for c in cfg["telegram_channels"]))
 
     bind = cfg.get("bind", "127.0.0.1")
-    # re-translate the last 12 h of posts with the current translator in the background (older DBs used the offline glossary)
-    def _retranslate():
-        try:
-            rows = store.feed_since(12 * 60)
-            for p in rows[::-1]:
-                en = to_en(p["text"])
-                if en and en != p.get("text_en"):
-                    with store.lock:
-                        store.conn.execute("UPDATE feed SET text_en=? WHERE post_id=?", (en, p["post_id"]))
-                        store.conn.commit()
-                time.sleep(0.25)
-        except Exception as e:
-            log("retranslate:", e)
-    threading.Thread(target=_retranslate, daemon=True).start()
-
-    def _retry_loop():   # posts translated with the offline fallback get another go at the online translator
-        while True:
-            time.sleep(90)
-            try:
-                ids = list(store.retry_en)[:20]
-                for pid in ids:
-                    with store.lock:
-                        row = store.conn.execute("SELECT text FROM feed WHERE post_id=?", (pid,)).fetchone()
-                    if not row:
-                        store.retry_en.discard(pid); continue
-                    en = to_en(row[0])
-                    if _tr and _tr.LAST_OK[0]:
-                        with store.lock:
-                            store.conn.execute("UPDATE feed SET text_en=? WHERE post_id=?", (en, pid)); store.conn.commit()
-                        store.retry_en.discard(pid)
-            except Exception as e:
-                log("retry translate:", e)
-    threading.Thread(target=_retry_loop, daemon=True).start()
+    # machine translation of the feed: DeepL / Google Cloud with a key (config or env), off the alert path
+    if _tr:
+        _tr.configure(deepl=cfg.get("deepl_key"), google_cloud=cfg.get("google_translate_key"))
+        log("translation: " + (", ".join(n for n, _ in _tr.backends()) or "offline glossary only") + " — machine translation on demand")
+    state.tr = Translations(state)
+    state.tr.start()
 
     srv = ThreadingHTTPServer((bind, int(cfg["port"])), Handler)
     srv.daemon_threads = True
