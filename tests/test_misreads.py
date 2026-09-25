@@ -293,12 +293,12 @@ def test_the_weapon_belongs_to_the_line_that_names_it():
     """One "бандеролей" in the post used to retype every line: the jet drone over Kaharlyk became a
     Banderol, which is a different weapon at a different speed."""
     got = dict((p, ty) for ty, p in places(ERADAR, "eRadarrua"))
-    assert got["Кагарлик"] == "drones"
+    assert got["→ Кагарлик"] == "drones"          # "на Кагарлик": heading there, drawn as an approach
     assert got["Остер"] == "banderol_missiles"
 
 
 def test_a_line_that_names_no_weapon_still_inherits_the_post():
-    assert places("БпЛА:\n- на Ніжин\n- на Козелець") == [("drones", "Ніжин"), ("drones", "Козелець")]
+    assert places("БпЛА:\n- на Ніжин\n- на Козелець") == [("drones", "→ Ніжин"), ("drones", "→ Козелець")]
 
 
 def test_two_oblasts_in_one_sentence_are_two_reports_not_a_heading():
@@ -316,4 +316,4 @@ def test_the_morning_tally_is_never_a_live_position():
     assert geo.parse_post(
         "📡 В ніч на 17.09.26 за приблизними оцінками противник застосував для атаки:\n"
         "☄ 8× балістичних ракет по Києву.\n#зведення") == []
-    assert places("Балістика на Київ") == [("ballistic_missiles", "Київ")]   # a live report is untouched
+    assert places("Балістика на Київ") == [("ballistic_missiles", "→ Київ")]   # a live report is untouched (heading for Kyiv)

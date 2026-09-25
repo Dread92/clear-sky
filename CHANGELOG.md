@@ -2,6 +2,26 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.21.0 — 2026-09-25
+
+### Fixed
+- **A drone heading for a town was drawn as if it had already passed it.** "🏍 Київщина: реактивний БпЛА на
+  Васильків з північного заходу" — north-west of Vasylkiv, on its way in — was placed ON Vasylkiv with a
+  confident position, turned south-east, its course ray pointing on past the town. The parser read "на Васильків"
+  as where the drone was. It now tells where a target **is** ("від", "з", "повз", "над", "в районі", a bare name)
+  from where it is **going** ("на", "в район", "до", "в напрямку"). A post that names only the destination is
+  drawn at the destination **as an approach**: a dashed course coming into the town from the side the post named,
+  "→ Vasylkiv from the NW", nothing ahead of it, never moved on by the Est. mode, no countdown.
+- **@kyiv_airdef "Від Глевахи два на Васильків"** was drawn at Vasylkiv; it is at Hlevakha, heading for Vasylkiv.
+  "Два керованих йдуть на Васильків" alone keeps the target where the channel last reported it, turned toward
+  Vasylkiv. "Від Васильків на Макарів йде" was drawn at Makariv; it is at Vasylkiv.
+- **"з півночі" after the destination was read as the course** ("курсом на Вишгород з півночі" drawn flying north).
+  It is where the target comes from.
+- **An oblast heading was used as a position**: "Київщина: … на Васильків" put the drone at the oblast's centre.
+- A later "heading for X" post about a target already on the map gives it its destination instead of moving it
+  there.
+- A test now parses every script of the pages, so a missing brace can never ship a page that does not run.
+
 ## 1.20.0 — 2026-09-25
 
 ### Fixed

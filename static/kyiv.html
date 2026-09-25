@@ -434,8 +434,8 @@ body.lite .mk.unknown .halo{stroke:#fff}
 .mk .lbl{font:700 calc(var(--k,1)*11px) var(--mono);fill:#fff;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}
 .mk .lbl2{font:600 calc(var(--k,1)*10px) system-ui;fill:#ffd6b8;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px)}
 svg.far .mk:not(.inbound):not(.tohome):not(.desc) .lbl2{display:none}
-.mk:not(.inbound):not(.tohome):not(.ended):not(.st):not(.stale):not(.desc) .lbl2{display:none}svg.far .mk.stale .lbl2{display:none}
-svg.veryfar .mk .lbl{display:none}svg:not(.close) .mk:not(.inbound):not(.tohome):not(.st):not(.desc) .lbl{display:none}
+.mk:not(.inbound):not(.tohome):not(.ended):not(.st):not(.stale):not(.desc):not(.appr) .lbl2{display:none}svg.far .mk.stale .lbl2{display:none}
+svg.veryfar .mk .lbl{display:none}svg:not(.close) .mk:not(.inbound):not(.tohome):not(.st):not(.desc):not(.appr) .lbl{display:none}
 .mk.inbound .lbl2{fill:#ffb3b5}
 .mk.old{opacity:.5}
 .mk .hit{fill:transparent}
@@ -454,6 +454,8 @@ body.lite .mk.st-impact .glyph.x{fill:#fff;filter:none;animation:none}
 .mk .qm{display:none;font:700 calc(var(--k,1)*11px) var(--mono);fill:#ffd166;paint-order:stroke;stroke:#080b10;stroke-width:calc(var(--k,1)*3px);text-anchor:middle}.mk.stale .qm{display:block}
 .mk.ended{opacity:.55}.mk.ended .halo{display:none}.mk.ended .glyph{fill:#6f7b90}.mk.ended .lbl2{fill:#a8f0cf}
 .trail.ended{stroke:#3ecf8e;stroke-dasharray:4 4;stroke-opacity:.8}
+/* drawn at the town it is heading to (where it is was not said): the course comes INTO the town, nothing ahead */
+.trail.appr{fill:none;stroke:#ff8a3d;stroke-width:2px;vector-effect:non-scaling-stroke;stroke-dasharray:4 5;stroke-opacity:.9;stroke-linecap:round}.trail.appr.inbound{stroke:#ff3b3f}svg.no-trails .trail.appr{display:inline}.mk.appr .glyph{opacity:.8}
 /* a leg per hop, so the oldest end can fade: one solid line says every point on it is equally current */
 .trail.hist line{stroke:#ff8a3d;stroke-width:1.5px;fill:none;stroke-dasharray:1 3;vector-effect:non-scaling-stroke}
 body.lite .trail.hist line{stroke:#000}
@@ -678,7 +680,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.20</div>
+    <div class="mi bt" id="buildtag">v1.21</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -1078,7 +1080,7 @@ window.addEventListener('resize',()=>{syncTop();setView(VB.x+VB.w/2,VB.y+VB.h/2,
 // Positions are shown WHERE THEY WERE REPORTED. Dead-reckoning along the reported heading is an explicit
 // opt-in (Est. button) because a drone that turned after the report would otherwise be drawn in the wrong place.
 function posOf(m,now){ // km coords: [x,y,x0,y0]
-  const [x0,y0]=proj(m.lon,m.lat); const v=SPEED(m); if(!ESTIMATE||!v||m.heading==null||m.status||m.endedBy) return [x0,y0,x0,y0];
+  const [x0,y0]=proj(m.lon,m.lat); const v=SPEED(m); if(!ESTIMATE||!v||m.heading==null||m.status||m.endedBy||m.approach) return [x0,y0,x0,y0];   // a destination is not a position to move on from
   const age=Math.min((now-new Date(m.ts))/60000,CAPMIN(m)); const d=age*v; const a=m.heading*Math.PI/180;
   return [x0+d*Math.sin(a), y0-d*Math.cos(a), x0, y0];
 }
@@ -1152,7 +1154,7 @@ function groundSpeed(m){
   return {kmh,from:prev.place||null,mins:Math.round(dt)};
 }
 function etaBand(m,dist){
-  if(!HOME||m.status||m.endedBy||m.stale) return null;
+  if(!HOME||m.status||m.endedBy||m.stale||m.approach) return null;   // where it is was not said: no countdown
   if(IMMEDIATE.has(m.type)) return null;
   if(m.heading==null) return null;
   const ev=m.evidence&&m.evidence.heading;
@@ -1480,7 +1482,8 @@ function tick(){
     // the mark simply sitting where the post put it.
     b.g.querySelector('.rot').setAttribute('transform',
       `rotate(${orientOf(m)}) scale(${(gs*(m.stale&&!m.status&&!m.endedBy?0.8:1)).toFixed(2)})`);
-    const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.55*KPX).toFixed(2)})`);}else hdg.style.display='none';
+    const appr=!!m.approach&&!m.status&&!m.endedBy; b.g.classList.toggle('appr',appr);
+    const hdg=b.g.querySelector('.hdg'); if(!m.status&&!m.endedBy&&m.heading!=null&&!appr){hdg.style.display='';hdg.setAttribute('transform',`rotate(${m.heading}) translate(0 ${(-19*KPX).toFixed(2)}) scale(${(1.55*KPX).toFixed(2)})`);}else hdg.style.display='none';
     paintReach(b,m);          // how far a fast target could have travelled since it was last reported
     const dsc=!!(m.alt&&m.alt.state==='descending')&&!m.status&&!m.endedBy&&!m.stale;
     const altM=(m.alt&&m.alt.m&&!m.status&&!m.endedBy)?m.alt.m:null;
@@ -1490,12 +1493,15 @@ function tick(){
     b.g.classList.toggle('lostc',contactLost(m));
     b.g.classList.toggle('inbound',info.inbound&&!m.stale); b.g.classList.toggle('old',age>ttl*0.65); b.g.classList.toggle('ended',!!m.endedBy); b.g.classList.toggle('stale',!!m.stale&&!m.endedBy&&!m.status); b.g.classList.toggle('s2',!!m.stale&&m.stale>=8); b.g.classList.toggle('s3',!!m.stale&&m.stale>=11); b.g.querySelector('.qm').setAttribute('y',(-12*KPX).toFixed(2));
     const v=SPEED(m); const ah=b.g.querySelector('.ahead'); const cone=b.g.querySelector('.cone');
-    if(!m.status&&!m.endedBy&&v&&m.heading!=null){ // reported heading: 12-min ray + ±20° uncertainty cone
+    if(!m.status&&!m.endedBy&&v&&m.heading!=null&&!appr){ // reported heading: 12-min ray + ±20° uncertainty cone
       const L=Math.min(v*6,20);const a=m.heading*Math.PI/180;ah.setAttribute('x2',(L*Math.sin(a)).toFixed(1));ah.setAttribute('y2',(-L*Math.cos(a)).toFixed(1));ah.style.display='';
       const a1=a-15*Math.PI/180,a2=a+15*Math.PI/180; cone.setAttribute('points',`0,0 ${(L*Math.sin(a1)).toFixed(1)},${(-L*Math.cos(a1)).toFixed(1)} ${(L*Math.sin(a2)).toFixed(1)},${(-L*Math.cos(a2)).toFixed(1)}`); cone.style.display='';
     }else{ah.style.display='none';cone.style.display='none';}
     // trail: extrapolated path (Est. mode) or, for a closed track, the reported position → the down/lost point
     if(m.endedBy){const [ex,ey]=proj(m.endedBy.lon,m.endedBy.lat); b.trail.setAttribute('x1',x0.toFixed(2));b.trail.setAttribute('y1',y0.toFixed(2));b.trail.setAttribute('x2',ex.toFixed(2));b.trail.setAttribute('y2',ey.toFixed(2));b.trail.setAttribute('class','trail ended');}
+    else if(appr){ // "на Васильків з північного заходу": a dashed course coming into the town, from the side the post named
+      const L=8, a=(m.heading==null?0:m.heading)*Math.PI/180, bx=m.heading==null?x:x-L*Math.sin(a), by=m.heading==null?y:y+L*Math.cos(a);
+      b.trail.setAttribute('x1',bx.toFixed(2));b.trail.setAttribute('y1',by.toFixed(2));b.trail.setAttribute('x2',x.toFixed(2));b.trail.setAttribute('y2',y.toFixed(2));b.trail.setAttribute('class','trail appr'+(info.inbound?' inbound':''));}
     else{b.trail.setAttribute('x1',x0.toFixed(2));b.trail.setAttribute('y1',y0.toFixed(2));b.trail.setAttribute('x2',x.toFixed(2));b.trail.setAttribute('y2',y.toFixed(2));b.trail.setAttribute('class','trail'+(info.inbound?' inbound':''));}
     b.g.querySelector('.halo').setAttribute('r',((/missile/.test(m.type)?17:13)*KPX).toFixed(2));
     {const h2=b.g.querySelector('.halo2'); if(h2) h2.setAttribute('r',(17*KPX).toFixed(2));} b.g.querySelector('.hit').setAttribute('r',(18*KPX).toFixed(2));
@@ -1505,7 +1511,7 @@ function tick(){
     b.g.querySelector('.lbl').textContent=name;
     const placeEn=m.place==='область'?'':pn(m.place);
     const descTxt=(m.alt&&m.alt.state==='descending'&&!m.status&&!m.endedBy&&!m.stale)?('↓ '+t('alt_desc')+' · '):'';
-    b.g.querySelector('.lbl2').textContent=descTxt+(m._gone?`${t('msl_gone')} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m._reach>0?`${t('msl_reach',Math.round(m._reach))} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||statusName(m.endedBy.status),pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
+    b.g.querySelector('.lbl2').textContent=descTxt+(appr?t('lbl_appr',pn(m.target||m.place),m.heading!=null?t('lbl_from',dirName((m.heading+180)%360)):'',fmtT(m.ts)):m._gone?`${t('msl_gone')} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m._reach>0?`${t('msl_reach',Math.round(m._reach))} · ${placeEn?t('msl_seen',placeEn,fmtT(m.ts)):t('msl_seen_np',fmtT(m.ts))}`:m.stale&&!m.status&&!m.endedBy?t('lbl_stale',m.stale,placeEn,fmtT(m.ts)):m.status?`${placeEn} · ${fmtT(m.ts)}`:(hi.inbound?t('lbl_to',homeName(),Math.round(hi.dist)):hi.near&&!m.endedBy?t('lbl_from',Math.round(hi.dist),homeName(),fmtT(m.ts)):null)||(m.endedBy?t('lbl_ended',STATUS_W[m.endedBy.status]||statusName(m.endedBy.status),pn(m.endedBy.place),fmtT(m.endedBy.ts)):info.inbound?t('lbl_to',t('b_kyiv'),Math.round(info.dist)):(m.heading!=null?`${dirName(m.heading)} · ${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}${m.history&&m.history.length?' '+t('lbl_reports',m.history.length+1):''}`:`${m.history&&m.history.length?t('lbl_updated'):t('lbl_reported')} ${fmtT(m.ts)}`)));
     if(m.status){ if(m.status!=='clear') downed++; } else if(!m.endedBy){ tracked++; const c=m.csum||m.count||1; if(m.stale) totStale+=c; else if(m.type==='drones'){ if(m.jet) totJet+=c; else totShahed+=c; } else if(m.type==='unknown') totUnk+=c; else totMsl+=c; if(info.inbound&&!m.stale){inboundCount++; if(!nearest||info.dist<nearest.dist) nearest={...info,m};} }
     if(!m.status&&!m.endedBy&&(x<VB.x||x>VB.x+VB.w||y<VB.y||y>VB.y+VB.h)) edges.push({m,x,y,info,name});
     lblPos.push({b,m,sx:x/KPX,sy:y/KPX});
@@ -1521,7 +1527,8 @@ function tick(){
    // a descending drone were then written on top of each other.
    const drawn=el=>!!el&&!!el.textContent&&getComputedStyle(el).display!=='none';
    for(const p of lblPos) p.b.g.classList.remove('nolbl','nolbl2');
-   const pri=g=>g.classList.contains('tohome')?0:g.classList.contains('inbound')?1:g.classList.contains('desc')?2:g.classList.contains('st')?4:3;
+   // an approach mark's second line IS its meaning ("→ Vasylkiv from the NW"): placed early, never shortened
+   const pri=g=>g.classList.contains('tohome')?0:(g.classList.contains('inbound')||g.classList.contains('appr'))?1:g.classList.contains('desc')?2:g.classList.contains('st')?4:3;
    const glyphs=[];
    for(const p of lblPos){const g=p.b.g; p.on=getComputedStyle(g).display!=='none';
      p.v1=p.on&&drawn(g.querySelector('.lbl')); p.v2=p.on&&drawn(g.querySelector('.lbl2')); p.pri=pri(g);
@@ -2211,7 +2218,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.20';
+const APP_VERSION='1.21';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

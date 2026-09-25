@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.20** · last updated 2026-09-25
+**Documented version: 1.21** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -338,7 +338,17 @@ block for every value:
 - **Position** — the gazetteer with declension-aware stems (hyphen lookbehind: `Коцюбинське` ≠
   `Михайло-Коцюбинське`); aliases like "Велика Димерка" ← "димерк"; a stated part of an oblast is not its centre.
 - **Heading** — "курсом на", compass words, "→", "A - B" routes (`bearing()`); a heading is marked *stated*
-  only when the post stated it.
+  only when the post stated it. A compass word after "з / зі / від" is where it comes **from** ("з півночі" = flying
+  south), also after the destination (`_FROM_COMPASS`).
+- **Where it is vs where it is going** (`_place_role`): a place after "на", "в район", "до", "в напрямку", "в бік"
+  is the **destination**; after "від", "з", "повз", "над", "біля", "в районі" it is where the target **is**. After
+  "на", a place in the locative ("на Позняках", "на Троєщині") is where it is. Only a destination named
+  ("на Васильків з північного заходу", "курсом на Київ"): the mark is drawn **at the destination as an approach**
+  (`approach: true`, `place: "→ X"`, low confidence) — also when the post's only other place is its own oblast
+  heading. On live channels, "Від Глевахи на Васильків" is at Hlevakha heading for Vasylkiv; "йдуть на Васильків"
+  alone (`dest_only`) stays at the channel's previous report (≤ 8 min) turned toward the destination, or else is an
+  approach. In tracking, a later approach about a target already on the map gives it its destination and course
+  instead of moving it; an approach point is never a step of a track.
 - **Count**, **altitude** (only when written: "знижується", "низько", metres "висота 2200", a bare "1600, Вороньків"
   in a short live post, kilometres "висота 4,4км"), **phase** (`PHASE_LADDER`:
   prep → launch → entering…, with a per-sentence hedge guard: "може відбутись" is preparation, not a launch).
@@ -409,6 +419,9 @@ level-of-detail classes by zoom, OSM tiles under the vector layers below 150 km 
 - tabs: **Feed**; **Alerts** (the live tally of what is on the map, then the official alerts); **Stats** — the Air
   Force's official figures only (`windows` 24 h / 7 d / 30 d and each summary with a link to its post,
   `af_days`); **Map** (layers);
+- **approach marks** (drawn at the town they are heading to): a dashed course coming **into** the town from the
+  side the post named, no ray or cone ahead, never dead-reckoned (Est.), no ETA; label "→ Vasylkiv from the NW";
+  on Light "heading for Vasylkiv — where it is now was not said";
 - **mark labels never overlap**: after each tick the label blocks are placed in screen pixels — which lines are
   drawn is read back from the CSS (`getComputedStyle`), candidates right / left / a line lower or higher, clear of
   other labels, other marks' glyphs and the map's edge; placed by priority (to a watched place, inbound,
@@ -550,6 +563,7 @@ python app/server.py --demo --port 8099
 | `test_corpus`, `test_review_source`, `test_af_summary` | the regression corpus, review, launch totals |
 | `test_cadence`, `test_version`, `test_keys`, `test_docs` | refresh rates, build info, keys, this documentation |
 | `test_official_stats`, `test_ui_details` | Air Force-only stats, the dashboard's health view and lead time, pin, zoom, language, logo |
+| `test_destination`, `test_scripts_parse` | where it is vs where it is going; every page script parses (node) |
 
 **The corpus** (`data/corpus.jsonl`, [CORPUS.md](CORPUS.md)): real posts with their expected reading; a
 changed reading fails the suite until it is re-verified as the intended change.

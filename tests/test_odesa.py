@@ -35,13 +35,14 @@ def test_a_stated_type_is_used_and_a_jet_shahed_is_marked_as_one():
 
 def test_russian_spellings_resolve_to_the_same_place():
     """Half the posts on this channel are Russian. "черноморск" is Чорноморськ or it is nothing."""
-    assert places("На чорноморськ один реактивний")[0][0] == "Чорноморськ"
-    assert places("На черноморск один реактивный")[0][0] == "Чорноморськ"
+    # "на Чорноморськ" is where it is going: drawn at the town, as an approach ("→")
+    assert places("На чорноморськ один реактивний")[0][0] == "→ Чорноморськ"
+    assert places("На черноморск один реактивный")[0][0] == "→ Чорноморськ"
     assert places("Аркадия")[0][0] == "Аркадія"
 
 
 def test_poskot_is_the_district_everyone_calls_poskot():
-    assert places("Ще один на поскот")[0][0] == "Селище Котовського"
+    assert places("Ще один на поскот")[0][0] == "→ Селище Котовського"
 
 
 def test_minus_one_is_never_read_as_anything():

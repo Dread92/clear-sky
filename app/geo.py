@@ -507,6 +507,31 @@ def _find_oblast(text, positional=False):
     return best
 
 
+# Where a place stands in a sentence. "на Васильків", "на Бучу", "на Позняки", "в район Василькова", "до Києва":
+# where it is GOING. "від Глевахи", "з Обухова", "повз Кагарлик", "над Ірпенем", "в районі Броварів": where it IS.
+# 25 Sep 2026: "реактивний БпЛА на Васильків з північного заходу" — still north-west of Vasylkiv, on its way in —
+# was drawn ON Vasylkiv, turned south-east, and read as a drone that had already passed it.
+# After "на" a place in the locative says where it is, not where it goes: "на Позняках", "на Троєщині", "на Лісовій".
+_LOC_END = re.compile(r"(?:і|ї|ах|ях|ій)$")
+_DEST_PRE = re.compile(r"(?:\bна|\bв район|\bу район|\bдо|\bв напрямку|\bу напрямку|\bв бік|\bу бік|\bв сторону)\s+$")
+_FROM_PRE = re.compile(r"(?:\bвід|\bз|\bзі|\bповз|\bнад|\bбіля|\bпоблизу|\bрайоні|\bр-ні)\s+$")
+_FROM_COMPASS = re.compile(r"\b(?:з|зі|від)\s+((?:півн|півд|сх|зах)[а-яіїє'-]*(?:[\s-]+(?:сх|зах)[а-яіїє'-]*)?)")
+
+
+def _place_role(text, p):
+    """'dest' (it is heading there), 'from' (it is there, or came from there) or None (a bare name) for a place
+    match (start, end, name), from the words just before it."""
+    pre = text[max(0, p[0] - 16):p[0]]
+    m = _DEST_PRE.search(pre)
+    if m:
+        if m.group(0).strip() == "на" and _LOC_END.search(text[p[0]:p[1]].strip()):
+            return None
+        return "dest"
+    if _FROM_PRE.search(pre):
+        return "from"
+    return None
+
+
 def _dir(s):
     """Compass heading (deg) from a Ukrainian phrase, or None."""
     n = "півн" in s
@@ -963,14 +988,19 @@ def parse_post(text):
                 break
         places = _find_places(seg, obl[1] if obl else None)
         # split at course keyword
+        class _M:  # pseudo-match at a position
+            def __init__(self, p): self._p = p
+            def start(self): return self._p
         cm = re.search(r"(?:від|з)\s+[а-яіїє'\- ]{3,40}?\s+(на\s+)", seg)
         if cm:
-            class _M:  # pseudo-match at the ' на '
-                def __init__(self, p): self._p = p
-                def start(self): return self._p
             cm = _M(cm.start(1))
         else:
             cm = re.search(r"кур(?:с|сом)\b|напрям|летить|летять|рухаєт|у бік|в бік|в сторону|прямує|заходить на|заходять на", seg)
+        if not cm:
+            # no course word, but a place it is going to: "реактивний БпЛА на Васильків з північного заходу"
+            dst = next((p for p in places if _place_role(seg, p) == "dest"), None)
+            if dst:
+                cm = _M(dst[0])
         cpos = cm.start() if cm else len(seg)
         origin = [p for p in places if p[0] < cpos]
         target = [p for p in places if p[0] >= cpos]
@@ -1011,6 +1041,13 @@ def parse_post(text):
             origin_end = pm[1]
             ws = seg.rfind(" ", 0, max(0, pm[0] - 10)) + 1
             ev["position"] = {"matched": seg[ws:pm[1]].strip(), "place": n, "method": "town in gazetteer" + (" (parenthesised/ambiguous name resolved by oblast context)" if "(" in n else ""), "confidence": "high"}
+        # "Київщина: БпЛА на Васильків з північного заходу": the oblast is only the heading of the post. Drawing
+        # the target at the oblast's centre put it somewhere nobody named, turned toward Vasylkiv from the wrong
+        # side. A town in that same oblast that it is heading to is the one place the post did name.
+        in_obl = bool(obl) and bool(target) and bool(cm) and (
+            PLACES[target[0][2]][2] == obl[1] or {PLACES[target[0][2]][2], obl[1]} <= {"31", "14"})
+        if lon is None and in_obl:
+            pass
         elif lon is None and obl and obl[0] < cpos:
             dx, dy = _sub_direction_offset(seg, obl[0])
             lon, lat = obl[2] + dx, obl[3] + dy
@@ -1064,8 +1101,12 @@ def parse_post(text):
                 tgt_uid = tobl[1]
                 heading = bearing(lon, lat, tobl[2], tobl[3])
                 ev["heading"] = {"matched": seg[cpos:cpos + tobl[0] + 14].strip(), "method": "bearing toward the named oblast's centre", "confidence": "medium"}
+            fc = _FROM_COMPASS.search(after)
+            if heading is None and fc and _dir(fc.group(1)) is not None:
+                heading = (_dir(fc.group(1)) + 180) % 360
+                ev["heading"] = {"matched": fc.group(0), "method": "'from the <compass>' reversed", "confidence": "medium"}
             if heading is None:
-                heading = _dir(after)
+                heading = _dir(_FROM_COMPASS.sub(" ", after))
                 if heading is not None:
                     ev["heading"] = {"matched": after.strip()[:40], "method": "compass word after 'course'", "confidence": "medium"}
             if heading is None:
@@ -1100,6 +1141,8 @@ def parse_post(text):
             ev["phase"] = {"matched": _ph, "method": "stage named in the post", "confidence": "high"}
         markers.append({"type": mtype, "lon": round(lon, 3), "lat": round(lat, 3), "heading": None if heading is None else round(heading),
                         "place": where, "target": tgt_name, "target_uid": tgt_uid, "count": cnt, "jet": bool(re.search(r"реактив|jet", seg)),
+                        # drawn at the town it is heading to, not where it is: never moved on past it, never read as there
+                        "approach": approaching,
                         "alt": alt, "likely": likely,
                         # The oblast the sentence names and the oblast the gazetteer has for the town must
                         # agree. When they do not, the town was matched wrong — that is exactly how
@@ -1259,7 +1302,13 @@ def _parse_live(text, uid):
         return []
     if len(t.split()) > 6 and not re.search(r"уважн|йде|летить|на\b", t):
         return parse_post(text)
-    s, e, name = places[-1] if re.search(r"йде|летить|на\s", t) else places[0]
+    # Where it is, and where it is going, by the words before each place — not "the last place when the post says
+    # 'на'", which put "Від Глевахи два на Васильків" on Vasylkiv while it was still at Hlevakha.
+    roles = [(p_, _place_role(t, p_)) for p_ in places]
+    at = next((p_ for p_, r in roles if r == "from"), None) or next((p_ for p_, r in roles if r is None), None)
+    dest = next((p_ for p_, r in roles if r == "dest" and (not at or p_[2] != at[2])), None)
+    dest_only = at is None
+    s, e, name = at or dest
     lon, lat, uid = PLACES[name]
     mtype = None
     for n, rx in TYPE_RX:
@@ -1283,6 +1332,17 @@ def _parse_live(text, uid):
     if alt and alt.get("m") and cnt == alt["m"]:
         cnt = None                      # "1600, Вороньків" is a height, never a count of 1600 drones
     heading, hev = None, {"matched": None, "method": "derived from the previous report of this channel when available", "confidence": "medium"}
+    pos_ev = {"matched": name, "place": name, "method": "bare place name = current position of the tracked target (gazetteer)", "confidence": "high"}
+    target = None
+    if dest and not dest_only:
+        target = dest[2]
+        blon, blat, _ = PLACES[target]
+        heading = round(bearing(lon, lat, blon, blat))
+        hev = {"matched": t[at[0]:dest[1]].strip(), "method": f"at {name}, heading for {target} (the place after 'на' / 'в район' is where it is going)", "confidence": "medium"}
+    elif dest_only:
+        target = name
+        pos_ev = {"matched": t[max(0, s - 12):e].strip(), "place": name, "confidence": "low",
+                  "method": "only where it is going was given — placed at this channel's previous report when there is one, otherwise drawn at the destination"}
     rm = _ROUTE_RX.search(t)
     if rm and len(places) >= 2:
         a = _find_places(rm.group(1), uid)
@@ -1296,11 +1356,13 @@ def _parse_live(text, uid):
     kind_ev = ("keyword" if (stated and not plane) else
                "✈️ — this channel's mark for a drone report" if plane else
                "the post names only a place — this channel tracks strike drones, but it did not say so here")
-    return [{"type": mtype, "status": st, "lon": round(lon, 3), "lat": round(lat, 3), "heading": heading, "place": name, "target": None, "count": cnt,
+    return [{"type": mtype, "status": st, "lon": round(lon, 3), "lat": round(lat, 3), "heading": heading,
+             "place": ("→ " + name) if dest_only else name, "target": target, "count": cnt,
+             "approach": dest_only, "dest_only": dest_only,
              "alt": alt,
              "jet": bool(re.search(r"реактив", t)), "oblast_uid": uid, "live": True, "likely": (None if stated else "drones"),
              "evidence": {"segment": t.strip(), "type": {"matched": ("✈️" if plane else "(none)"), "method": kind_ev, "confidence": ("high" if (stated and not plane) else "medium" if plane else "none")},
-                          "position": {"matched": name, "place": name, "method": "bare place name = current position of the tracked target (gazetteer)", "confidence": "high"},
+                          "position": pos_ev,
                           "heading": hev, "count": None}}]
 
 

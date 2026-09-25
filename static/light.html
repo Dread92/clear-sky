@@ -457,7 +457,8 @@ function paint(){
     if(IMMEDIATE.has(m.type)){ if(d<=REGION_R) imm.push(m); continue; }
     const toHere=statedCourse(m)&&(d<=10||angDiff(m.heading,brg(m.lat,m.lon,p.lat,p.lon))<=28);
     let eta=null; const bd=band(m);
-    if(toHere&&bd&&!m.stale&&d>1){ const lo=Math.floor(d/bd[1]),hi=Math.ceil(d/bd[0]); if(hi<=90) eta=[lo,hi]; }
+    // no countdown from a destination: where it is was not said
+    if(toHere&&bd&&!m.stale&&d>1&&!m.approach){ const lo=Math.floor(d/bd[1]),hi=Math.ceil(d/bd[0]); if(hi<=90) eta=[lo,hi]; }
     const r={m,d,zone:zoneOf(d),toHere,eta};
     if(d<=R_KM) rows.push(r);
     else if(toHere&&!m.stale&&d<=FAR_KM) far.push(r);   // beyond the radius: only what a post says is coming here
@@ -483,6 +484,8 @@ function paint(){
     // where it was reported before: reported points joined, nothing drawn ahead of it
     if(m.history&&m.history.length){ const pts=[...m.history.filter(h=>h.lon!=null&&h.lat!=null).map(h=>loc(h.lon,h.lat)),[x,y]];
       if(pts.length>1) g+=`<polyline class="tail${gone}" stroke="${c}" points="${pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}"/>`; }
+    // drawn at the town it is heading to: its course comes into the town, from the side the post named
+    if(m.approach&&statedCourse(m)){ const a=m.heading*Math.PI/180; g+=`<polyline class="tail" stroke="${c}" points="${(x-9*Math.sin(a)).toFixed(1)},${(y+9*Math.cos(a)).toFixed(1)} ${x.toFixed(1)},${y.toFixed(1)}"/>`; }
     RT.push({id:m.id,x,y});
     let q=`<g class="tg${gone}" style="${symAt(x,y)}">`+(SEL===m.id?`<circle class="selr" r="7.5"/>`:'');
     // the weapon's own silhouette, as on the Tactical map; turned only to a course the post reported
@@ -508,7 +511,8 @@ function paint(){
   const row=({m,d,zone,toHere,eta,no},force)=>{
     const n=(m.count&&m.count>1)?' ×'+m.count:'';
     const bits=[zone?t('lt_z_'+zone):t('lt_far')]; if(toHere) bits.push(`<b class="hr">${esc(t('lt_here'))}</b>`);
-    if(m.place) bits.push(`<span class="wh">${esc(t('lt_at',pn(m.place)))}</span>`);
+    if(m.approach) bits.push(`<span class="wh">${esc(t('lt_to',pn(m.target||m.place)))}</span>`);
+    else if(m.place) bits.push(`<span class="wh">${esc(t('lt_at',pn(m.place)))}</span>`);
     if(statedCourse(m)) bits.push(esc(t('lt_course',DIRS[Math.round(m.heading/45)%8])));
     // Height, only when a post stated it — a low or falling drone can be diving. Shown on the row itself,
     // not behind a tap: descending in crimson; a run of stated heights as "↓ 2,2 км → 800 м".

@@ -321,7 +321,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.20"
+APP_VERSION = "1.21"
 BUILD = None    # filled at startup
 
 
@@ -1088,6 +1088,22 @@ class State:
                         m["evidence"] = ev
                     else:
                         continue
+                elif m.get("dest_only"):
+                    # "Два йдуть на Васильків": only where it is going. The target this channel reported last (within
+                    # 8 min) is the one going there: it stays where that report put it, turned toward the destination.
+                    # Without one it stays drawn at the destination, as an approach — never moved on past it.
+                    if ctx and pts and (pts - ctx[0]).total_seconds() <= 8 * 60 and m.get("target") in geo.PLACES:
+                        dlon, dlat, _ = geo.PLACES[m["target"]]
+                        if math.hypot((dlon - ctx[1]["lon"]) * 70.7, (dlat - ctx[1]["lat"]) * 111) >= 0.4:
+                            m.update(lon=ctx[1]["lon"], lat=ctx[1]["lat"], place=ctx[1]["place"], oblast_uid=ctx[1].get("oblast_uid"),
+                                     approach=False, dest_only=False,
+                                     heading=round(geo.bearing(ctx[1]["lon"], ctx[1]["lat"], dlon, dlat)))
+                            ev = dict(m.get("evidence") or {})
+                            ev["position"] = {"matched": ctx[1].get("place"), "place": ctx[1].get("place"), "confidence": "medium",
+                                              "method": "this channel's previous report — the post only said where it is going"}
+                            ev["heading"] = {"matched": f"{ctx[1].get('place')} → {m['target']}", "confidence": "medium",
+                                             "method": "from the previous report toward the destination the post named"}
+                            m["evidence"] = ev
                 elif m.get("live"):
                     if ctx and pts and (pts - ctx[0]).total_seconds() <= 8 * 60 and m.get("heading") is None:
                         d = math.hypot((m["lon"] - ctx[1]["lon"]) * 70.7, (m["lat"] - ctx[1]["lat"]) * 111)
@@ -1095,7 +1111,7 @@ class State:
                             m["heading"] = round(geo.bearing(ctx[1]["lon"], ctx[1]["lat"], m["lon"], m["lat"]))
                             ev = dict(m.get("evidence") or {}); ev["heading"] = {"matched": f"{ctx[1].get('place')} → {m.get('place')}", "method": "bearing between the two latest reports of this live-tracking channel", "confidence": "medium"}
                             m["evidence"] = ev
-                if m.get("lon") is not None and not m.get("status"):
+                if m.get("lon") is not None and not m.get("status") and not m.get("approach"):
                     last_by_channel[p["channel"]] = (pts, m)
                 fixed.append(m)
             ms = fixed
@@ -1495,7 +1511,8 @@ class State:
                     continue
                 vmax = 7.0 if fam(m) == "drone" else 15.0
                 d = km(pm, m)
-                if d > vmax * dt + 25:
+                # an approach mark stands at the town the target is heading to, not where it is: it may be further
+                if d > (80 if m.get("approach") else vmax * dt + 25):
                     continue
                 if pm.get("heading") is not None and d > 12:
                     b = (math.degrees(math.atan2((m["lon"] - pm["lon"]) * 70.7, (m["lat"] - pm["lat"]) * 111)) + 360) % 360
@@ -1507,15 +1524,29 @@ class State:
                     best = (score, pm)
             if best:
                 pm = best[1]
+                if m.get("approach") and not pm.get("approach"):
+                    # "…на Васильків" about a target already on the map: where it is going, not where it now is.
+                    # The track keeps its reported position and takes the destination; the approach mark goes.
+                    m["absorbed"] = True
+                    pm["target"] = pm.get("target") or m.get("target")
+                    if pm.get("heading") is None and m.get("target") in geo.PLACES:
+                        dlon, dlat, _ = geo.PLACES[m["target"]]
+                        pm["heading"] = round(geo.bearing(pm["lon"], pm["lat"], dlon, dlat))
+                        ev = dict(pm.get("evidence") or {})
+                        ev["heading"] = {"matched": m.get("place"), "confidence": "medium",
+                                         "method": f"toward {m['target']}, the destination a later post named"}
+                        pm["evidence"] = ev
+                    continue
                 pm["superseded_by"] = m["id"]
                 # each earlier report keeps the height ITS post stated (if any): two stated heights in a row are a
                 # descent the posts reported, not one this app worked out — 2200 m, then 1600 m, then 800 m
-                m["history"] = pm["history"] + [{"id": pm["id"], "lon": pm["lon"], "lat": pm["lat"], "ts": pm["ts"], "channel": pm["channel"],
+                # an approach mark's point is a destination, not a place it was: it is no step of the track
+                m["history"] = pm["history"] + ([] if pm.get("approach") else [{"id": pm["id"], "lon": pm["lon"], "lat": pm["lat"], "ts": pm["ts"], "channel": pm["channel"],
                                                  "place": pm.get("place"), "alt_m": (pm.get("alt") or {}).get("m"),
-                                                 "alt_state": (pm.get("alt") or {}).get("state")}]
+                                                 "alt_state": (pm.get("alt") or {}).get("state")}])
         keep = []
         for m in ms:
-            if m.get("superseded_by"):
+            if m.get("superseded_by") or m.get("absorbed"):
                 continue
             age = (now - parse_iso(m["ts"])).total_seconds() / 60 if parse_iso(m["ts"]) else 0
             if m.get("status"):
