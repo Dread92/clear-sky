@@ -115,3 +115,18 @@ def test_a_metro_notice_is_news_not_a_route():
     assert geo.looks_like_news(geo._norm(text))
     assert geo.parse_for_channel("kievinfo_kyiv", text) == []
     assert server.tag_feed_text(text, "kievinfo_kyiv") == ["news"]
+
+
+def test_a_video_of_a_strike_is_news_not_a_fresh_explosion():
+    """25 Sep 2026, 22:22: a video caption drawn as an explosion over Kyiv, as if it had just happened."""
+    for ch, text in [
+        ("kievinfo_kyiv", "😱 Момент прильоту Герань-5 бізнес-центром «Інком» у Києві"),
+        ("kievinfo_kyiv", "😱 Момент прильоту Герань-5 бізнес-центром «Інком» у Києві\n\nЯкщо у вас є інші відео "
+                          "прильоту, надсилайте нашому боту — купимо їх за $. Все анонімно!"),
+        ("kyiv_airdef", "Кадри з місця влучання на Оболоні"),
+        ("war_monitor", "Відео роботи ППО над Києвом"),
+        ("xydessa_live", "Момент прилета по Одессе"),
+    ]:
+        assert geo.parse_for_channel(ch, text) == [], text
+    # a live report of a hit is untouched
+    assert geo.parse_for_channel("kyiv_airdef", "Прильот у Броварах")

@@ -2,6 +2,15 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.22.0 — 2026-09-25
+
+### Fixed
+- **A video of a strike was drawn as a fresh explosion.** @kievinfo_kyiv's "😱 Момент прильоту Герань-5
+  бізнес-центром «Інком» у Києві" (with "send us other videos of the impact — we'll buy them") put an
+  "explosion" mark over Kyiv, as if it had just happened. Video and photo captions — "момент прильоту / удару /
+  падіння", "кадри / відео з місця, прильоту, наслідків, роботи ППО", "надсилайте відео", "купимо" (and their
+  Russian forms) — are news, never a mark.
+
 ## 1.21.0 — 2026-09-25
 
 ### Fixed
