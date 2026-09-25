@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.15** · last updated 2026-09-25
+**Documented version: 1.16** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -113,6 +113,7 @@ clear-sky/
 │   ├── kyiv.html           Tactical page (one self-contained file)
 │   ├── light.html          Light page (one self-contained file)
 │   ├── i18n.js             every UI string in EN / UK / FR, place / raion / river / channel names
+│   ├── glyphs.js           the weapon silhouettes (G, GLYPH_BY_TYPE), shared by both pages
 │   ├── kyiv-map.json       27 oblasts + all raions, in km around Kyiv (geoBoundaries)
 │   ├── light-map.json      raions of the 8 oblasts + nearby oblast outlines, rivers, roads, towns (built)
 │   ├── kyiv-districts.json the 10 city districts of Kyiv (OSM)
@@ -128,6 +129,7 @@ clear-sky/
 ├── scripts/
 │   ├── build_geo.py        rebuilds data/ua_regions.json and static/light-map.json
 │   ├── corpus.py           add / review / pull corpus cases
+│   ├── release.bat         ships a patch: checks all is committed, fly deploy, git push, shows the live version
 │   ├── github-push.bat     creates the private GitHub repo and pushes (browser sign-in via GitHub CLI)
 │   └── start.sh, dev.sh, tunnel.bat
 ├── tests/                  pytest suites (see §14) and tests/fixtures/
@@ -377,7 +379,7 @@ One self-contained `kyiv.html`: an SVG map in a km projection around Kyiv (`proj
 level-of-detail classes by zoom, OSM tiles under the vector layers below 150 km width. Main parts:
 
 - `render()` — official colours (raions, oblasts, banner band, raion chips, alerts tab);
-- `tick()` — marks: silhouettes per weapon (`GLYPH_BY_TYPE`), turned only to a stated course (`orientOf`),
+- `tick()` — marks: silhouettes per weapon (`G`, `GLYPH_BY_TYPE` from `static/glyphs.js`), turned only to a stated course (`orientOf`),
   uncertainty ring up to 25 km, 5-minute tail, labels, off-screen edge indicators;
 - `threatStrip()` — the banner stack, coloured by `officialLevel()`; `idleLine()` when calm;
 - the four places (`SLOTS`: Home / Work / Kids / Pin — `localStorage` only; long-press drops the pin), zones
@@ -400,9 +402,10 @@ One place, what concerns it, nothing else. Built to load and be read on 2G (page
   under alert are *named*, never painted on the place), **U** (no data). "Nothing reported" never says "safe".
 - **Radar: 30 km** (`R_KM`), rings at 10 / 20 / 30 km, over a local map: raions shaded by alert, oblast borders,
   Kyiv's districts, rivers, main roads, towns, villages and neighbourhoods (from `/api/places`), labels placed
-  without overlap. Marks are small arrows **only where a course was reported**, the ⚠ for unknown types stays
-  upright with a small orange course arrow, a dotted tail joins earlier reports, each mark carries its list
-  number.
+  without overlap. Marks are **the same silhouettes as the Tactical map** (`static/glyphs.js`): turned to a
+  course only when the post reported one (`markOrient`), upright with a "?" otherwise; the ⚠ for unknown
+  types stays upright with a small orange course arrow; a dotted tail joins earlier reports; each mark
+  carries its list number. The list shows the same silhouette beside each row.
 - **List**: number, type, count, distance, zone, "→ here" (stated course within 28° of the place), place,
   course, age, ETA band. **Tap a row** for what the post said (original + translation), the track so far,
   altitude when stated, the source and time.
@@ -509,8 +512,14 @@ answers.
 
 ## 15. Deployment and the GitHub repository
 
-- **Fly.io**: `deploy-fly.bat` (Windows) — sign-in, app, volume, the dashboard key, the optional DeepL key,
-  deploy. Details in [DEPLOY.md](DEPLOY.md). `fly deploy -a kyiv-air-watch-gb` alone also works.
+- **The working folder** is `Desktop\clear-sky-main` on the owner's PC: a Git clone of the private repository
+  **Dread92/clear-sky**. Patches are committed there.
+- **Shipping a patch**: double-click **`scripts\release.bat`**. It refuses to run if anything is not committed,
+  deploys to Fly.io, pushes to GitHub, and prints the live `/api/version` — the version shown must be the
+  new one.
+- **First deployment, or changing a key**: `deploy-fly.bat` (Windows) — sign-in, app, volume, the dashboard
+  key, the optional DeepL key, deploy. Details in [DEPLOY.md](DEPLOY.md). `fly deploy -a kyiv-air-watch-gb`
+  alone also works.
 - **GitHub**: `scripts\github-push.bat` creates the **private** repository `<you>/clear-sky` with the GitHub CLI
   (sign-in in the browser; no token is ever typed or stored by the script) and pushes; run again to push new
   commits. Optional auto-deploy: add the repository secret `FLY_API_TOKEN` and `fly-deploy.yml` deploys every
@@ -558,5 +567,5 @@ Every patch, in this order:
 5. Update **this file**: the header's *Documented version* and date, and every section the patch touches
    (routes → §12, config / env → §5, tables → §13, sources → §6–7, pages → §10, open items → §17).
    `tests/test_docs.py` enforces the version, routes, config keys, env vars and tables.
-6. Commit (never `config.json`), deploy with `deploy-fly.bat`, push with `scripts\github-push.bat`.
+6. Commit in the working folder (never `config.json`), then ship with `scripts\release.bat` (deploy + push).
 7. Post the patch note to users once it is live.

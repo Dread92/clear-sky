@@ -198,7 +198,7 @@ front-end scripts, and verifies that every UI string exists in all three languag
 ## Deploying
 
 ```bash
-fly deploy                  # or double-click deploy-fly.bat on Windows
+fly deploy                  # Windows: scripts\release.bat ships a patch (deploy + push); deploy-fly.bat the first time
 ```
 
 Runs as one `shared-cpu-1x` / 256 MB machine with a 1 GB volume for the history. Full walkthrough,

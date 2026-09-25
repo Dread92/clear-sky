@@ -2,6 +2,21 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.16.0 — 2026-09-25
+
+### Changed
+- **Light draws the real silhouettes** — the Shahed, the jet Shahed, the Banderol, the cruise and ballistic
+  missiles, the KAB, the aircraft — the same drawings as the Tactical map, in the list and on the radar. They
+  turn only to a course the post reported; with no course they stay upright with a "?". The ⚠ for an unknown
+  type stays upright with its small orange course arrow.
+- The silhouettes moved to `static/glyphs.js`, shared by both pages, so the same weapon can never be drawn two
+  different ways.
+
+### Added
+- **`scripts\release.bat`** — one double-click ships a patch: checks everything is committed, deploys to Fly.io,
+  pushes to GitHub, shows the live version.
+- The working folder is now a Git clone of `Dread92/clear-sky` (private).
+
 ## 1.15.0 — 2026-09-25
 
 ### Changed

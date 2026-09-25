@@ -17,7 +17,9 @@ import os
 import re
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-PAGE = open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
+# the page and the silhouettes it draws (static/glyphs.js, shared with the Light page)
+PAGE = (open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
+        + open(os.path.join(ROOT, "static", "glyphs.js"), encoding="utf-8").read())
 I18N = open(os.path.join(ROOT, "static", "i18n.js"), encoding="utf-8").read()
 
 

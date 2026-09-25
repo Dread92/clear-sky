@@ -295,7 +295,7 @@ def parse_iso(s):
         return None
 
 
-BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/light-map.json", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
+BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/light-map.json", "static/glyphs.js", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
 
 
 def build_id():
@@ -319,7 +319,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.15"
+APP_VERSION = "1.16"
 BUILD = None    # filled at startup
 
 

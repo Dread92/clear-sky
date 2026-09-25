@@ -92,9 +92,18 @@ header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
 #radar .me{fill:var(--ink)}
 #radar .t{stroke:#0b0d11;stroke-width:.5}
 #radar .t.gone{opacity:.35}
+/* the same silhouettes as the Tactical map (static/glyphs.js), filled with the weapon's colour */
+.sil .glyph{fill:var(--c);stroke:#0b0d11;stroke-width:1px;vector-effect:non-scaling-stroke}
+.sil .glyph.tri{fill:var(--c)}
+.sil .jetfx{display:none}.sil.jet .jetfx{display:inline}.sil .flame{fill:#ffb347;stroke:none}.sil .flame2{fill:#fff4d6;stroke:none}
+.sil.bal .glyph{fill:#fff;stroke:#ff1744;stroke-width:1.4px}
+.sil.sup .glyph{fill:#ffdca8;stroke:#ff6a00;stroke-width:1.3px}
+#radar .qm{font:800 3.6px var(--sans);fill:#cfd6e2;paint-order:stroke;stroke:#0b0d11;stroke-width:.8px;text-anchor:middle}
 #list{padding:4px 14px 8px}
 .row{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}
-.row .ic{flex:0 0 26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px var(--mono);color:#0b0d11}
+.row .ic{flex:0 0 30px;height:30px;border-radius:6px;background:#1a202b;display:flex;align-items:center;justify-content:center}
+.row .ic svg{width:26px;height:26px;overflow:visible}
+.row.here .ic{background:#3a0f1a;box-shadow:inset 0 0 0 1.5px var(--cri)}
 .row .bd{flex:1;min-width:0}
 .row .l1{display:flex;gap:8px;align-items:baseline}
 .row .l1 b{font:700 15px var(--sans)}
@@ -142,6 +151,7 @@ footer a{color:var(--blu)}
 <div id="pick"><button class="x" id="pickx">✕</button><h3 id="pickh"></h3><p id="pickp"></p>
   <input id="pickq" autocomplete="off"><button class="loc" id="pickloc"></button><div class="res" id="pickres"></div></div>
 <script src="/static/i18n.js"></script>
+<script src="/static/glyphs.js"></script>
 <script>
 'use strict';
 const $=id=>document.getElementById(id);
@@ -253,7 +263,12 @@ const colOf=m=>getComputedStyle(document.documentElement).getPropertyValue(m.typ
 const label=m=>m.type==='drones'?(m.jet?t('k_jet'):t('k_shahed')):({ballistic_missiles:t('th_bal'),cruise_missiles:t('th_cruise'),unspecified_missiles:t('th_msl'),
   banderol_missiles:t('th_band'),supersonic_missiles:t('th_super'),guided_aerial_bombs:t('th_kab'),tactic_aircraft_activity:t('th_tac'),
   strategic_aircraft_activity:t('th_strat'),mig31k_departure:t('th_mig')}[m.type]||t('th_unknown2'));
-const ico=m=>m.type==='unknown'?'!':m.type==='drones'?'✈':/missile/.test(m.type)?'▲':m.type==='guided_aerial_bombs'?'▼':'•';
+// The weapon's own silhouette — the same drawing as on the Tactical map (static/glyphs.js).
+const silKey=m=>(m.type==='drones'&&m.jet)?'jetdrone':(GLYPH_BY_TYPE[m.type]||'missile');
+const silCls=m=>'sil'+((m.type==='drones'&&m.jet)?' jet':'')+(m.type==='ballistic_missiles'?' bal':'')+(m.type==='supersonic_missiles'?' sup':'');
+// It turns only to a course the post reported. No course, or nobody said what it is: upright.
+const markOrient=m=>(m.type!=='unknown'&&statedCourse(m))?m.heading:0;
+const icoSvg=(m,c)=>`<svg viewBox="-13 -13 26 26" aria-hidden="true"><g class="${silCls(m)}" style="--c:${c}">${G[silKey(m)]||''}</g></svg>`;
 
 // An outcome reported after a track closes it — same family, within 40 min, within 60 km, roughly ahead of
 // it. Otherwise a Shahed already shot down stays on this list as if it were still flying.
@@ -433,13 +448,14 @@ function paint(){
     if(m.history&&m.history.length){ const pts=[...m.history.filter(h=>h.lon!=null&&h.lat!=null).map(h=>loc(h.lon,h.lat)),[x,y]];
       if(pts.length>1) g+=`<polyline class="tail${gone}" stroke="${c}" points="${pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}"/>`; }
     const T=`translate(${x.toFixed(1)} ${y.toFixed(1)})`;
+    // the weapon's own silhouette, as on the Tactical map; turned only to a course the post reported
+    // missiles are slender shapes: drawn a little larger so they read at this size as well as a Shahed does
+    const sc=/missile/.test(m.type)&&m.type!=='banderol_missiles'?.42:.34;
+    g+=`<g class="t${gone}" transform="${T} rotate(${markOrient(m)}) scale(${sc})"><g class="${silCls(m)}" style="--c:${c}">${G[silKey(m)]||''}</g></g>`;
     if(m.type==='unknown'){
-      // nobody said what it is: a warning sign, always upright; the course, if one was reported, as a small orange arrow beside it
-      g+=`<g class="t${gone}" transform="${T}"><path d="M0 -3.6 L3.3 2.4 L-3.3 2.4 Z" fill="${c}" stroke="#0b0d11" stroke-width=".5"/><text y="1.9" text-anchor="middle" style="font:800 3.6px var(--sans);fill:#0b0d11">!</text></g>`;
-      if(statedCourse(m)) g+=`<path class="t${gone}" transform="${T} rotate(${m.heading}) translate(0 -6.2)" d="M0 -1.8 L1.5 1.2 L0 .5 L-1.5 1.2 Z" fill="${ORA}"/>`;
-    } else if(statedCourse(m))
-      g+=`<path class="t${gone}" transform="${T} rotate(${m.heading})" d="M0 -3.6 L2.5 2.5 L0 1.2 L-2.5 2.5 Z" fill="${c}"/>`;
-    else g+=`<circle class="t${gone}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.9" fill="${c}"/>`;
+      // nobody said what it is: the warning sign stays upright; a reported course is a small orange arrow beside it
+      if(statedCourse(m)) g+=`<path class="t${gone}" transform="${T} rotate(${m.heading}) translate(0 -5.6)" d="M0 -1.8 L1.5 1.2 L0 .5 L-1.5 1.2 Z" fill="${ORA}"/>`;
+    } else if(!statedCourse(m)) g+=`<text class="qm" x="${x.toFixed(1)}" y="${(y-4.4).toFixed(1)}">?</text>`;   // upright because no course was reported
     // its number in the list below, and how many
     g+=`<text class="no" x="${(x+3.2).toFixed(1)}" y="${(y-2.2).toFixed(1)}">${r.no}${m.count&&m.count>1?`<tspan fill="${c}"> ×${m.count}</tspan>`:''}</text>`;
   }
@@ -458,7 +474,7 @@ function paint(){
     const track=(m.history||[]).filter(h=>h.place).slice(-4).map(h=>`${esc(pn(h.place))} ${fmtT(h.ts)}`);
     const alt=m.alt&&m.alt.state?(m.alt.m?`~${m.alt.m} ${t('m_unit')}`:(ALTL[m.alt.state]||m.alt.state)):'';
     const open=OPEN.has(m.id);
-    return `<div class="row${toHere?' here':''}${m.stale?' gone':''}${open?' open':''}" data-id="${esc(m.id)}"><div class="ic" style="background:${toHere?'var(--cri)':colOf(m)}">${ico(m)}</div><div class="bd">`
+    return `<div class="row${toHere?' here':''}${m.stale?' gone':''}${open?' open':''}" data-id="${esc(m.id)}"><div class="ic">${icoSvg(m,toHere?getComputedStyle(document.documentElement).getPropertyValue('--cri').trim():colOf(m))}</div><div class="bd">`
       +`<div class="l1"><b>${no?`<span class="no">${no}</span>`:''}${esc(label(m))}${n}</b><span class="d">${Math.round(d)} ${esc(t('lt_km'))}</span></div>`
       +`<div class="l2">${bits.map(x=>x.startsWith('<')?x:esc(x)).join(' · ')}</div>`
       +(eta?`<div class="l3"><b>${esc(t('eta_band',eta[0],eta[1]))}</b> <span>${esc(t('eta_if'))}</span></div>`:'')

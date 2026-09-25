@@ -42,8 +42,11 @@ and English uses the offline glossary. The full list of settings is in
 
 ### Updating
 
+Windows: double-click **`scripts\release.bat`** — it checks everything is committed, deploys, pushes to
+GitHub and shows the live version. Anywhere else:
+
 ```bash
-fly deploy
+fly deploy && git push
 ```
 
 **If a deploy does not seem to change anything**, check the build tag at the bottom of the menu in

@@ -140,3 +140,21 @@ def test_the_switch_is_on_both_pages_and_each_half_says_what_it_is():
     assert '<nav class="sw" id="sw">' in LIGHT and 'href="/m"' in LIGHT[LIGHT.index('<nav class="sw"'):LIGHT.index('<nav class="sw"') + 300]
     for k in ("sw_light_b", "sw_tac_b"):
         assert I18N.count(k + ":") == 3
+
+
+def test_light_draws_the_same_silhouettes_as_the_tactical_map():
+    """A Shahed, a Banderol and a Kalibr each have one picture in this app. The Light page used to draw its own
+    arrows and dots — a second picture of the same weapon, which is exactly what a silhouette must never be."""
+    assert '<script src="/static/glyphs.js"></script>' in LIGHT
+    full = open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
+    assert '<script src="/static/glyphs.js"></script>' in full
+    assert "const G=" not in full and "const GLYPH_BY_TYPE=" not in full, "the Tactical page keeps its own copy"
+    js = _script()
+    assert "G[silKey(m)]" in js and "GLYPH_BY_TYPE[m.type]" in js
+    assert "const ico=" not in js, "the old letter icons are back"
+
+
+def test_a_light_silhouette_turns_only_to_a_stated_course():
+    js = _script()
+    m = re.search(r"const markOrient=m=>(.*?);\n", js)
+    assert m and "statedCourse(m)" in m.group(1) and "m.type!=='unknown'" in m.group(1)
