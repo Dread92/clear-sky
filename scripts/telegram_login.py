@@ -30,6 +30,13 @@ def telethon():
     except ImportError:
         print("Installing the Telegram library (telethon)...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "--user", "--quiet", "telethon"])
+        # `pip install --user` on a PC that never had a user package creates the user site folder now — but
+        # Python only puts that folder on its path when it starts, so this very run could not import what it had
+        # just installed ("No module named 'telethon'"). Add it by hand.
+        import importlib
+        import site
+        site.addsitedir(site.getusersitepackages())
+        importlib.invalidate_caches()
     from telethon import TelegramClient
     from telethon.sessions import StringSession
     from telethon.tl.functions.channels import JoinChannelRequest

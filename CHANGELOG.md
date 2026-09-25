@@ -39,6 +39,9 @@ Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md
   than a pixel at oblast zoom) counted as a drag. A drag now starts past 10 screen pixels, a ring fills while you
   hold, and the phone's long-press menu no longer interrupts it.
 - **The OpenStreetMap credit sat on the place chips**; it is small, in the bottom corner.
+- **`telegram-login.bat` stopped with "No module named 'telethon'"** right after installing it, on a PC where it
+  was the first package installed for the user: Python only looks in that folder when it starts. It now adds
+  the folder itself and carries on.
 
 ## 1.18.0 — 2026-09-25
 
