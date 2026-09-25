@@ -14,6 +14,7 @@ The session string is a key to that Telegram account. It exists only in Fly's se
 To revoke it: Telegram > Settings > Devices > "Clear Sky server" > Terminate.
 """
 import asyncio
+import getpass
 import os
 import re
 import shutil
@@ -65,6 +66,23 @@ def ask_app():
               " (right-click pastes in this window).")
 
 
+def ask_code():
+    return input("Code Telegram just sent to that account (in the Telegram app, or by SMS): ").strip()
+
+
+def ask_password():
+    """The account's two-step verification password. Hidden, like any password — and said so, because a prompt
+    where nothing appears looks like a prompt that does not work. Nothing received: asked again, visibly."""
+    print("\nThis account has two-step verification: its password is needed.")
+    print("Nothing appears while you type it - not even stars. That is normal: type it, then press Enter.")
+    print("(To paste it, right-click in this window.)")
+    pw = getpass.getpass("Two-step password: ")
+    if not pw:
+        print("Nothing was received. Type it once more - this time it WILL be visible on the screen.")
+        pw = input("Two-step password (visible): ")
+    return pw
+
+
 def main():
     TelegramClient, StringSession, JoinChannelRequest = telethon()
     print()
@@ -79,7 +97,7 @@ def main():
         while True:
             client = TelegramClient(StringSession(), int(api_id), api_hash, device_model="Clear Sky server")
             try:
-                await client.start(phone=phone)  # asks here for the code Telegram sends, and the 2-step password
+                await client.start(phone=phone, code_callback=ask_code, password=ask_password)
                 break
             except Exception as e:
                 await client.disconnect()
