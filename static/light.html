@@ -21,11 +21,15 @@ body{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);max-widt
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 header{display:flex;align-items:center;gap:8px;padding:10px 14px}
 header b{font:800 17px/1 var(--sans);letter-spacing:.06em}
-/* Light | Tactical: the two versions, as a switch that looks like one — not a link hidden in a menu */
-.sw{display:flex;border:1px solid #3a3f4a;border-radius:4px;overflow:hidden;margin-left:4px}
-.sw>*{font:800 11.5px/1 var(--sans);letter-spacing:.08em;padding:8px 10px;color:var(--ink2);text-decoration:none;background:var(--panel)}
+/* Light | Tactical: the two versions, as one big switch across the top — the first thing the eye meets,
+   each half saying what it is. Not a link hidden in a menu or a footer. */
+.sw{display:flex;margin:0 14px 12px;border:2px solid var(--ora);border-radius:8px;overflow:hidden;box-shadow:0 0 0 3px rgba(255,138,61,.12)}
+.sw>*{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 6px 9px;text-decoration:none;color:#fff;background:#1a202b}
+.sw b{font:800 15px/1 var(--sans);letter-spacing:.1em}
+.sw small{font:500 11px/1.2 var(--sans);opacity:.8;text-align:center}
 .sw .on{background:var(--ora);color:#14100a}
-.sw a:hover,.sw a:focus{background:var(--panel2);color:var(--ink)}
+.sw a b::after{content:' ›'}
+.sw a:hover,.sw a:focus{background:#242c3a}
 header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
 .slots{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}
 .slots button{flex:0 0 auto;display:flex;gap:5px;align-items:center;padding:8px 11px;border:1px solid var(--line);background:var(--panel);border-radius:3px;font:600 13px var(--sans);color:var(--ink2)}
@@ -65,6 +69,22 @@ header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
 #radar .tail{fill:none;stroke-width:1.3px;vector-effect:non-scaling-stroke;stroke-dasharray:2 3;stroke-opacity:.8}
 #radar .cnt{font:700 3.6px var(--mono);paint-order:stroke;stroke:#0b0d11;stroke-width:.9px}
 .lg{max-width:440px;margin:2px auto 6px;padding:0 14px;font-size:11px;color:var(--ink3);text-align:center}
+#radar .kd{fill:none;stroke:#334055;stroke-width:.7px;vector-effect:non-scaling-stroke}
+#radar .kdl{fill:#6f7c92;font:600 2.7px var(--sans);text-anchor:middle;letter-spacing:.02em;text-transform:uppercase}
+#radar .vl{fill:#838b99;font:500 2.9px var(--sans);paint-order:stroke;stroke:#0b0d11;stroke-width:.8px}
+#radar .vd{fill:#5d6573}
+#radar .rvl{fill:#4f86bd;font:italic 600 3.1px var(--sans);paint-order:stroke;stroke:#0b0d11;stroke-width:.8px}
+#radar .no{font:800 3.4px var(--mono);fill:#fff;paint-order:stroke;stroke:#0b0d11;stroke-width:1px}
+.row{cursor:pointer}
+.row .no{display:inline-block;min-width:16px;padding:0 3px;margin-right:6px;border-radius:3px;background:#2a303b;color:#fff;font:800 11px/16px var(--mono);text-align:center;vertical-align:2px}
+.row .l2 .wh{color:var(--ink)}
+.row .more{display:none;margin-top:8px;padding:8px 10px;background:var(--panel);border-left:3px solid var(--line);border-radius:2px;font-size:12.5px;color:var(--ink2)}
+.row.open .more{display:block}
+.row .more q{display:block;color:var(--ink);quotes:none;white-space:pre-line;margin-bottom:6px}
+.row .more .orig{display:block;color:var(--ink3);font-size:11.5px;margin:-2px 0 6px;white-space:pre-line}
+.row .more div+div{margin-top:4px}
+.row .tap{font-size:11px;color:var(--ink3);margin-top:3px}
+.sec{margin:14px 0 2px;padding-top:10px;border-top:1px solid var(--line);font:700 11.5px var(--mono);letter-spacing:.06em;color:#ffb3a6;text-transform:uppercase}
 #radar .ring{fill:none;stroke:#2f5480;stroke-width:.5;stroke-dasharray:1.6 2}
 #radar .ring.r10{stroke:var(--ora);stroke-dasharray:none;stroke-opacity:.7}
 #radar .rl{fill:#56637a;font:3.4px var(--mono)}
@@ -89,6 +109,13 @@ header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
 #off{margin:8px 14px 0;padding:8px 10px;border:1px solid #6a5a1a;background:#221d0b;color:#ffe9a8;font-size:12.5px;border-radius:3px}
 footer{padding:14px 14px 24px;font-size:12px;color:var(--ink3);text-align:center}
 footer a{color:var(--blu)}
+/* the notice at opening — once per opening, shared with the Tactical page (sessionStorage 'disc_seen') */
+#dm{position:fixed;inset:0;z-index:10;background:rgba(5,6,9,.9);display:flex;align-items:center;justify-content:center;padding:16px}
+#dm[hidden]{display:none}
+#dm .dbox{max-width:440px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--yel);border-radius:4px;padding:16px 18px;max-height:90vh;overflow:auto}
+#dm b{display:block;font:800 17px/1.2 var(--sans);margin-bottom:8px}
+#dm p{font-size:14px;line-height:1.45;color:var(--ink2);margin:0 0 10px}#dm p b,#dm p strong{display:inline;font-size:inherit;color:var(--ink)}
+#dm button{display:block;margin:12px 0 0 auto;padding:10px 16px;border:1px solid var(--yel);border-radius:3px;color:var(--yel);font-weight:700}
 #pick{position:fixed;inset:0;background:rgba(5,6,9,.94);display:none;flex-direction:column;padding:16px 14px;z-index:9}
 #pick.show{display:flex}
 #pick h3{font:700 17px var(--sans)}#pick p{color:var(--ink2);font-size:13px;margin:6px 0 12px}
@@ -101,7 +128,8 @@ footer a{color:var(--blu)}
 </style>
 </head>
 <body>
-<header><b>CLEAR SKY</b><nav class="sw" id="sw"><span class="on" id="swl">LIGHT</span><a href="/m" id="swt">TACTICAL</a></nav><span class="up" id="up"></span></header>
+<header><b>CLEAR SKY</b><span class="up" id="up"></span></header>
+<nav class="sw" id="sw"><span class="on"><b id="swl">LIGHT</b><small id="swl2"></small></span><a href="/m"><b id="swt">TACTICAL</b><small id="swt2"></small></a></nav>
 <div class="slots" id="slots"></div>
 <div id="imm" hidden></div>
 <div class="status U" id="status"><div class="big">…</div></div>
@@ -110,6 +138,7 @@ footer a{color:var(--blu)}
 <div id="list"></div>
 <div id="off" hidden></div>
 <footer><div id="disc"></div><div style="margin-top:8px"><a href="/m" id="full"></a></div></footer>
+<div id="dm" hidden><div class="dbox"><b id="dmt"></b><p id="dm1"></p><p id="dm2"></p><p id="dm3"></p><button id="dmok"></button></div></div>
 <div id="pick"><button class="x" id="pickx">✕</button><h3 id="pickh"></h3><p id="pickp"></p>
   <input id="pickq" autocomplete="off"><button class="loc" id="pickloc"></button><div class="res" id="pickres"></div></div>
 <script src="/static/i18n.js"></script>
@@ -133,6 +162,12 @@ const place=()=>SLOTS[ACTIVE]||null;
 const placeName=p=>!p?'':p.dropped?t('sl_pin_dropped'):(LANG==='uk'&&p.uk?p.uk:(p.name||p.uk||''));
 
 // ---- geometry ----------------------------------------------------------------------------------------------
+const DIRS=t('dirs').split(',');
+const _TRL={а:'a',б:'b',в:'v',г:'h',ґ:'g',д:'d',е:'e',є:'ie',ж:'zh',з:'z',и:'y',і:'i',ї:'i',й:'i',к:'k',л:'l',м:'m',н:'n',о:'o',п:'p',р:'r',с:'s',т:'t',у:'u',ф:'f',х:'kh',ц:'ts',ч:'ch',ш:'sh',щ:'shch',ь:'',ю:'iu',я:'ia',"'":'',"ʼ":'',"’":''};
+function translit(s){ let o=''; for(let i=0;i<s.length;i++){ const c=s[i], l=c.toLowerCase(); let t0;
+  const first=i===0||/[\s-]/.test(s[i-1]);
+  if(first&&l in {'є':1,'ї':1,'й':1,'ю':1,'я':1}) t0={'є':'ye','ї':'yi','й':'y','ю':'yu','я':'ya'}[l]; else t0=_TRL[l]??c;
+  if(c!==l&&t0) t0=t0[0].toUpperCase()+t0.slice(1); o+=t0; } return o; }
 const rad=d=>d*Math.PI/180;
 function km(la1,lo1,la2,lo2){const a=Math.sin(rad(la2-la1)/2)**2+Math.cos(rad(la1))*Math.cos(rad(la2))*Math.sin(rad(lo2-lo1)/2)**2;return 12742*Math.asin(Math.min(1,Math.sqrt(a)));}
 function brg(la1,lo1,la2,lo2){const y=Math.sin(rad(lo2-lo1))*Math.cos(rad(la2)),x=Math.cos(rad(la1))*Math.sin(rad(la2))-Math.sin(rad(la1))*Math.cos(rad(la2))*Math.cos(rad(lo2-lo1));return (Math.atan2(y,x)*180/Math.PI+360)%360;}
@@ -164,6 +199,13 @@ async function oblastOf(p){
 // fetched once (light-map.json) and tested here. Nothing about the place leaves the phone.
 let LM=null, LMR=null, LMO=null;
 const unflat=f=>{const o=[];for(let i=0;i<f.length;i+=2)o.push([f[i],f[i+1]]);return o;};
+let KD=null, VIL=null;   // Kyiv districts; villages and neighbourhoods (names on the map only — nothing is sent)
+async function loadExtras(){
+  try{ if(!KD) KD=(await (await fetch('/static/kyiv-districts.json')).json()).districts; }catch(e){}
+  try{ if(!VIL){ const pl=PLACES||(await (await fetch('/api/places?oblast=31,14,10,25,19,24,4,20')).json()).places;
+    // settlements and neighbourhoods only: no plants, parks, roads, or "Brovary south"-style aliases of a town already on the map
+    VIL=pl.filter(x=>!/громада|берег|столиця|водосховище|море|АЕС|ГЕС|ТЕЦ|траса|шосе|проспект|вулиц|міст\b|аеропорт|район$|очисн|парк|станці|завод|\s(південь|північ|схід|захід|центр)$/i.test(x.name)); } }catch(e){}
+}
 async function loadLM(){
   if(LM) return LM;
   try{ LM=await (await fetch('/static/light-map.json')).json();
@@ -199,7 +241,10 @@ const IMMEDIATE=new Set(['ballistic_missiles','mig31k_departure','supersonic_mis
 const SPEED_BAND={drone:[2.2,3.2],jet:[5.5,8.0],cruise:[11,14]};
 const band=m=>m.type==='drones'?(m.jet?SPEED_BAND.jet:SPEED_BAND.drone):(m.type==='cruise_missiles'||m.type==='unspecified_missiles'||m.type==='banderol_missiles')?SPEED_BAND.cruise:null;
 const statedCourse=m=>m.heading!=null&&!!(m.evidence&&m.evidence.heading&&m.evidence.heading.confidence&&m.evidence.heading.confidence!=='none');
-const ZONES=[[10,'near'],[30,'approach'],[60,'observe']];
+// The radius the page watches: 30 km. Inside 10 km is "near"; 10–30 "approaching". Beyond 30 km only what a
+// post says is heading here is listed, apart, under "approaching" — up to 100 km out.
+const R_KM=30, FAR_KM=100, S=2;   // S: SVG units per kilometre on the radar (the disc is 60 units = 30 km)
+const ZONES=[[10,'near'],[30,'approach']];
 const zoneOf=d=>{for(const [r,k] of ZONES) if(d<=r) return k; return null;};
 const CLOSING=new Set(['down','impact','lost','clear']);
 const COL={drones:'--ora',jet:'--amb',cruise_missiles:'--msl',unspecified_missiles:'--msl',banderol_missiles:'--amb',ballistic_missiles:'--msl',
@@ -269,11 +314,11 @@ function alertedShapes(){
 }
 function mapLayer(p,kx,loc){
   if(!LM) return '';
-  // outline km (the full map's grid, centred on Kyiv) → km around the place, the frame the markers are in
+  // outline km (the full map's grid, centred on Kyiv) → radar units around the place, the frame the markers are in
   const sx=kx/LM.kx, tx=(LM.center[0]-p.lon)*kx, ty=(p.lat-LM.center[1])*LM.ky;
-  const T=`transform="translate(${tx.toFixed(2)} ${ty.toFixed(2)}) scale(${sx.toFixed(4)} 1)"`;
+  const T=`transform="translate(${(tx*S).toFixed(2)} ${(ty*S).toFixed(2)}) scale(${(sx*S).toFixed(4)} ${S})"`;
   const d=rings=>rings.map(g=>'M'+g.map(q=>q[0]+' '+q[1]).join('L')+'Z').join('');
-  const [px,py]=kproj(p.lon,p.lat), near=r=>r.rings.some(g=>g.some(q=>Math.abs(q[0]-px)<95&&Math.abs(q[1]-py)<80));
+  const [px,py]=kproj(p.lon,p.lat), near=r=>r.rings.some(g=>g.some(q=>Math.abs(q[0]-px)<50&&Math.abs(q[1]-py)<45));
   const al=alertedShapes(), air=STATE?(STATE.active||[]).filter(a=>!a.alert_type||a.alert_type==='air_raid'):[];
   const scoped=new Set(LMR.map(r=>r.obl));
   let s=`<g ${T}>`;
@@ -282,21 +327,42 @@ function mapLayer(p,kx,loc){
     const w=air.find(a=>a.oblast_uid===o.uid&&a.location_type==='oblast'); if(w) s+=`<path class="ob2 ${w.alert_level==='yellow'?'Y':'R'}" d="${d(o.rings)}"/>`; }
   for(const r of LMR){ if(!near(r)) continue; const L=al[r.obl+':'+r.k]||'';
     s+=`<path class="rb${r.city?' city':''}${L?' '+L:''}" d="${d(r.rings)}"/>`; }
+  // Kyiv's ten districts, when the city is on the disc
+  const kdOn=KD&&Math.hypot(px,py)<45;
+  if(kdOn) for(const k of KD) s+=`<path class="kd" d="${k.path}"/>`;
   for(const o of LMO) if(near(o)) s+=`<path class="obl" d="${d(o.rings)}"/>`;
   s+='</g>';
   const line=pts=>pts.map(q=>loc(q[0],q[1]).map(v=>v.toFixed(1)).join(',')).join(' ');
   for(const r of LM.roads) s+=`<polyline class="rd" points="${line(r)}"/>`;
   if(LM.ring) s+=`<polyline class="rd" points="${line(LM.ring)}"/>`;
   for(const [w,pts] of LM.rivers) s+=`<polyline class="riv ${w}" points="${line(pts)}"/>`;
-  // towns: the biggest first, and a name is left out rather than printed over another
-  const boxes=[], tw=LM.towns.map(tn=>({n:tn[0],xy:loc(tn[1],tn[2]),big:tn[3]===1})).filter(o=>Math.hypot(o.xy[0],o.xy[1])<58)
-    .sort((a,b)=>b.big-a.big);
-  for(const o of tw){ const [x,y]=o.xy, name=townName(o.n), w=name.length*(o.big?2.3:1.9)+2, h=o.big?5:4.2;
-    const bx=[x+1.6,y-h+1,w,h]; if(boxes.some(b=>bx[0]<b[0]+b[2]&&b[0]<bx[0]+bx[2]&&bx[1]<b[1]+b[3]&&b[1]<bx[1]+bx[3])) { s+=`<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r=".7"/>`; continue; }
-    if(Math.hypot(x,y)<4) continue;   // the place's own dot sits there
-    if(Math.hypot(bx[0]+bx[2],y)>59||Math.hypot(bx[0]+bx[2],bx[1])>59){ s+=`<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r=".7"/>`; continue; }   // a name cut by the edge reads as another name
+  // names: a name is left out rather than printed over another, or cut by the edge of the disc
+  const boxes=[];
+  const fits=(bx)=>!boxes.some(b=>bx[0]<b[0]+b[2]&&b[0]<bx[0]+bx[2]&&bx[1]<b[1]+b[3]&&b[1]<bx[1]+bx[3])
+    &&Math.hypot(bx[0]+bx[2],bx[1]+bx[3])<59&&Math.hypot(bx[0],bx[1])<59&&Math.hypot(bx[0]+bx[2],bx[1])<59&&Math.hypot(bx[0],bx[1]+bx[3])<59;
+  boxes.push([-5,-5,10,10]);   // the place's own dot
+  // district names first inside the city (they are the words people use there), then towns, rivers, villages
+  if(kdOn) for(const k of KD){ const pts=(k.path.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g)||[]).map(q=>q.split(',').map(Number));
+    if(!pts.length) continue; const cx=pts.reduce((a,q)=>a+q[0],0)/pts.length, cy=pts.reduce((a,q)=>a+q[1],0)/pts.length;
+    const [x,y]=[(cx*sx+tx)*S,(cy+ty)*S], nm=LANG==='uk'?k.uk.replace(/\s*район$/,''):k.name, w=nm.length*1.75+1;
+    const bx=[x-w/2,y-2.6,w,3.4]; if(!fits(bx)) continue; boxes.push(bx);
+    s+=`<text class="kdl" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${esc(nm)}</text>`; }
+  const tw=LM.towns.map(tn=>({n:townName(tn[0]),xy:loc(tn[1],tn[2]),big:tn[3]===1})).filter(o=>Math.hypot(o.xy[0],o.xy[1])<58).sort((a,b)=>b.big-a.big);
+  for(const o of tw){ const [x,y]=o.xy, w=o.n.length*(o.big?2.3:1.9)+2, h=o.big?5:4.2, bx=[x+1.6,y-h+1,w,h];
+    if(Math.hypot(x,y)<4) continue;
+    if(!fits(bx)){ s+=`<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r=".7"/>`; continue; }
     boxes.push(bx);
-    s+=`<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${o.big?1.2:.8}"/><text class="tl${o.big?' big':''}" x="${(x+1.8).toFixed(1)}" y="${(y+1.3).toFixed(1)}">${esc(name)}</text>`; }
+    s+=`<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${o.big?1.2:.8}"/><text class="tl${o.big?' big':''}" x="${(x+1.8).toFixed(1)}" y="${(y+1.3).toFixed(1)}">${esc(o.n)}</text>`; }
+  for(const [w0,pts,name] of LM.rivers){ if(!name) continue; const inside=pts.map(q=>loc(q[0],q[1])).filter(q=>Math.hypot(q[0],q[1])<46);
+    if(!inside.length) continue; const [x,y]=inside[Math.floor(inside.length/2)], nm=riverName(name), w=nm.length*1.8+1, bx=[x+1.5,y-2.5,w,3.4];
+    if(tw.some(o=>o.n.toLowerCase()===nm.toLowerCase())) continue;
+    if(!fits(bx)) continue; boxes.push(bx); s+=`<text class="rvl" x="${(x+1.5).toFixed(1)}" y="${(y+.6).toFixed(1)}">${esc(nm)}</text>`; }
+  // villages and city neighbourhoods from the place list, nearest first, as many as fit
+  if(VIL){ const townSet=new Set([...LM.towns.map(tn=>townName(tn[0]).toLowerCase()),...(KD||[]).map(k=>(LANG==='uk'?k.uk.replace(/\s*район$/,''):k.name).toLowerCase())]);
+    const vs=VIL.map(v=>({v,xy:loc(v.lon,v.lat)})).map(o=>({...o,r:Math.hypot(o.xy[0],o.xy[1])})).filter(o=>o.r<56&&o.r>4).sort((a,b)=>a.r-b.r);
+    let n=0; for(const o of vs){ if(n>=28) break; const nm=LANG==='uk'?o.v.name:pn(o.v.name); if(townSet.has(nm.toLowerCase())) continue;
+      const [x,y]=o.xy, w=nm.length*1.6+1.5, bx=[x+1.2,y-2.3,w,3.3]; if(!fits(bx)) continue; boxes.push(bx); n++;
+      s+=`<circle class="vd" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r=".55"/><text class="vl" x="${(x+1.2).toFixed(1)}" y="${(y+.9).toFixed(1)}">${esc(nm)}</text>`; } }
   return s;
 }
 
@@ -310,6 +376,7 @@ function paint(){
   const p=place();
   $('disc').textContent=t('lt_disc'); $('full').textContent=t('lt_full')+' →';
   $('swl').textContent=t('sw_light'); $('swt').textContent=t('sw_tac'); $('sw').title=t('sw_title');
+  $('swl2').textContent=t('sw_light_b'); $('swt2').textContent=t('sw_tac_b');
   if(!p){ $('status').className='status U'; $('status').innerHTML=`<div class="big">${esc(t('lt_noplace'))}</div><div class="pl">${esc(t('lt_noplace_b'))}</div>`;
     $('radar').innerHTML=''; $('list').innerHTML=''; $('imm').hidden=true; return; }
 
@@ -335,29 +402,30 @@ function paint(){
 
   // what is near the place
   const live=link(MKS.map(m=>({...m})));
-  const rows=[]; const imm=[];
+  const rows=[], far=[], imm=[];
   for(const m of live){ if(m.lat==null||m.lon==null) continue;
     const d=km(p.lat,p.lon,m.lat,m.lon);
     if(IMMEDIATE.has(m.type)){ if(d<=REGION_R) imm.push(m); continue; }
-    if(d>60) continue;
     const toHere=statedCourse(m)&&(d<=10||angDiff(m.heading,brg(m.lat,m.lon,p.lat,p.lon))<=28);
     let eta=null; const bd=band(m);
     if(toHere&&bd&&!m.stale&&d>1){ const lo=Math.floor(d/bd[1]),hi=Math.ceil(d/bd[0]); if(hi<=90) eta=[lo,hi]; }
-    rows.push({m,d,zone:zoneOf(d),toHere,eta});
+    const r={m,d,zone:zoneOf(d),toHere,eta};
+    if(d<=R_KM) rows.push(r);
+    else if(toHere&&!m.stale&&d<=FAR_KM) far.push(r);   // beyond the radius: only what a post says is coming here
   }
-  rows.sort((a,b)=>a.d-b.d);
+  rows.sort((a,b)=>a.d-b.d); far.sort((a,b)=>a.d-b.d);
+  rows.forEach((r,i)=>r.no=i+1);
 
   // weapons that outrun a radius: named, no distance, no countdown
   if(imm.length){ const m=imm[0]; $('imm').hidden=false;
     $('imm').innerHTML=`<b>🚨 ${esc(t('n_imm',label(m)))}</b><small>${esc(t('n_imm_b'))}</small>`; }
   else $('imm').hidden=true;
 
-  // the radar: the place in the middle, north up, one kilometre per unit, over a small map of the 60 km around it
-  const kx=111*Math.cos(rad(p.lat)), loc=(lon,lat)=>[(lon-p.lon)*kx,-(lat-p.lat)*111];
+  // the radar: the place in the middle, north up, over a small map of the 30 km around it
+  const kx=111*Math.cos(rad(p.lat)), loc=(lon,lat)=>[(lon-p.lon)*kx*S,-(lat-p.lat)*111*S];
   let g=`<defs><clipPath id="disc"><circle r="60"/></clipPath></defs><circle class="bg" r="60"/>`
     +`<g clip-path="url(#disc)">${mapLayer(p,kx,loc)}</g>`
-    +`<circle class="ring" r="60"/><circle class="ring" r="30"/><circle class="ring r10" r="10"/>`
-    +`<text class="rl" x="1.5" y="-60.8">60</text><text class="rl" x="1.5" y="-30.8">30</text><text class="rl" x="1.5" y="-10.8">10</text>`
+    +[10,20,30].map(k=>`<circle class="ring${k===10?' r10':''}" r="${k*S}"/><text class="rl" x="1.5" y="${(-k*S-.8).toFixed(1)}">${k}</text>`).join('')
     +`<text class="nn" x="-1.4" y="-62.5">N</text><circle class="me" r="1.8"/>`;
   const CRI=getComputedStyle(document.documentElement).getPropertyValue('--cri').trim(), ORA=getComputedStyle(document.documentElement).getPropertyValue('--ora').trim();
   for(const r of rows){ const m=r.m, [x,y]=loc(m.lon,m.lat), c=r.toHere?CRI:colOf(m), gone=m.stale?' gone':'';
@@ -372,27 +440,46 @@ function paint(){
     } else if(statedCourse(m))
       g+=`<path class="t${gone}" transform="${T} rotate(${m.heading})" d="M0 -3.6 L2.5 2.5 L0 1.2 L-2.5 2.5 Z" fill="${c}"/>`;
     else g+=`<circle class="t${gone}" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="1.9" fill="${c}"/>`;
-    if(m.count&&m.count>1) g+=`<text class="cnt" x="${(x+3).toFixed(1)}" y="${(y-2.4).toFixed(1)}" fill="${c}">×${m.count}</text>`;
+    // its number in the list below, and how many
+    g+=`<text class="no" x="${(x+3.2).toFixed(1)}" y="${(y-2.2).toFixed(1)}">${r.no}${m.count&&m.count>1?`<tspan fill="${c}"> ×${m.count}</tspan>`:''}</text>`;
   }
   $('radar').innerHTML=g;
   $('lg').hidden=!LM; $('lg').textContent=t('lt_legend');
 
-  // the list
-  if(!rows.length){ $('list').innerHTML=`<div class="none"><b>${esc(t('lt_none'))}</b><small>${esc(t('lt_none_b'))}</small></div>`; }
-  else $('list').innerHTML=rows.map(({m,d,zone,toHere,eta})=>{
+  // the list — each row opens on a tap: what the post said, the track so far, the source
+  const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
+  const row=({m,d,zone,toHere,eta,no})=>{
     const n=(m.count&&m.count>1)?' ×'+m.count:'';
-    const bits=[t('lt_z_'+zone)]; if(toHere) bits.push(`<b class="hr">${esc(t('lt_here'))}</b>`);
+    const bits=[zone?t('lt_z_'+zone):t('lt_far')]; if(toHere) bits.push(`<b class="hr">${esc(t('lt_here'))}</b>`);
+    if(m.place) bits.push(`<span class="wh">${esc(t('lt_at',pn(m.place)))}</span>`);
+    if(statedCourse(m)) bits.push(esc(t('lt_course',DIRS[Math.round(m.heading/45)%8])));
     bits.push(m.stale?`${esc(t('lt_lost'))} · ${esc(t('tp_ago',m.stale))}`:esc(t('tp_ago',agoMin(m.ts))));
-    return `<div class="row${toHere?' here':''}${m.stale?' gone':''}"><div class="ic" style="background:${toHere?'var(--cri)':colOf(m)}">${ico(m)}</div><div class="bd">`
-      +`<div class="l1"><b>${esc(label(m))}${n}</b><span class="d">${Math.round(d)} ${esc(t('lt_km'))}</span></div>`
-      +`<div class="l2">${bits.map(x=>x.startsWith('<b')?x:esc(x)).join(' · ')}</div>`
+    const said=LANG==='uk'?m.text:((LANG==='fr'&&m.text_fr)||m.text_en||m.text);
+    const track=(m.history||[]).filter(h=>h.place).slice(-4).map(h=>`${esc(pn(h.place))} ${fmtT(h.ts)}`);
+    const alt=m.alt&&m.alt.state?(m.alt.m?`~${m.alt.m} ${t('m_unit')}`:(ALTL[m.alt.state]||m.alt.state)):'';
+    const open=OPEN.has(m.id);
+    return `<div class="row${toHere?' here':''}${m.stale?' gone':''}${open?' open':''}" data-id="${esc(m.id)}"><div class="ic" style="background:${toHere?'var(--cri)':colOf(m)}">${ico(m)}</div><div class="bd">`
+      +`<div class="l1"><b>${no?`<span class="no">${no}</span>`:''}${esc(label(m))}${n}</b><span class="d">${Math.round(d)} ${esc(t('lt_km'))}</span></div>`
+      +`<div class="l2">${bits.map(x=>x.startsWith('<')?x:esc(x)).join(' · ')}</div>`
       +(eta?`<div class="l3"><b>${esc(t('eta_band',eta[0],eta[1]))}</b> <span>${esc(t('eta_if'))}</span></div>`:'')
-      +`</div></div>`;}).join('');
+      +`<div class="more">${said?`<q>«${esc(said)}»</q>`:''}${LANG!=='uk'&&m.text&&said!==m.text?`<span class="orig">${esc(m.text)}</span>`:''}`
+      +(track.length?`<div>${esc(t('lt_track'))}: ${track.join(' → ')} → <b>${esc(pn(m.place||'?'))} ${fmtT(m.ts)}</b></div>`:'')
+      +(alt?`<div>${esc(t('lt_alt'))}: ${esc(alt)} <span>(${esc(t('alt_src'))})</span></div>`:'')
+      +`<div>${esc(t('lt_src2'))}: @${esc(m.channel||'?')} · ${fmtT(m.ts)}</div></div>`
+      +(open?'':`<div class="tap">${esc(t('lt_tap'))}</div>`)
+      +`</div></div>`; };
+  $('list').innerHTML=(rows.length?rows.map(row).join(''):`<div class="none"><b>${esc(t('lt_none'))}</b><small>${esc(t('lt_none_b'))}</small></div>`)
+    +(far.length?`<div class="sec">${esc(t('lt_appr'))}</div>`+far.map(row).join(''):'');
 
   // a buzz for something new inside 10 km, or anything that outruns a radius — once per target
   for(const r of rows) if(r.zone==='near'&&!SEEN.has(r.m.id)){ SEEN.add(r.m.id); if(navigator.vibrate) navigator.vibrate([200,100,200]); }
   for(const m of imm) if(!SEEN.has(m.id)){ SEEN.add(m.id); if(navigator.vibrate) navigator.vibrate([300,80,300,80,300]); }
 }
+
+// a row opens and closes on a tap; the page repaints every 15 s, so which rows are open is remembered
+const OPEN=new Set();
+$('list').addEventListener('click',e=>{ const r=e.target.closest('.row[data-id]'); if(!r) return;
+  const id=r.dataset.id; if(OPEN.has(id)) OPEN.delete(id); else OPEN.add(id); r.classList.toggle('open'); const tp=r.querySelector('.tap'); if(tp) tp.remove(); });
 
 async function refresh(){
   try{
@@ -410,7 +497,8 @@ async function usePlace(){ const p=place(); OBL=null; OBL_GUESS=false; PR=null;
   await loadLM(); PR=raionsOf(p);
   if(PR&&PR.length) OBL=PR[0].obl;
   else { OBL=await oblastOf(p); if(!OBL){ OBL='31'; OBL_GUESS=true; } }
-  paint(); }
+  paint();
+  await loadExtras(); paint(); }
 
 // ---- choosing a place ------------------------------------------------------------------------------------
 let PICK=null, PLACES=null;
@@ -442,6 +530,11 @@ $('pickx').onclick=()=>$('pick').classList.remove('show');
     const id=b.dataset.s; if(SLOTS[id]){ACTIVE=id; save(); usePlace();} else openPick(id);});
   $('slots').addEventListener('pointercancel',stop); $('slots').addEventListener('pointerleave',stop); })();
 
+// the notice, once per opening of the app (the Tactical page reads the same flag)
+(()=>{ let seen=false; try{ seen=sessionStorage.getItem('disc_seen')==='1'; sessionStorage.setItem('disc_seen','1'); }catch(e){}
+  if(seen) return;
+  $('dmt').textContent=t('d_title'); ['dm1','dm2','dm3'].forEach((id,i)=>{ $(id).innerHTML=t('d_p'+(i+1)); });
+  $('dmok').textContent=t('d_ok'); $('dm').hidden=false; $('dmok').onclick=()=>{ $('dm').hidden=true; }; })();
 usePlace(); refresh(); setInterval(refresh,15000);
 document.addEventListener('visibilitychange',()=>{ if(!document.hidden) refresh(); });
 </script>

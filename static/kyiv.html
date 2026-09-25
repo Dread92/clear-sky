@@ -91,11 +91,13 @@ body.lite .tstrip.old{background:#111;color:#ddd;border-color:#555}
 .srcs{display:flex;gap:4px;margin-left:2px;align-items:center}.srcs i{width:6px;height:6px;background:var(--ink3);display:inline-block}.srcs i.ok{background:var(--green)}.srcs i.warn{background:var(--yellow)}.srcs i.bad{background:var(--red)}.srcs .sn{font:600 10px var(--mono);color:var(--ink3);letter-spacing:.02em}@media (max-width:999px){.srcs .sn{display:none}}
 #top .sp{flex:1}
 /* Light | Tactical — the two versions, one tap apart, where the eye lands first */
-#top .vsw{display:flex;flex:none;border:1px solid #3a3f4a;border-radius:4px;overflow:hidden}
-#top .vsw>*{font:800 11px/1 var(--sans);letter-spacing:.07em;padding:7px 9px;color:var(--ink2);text-decoration:none;background:var(--panel);white-space:nowrap}
+#top .vsw{display:flex;flex:none;border:2px solid var(--orange,#ff8a3d);border-radius:7px;overflow:hidden;box-shadow:0 0 0 3px rgba(255,138,61,.14)}
+#top .vsw>*{font:800 12.5px/1 var(--sans);letter-spacing:.08em;padding:8px 11px;color:#fff;text-decoration:none;background:#1a202b;white-space:nowrap}
 #top .vsw .on{background:var(--orange,#ff8a3d);color:#14100a}
-#top .vsw a:hover,#top .vsw a:focus{color:var(--ink);background:var(--panel2,#1b2029)}
-@media (max-width:430px){#top .name{display:none}#top .vsw>*{padding:7px 7px;font-size:10.5px}}
+#top .vsw a::after{content:' ›'}
+#top .vsw a:hover,#top .vsw a:focus{background:#242c3a}
+@media (max-width:430px){#top .name{display:none}#top .vsw>*{padding:8px 9px;font-size:12px}}
+@media (max-width:380px){#top .clock{display:none}#top .vsw>*{padding:8px 7px;font-size:11.5px;letter-spacing:.05em}}
 body.m-day #top .vsw{border-color:#b9b2a4}body.m-day #top .vsw>*{background:#fff;color:#333}body.m-day #top .vsw .on{background:#e0701f;color:#fff}
 body.lite #top .vsw .on{background:#fff;color:#000}
 #top .clock{font:600 13px var(--mono);color:var(--ink2);white-space:nowrap;letter-spacing:.02em}
@@ -656,7 +658,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.11</div>
+    <div class="mi bt" id="buildtag">v1.15</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -856,8 +858,12 @@ $('pushbtn').onclick=async()=>{ $('menu').hidden=true;
     pushLabel(); notify(t('n_push_on'),t('n_push_on_b',HOME?t('n_push_raion',HOME.name):''),'end');
   }catch(e){ notify(t('n_push_fail'),String(e).slice(0,120),'threat'); } };
 pushInit();
-// disclaimer: shown on first open (and every 30 days), always available from the menu
-(()=>{$('disc').hidden=false;   // shown on every open, on purpose
+// disclaimer: shown once each time the app is OPENED, always available from the menu.
+// Not on every page load: switching Light ⇄ Tactical loads the other page, and the notice came back each time,
+// until people stopped reading it. sessionStorage lives exactly as long as the tab or the installed app's
+// window — so closing and reopening the app shows it again, and the Light page shares the same flag.
+(()=>{ let seen=false; try{ seen=sessionStorage.getItem('disc_seen')==='1'; sessionStorage.setItem('disc_seen','1'); }catch(e){}
+  $('disc').hidden=seen;
   $('discok').onclick=()=>{$('disc').hidden=true;try{localStorage.setItem('disc_ack',String(Date.now()));}catch(e){};setTimeout(()=>{try{maybeRemindSupport();}catch(e){}},90000);};
   $('aboutbtn').onclick=()=>{$('menu').hidden=true;$('disc').hidden=false;};
   $('discobl').onchange=e=>setMyOblast(e.target.value);
@@ -2196,7 +2202,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.11';
+const APP_VERSION='1.15';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

@@ -34,3 +34,6 @@ cloudflared.exe
 
 # scratch: files moved aside for you to delete
 _to_delete/
+
+# marketing assets (44 MB of images and a zip): kept on the PC, not in the code repository
+docs/brandkit/

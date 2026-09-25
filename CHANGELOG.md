@@ -1,5 +1,97 @@
 # Changelog
 
+Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
+
+## 1.15.0 — 2026-09-25
+
+### Changed
+- **Light watches 30 km, not 60.** Rings at 10 / 20 / 30 km; the map under the radar is drawn at twice the
+  scale, so it now shows Kyiv's districts, villages and neighbourhoods, and river names, placed without
+  overlapping.
+- **Light is more detailed.** Each mark carries its number in the list. Each row adds where it was reported
+  and its course; a tap opens what the post said (original and translation), the track so far, the altitude
+  when the post stated one, and the source and time.
+- **Beyond 30 km, only what is coming.** Targets 30–100 km out are listed apart, under "Approaching", and only
+  when the post's own course points at the place.
+- **The Light | Tactical switch is impossible to miss.** On Light it is a full-width two-part control under
+  the title, each half saying what it is ("your place only" / "the full map"); on Tactical, a high-contrast
+  pill in the header (the clock gives way on very narrow phones).
+- **The notice at opening appears once per opening.** Switching Light ⇄ Tactical no longer shows it again; it
+  is shared by both pages and comes back when the app is closed and reopened. Light now shows it too when it
+  is the page the app was opened on.
+- The yellow level reads "Yellow level (drones)", short enough for the banner.
+
+### Added
+- **docs/TECHNICAL.md** — the complete technical reference, updated with every patch. `tests/test_docs.py`
+  fails when its version, `APP_VERSION` and this changelog disagree, or when a route, config key, environment
+  variable, table or channel in the code is missing from it.
+- The repository is ready for GitHub: history scanned for secrets (none), `scripts/github-push.bat` creates the
+  private repository and pushes.
+
+## 1.14.0 — 2026-09-24
+
+### Fixed
+- **Alerts follow raions, as the government app gives them.** The only official source on the server was a
+  mirror with one on/off per oblast, lit whenever any raion is under alert and with no start time: at 22:21 it
+  showed all of Kyiv oblast red, and "since 22:17" (the reboot), while Boryspil raion had been clear since
+  22:07. The primary source is now the official data by raion and hromada — api.ukrainealarm.com with a key,
+  or siren.pp.ua, its keyless proxy — with the official level and reason. The mirror only stands in when that
+  source is down, and a start time it does not know is not shown.
+- **Translation no longer delays alerts.** The free translator refuses servers, and each refusal cost ~3 s per
+  post in front of the drone reports of the same poll. Posts are stored with the offline glossary at once;
+  machine translation happens afterwards.
+
+### Added
+- **Light: status of the place's own raion**, found on the phone; a place within 1.5 km of a border gets
+  either side's alert; neighbouring raions under alert are named, not painted on the place.
+- **Light: a small map under the radar** — raions shaded by alert, rivers, roads, towns; threats as small
+  arrows only where a course was reported; the ⚠ for unknown types upright.
+- **Light | Tactical switch** on both pages.
+- **English and French by DeepL or Google Cloud** when a key is set (`DEEPL_KEY`, optional step in
+  `deploy-fly.bat`), only for a language somebody is reading. The offline glossary learned the channels'
+  everyday words ("Oblast overall clear, breathing easy for now").
+- `data/ua_regions.json` and `static/light-map.json`, built by `scripts/build_geo.py`.
+- Static files are served gzipped with ETag revalidation.
+
+## 1.13.0 — 2026-09-24
+
+### Changed
+- **Six channels only**: kyiv_airdef, chyste_nebo, kievinfo_kyiv, war_monitor, eRadarrua, kpszsu — in code,
+  because deployed configs listed 33. chyste_nebo is reported as unreadable (web preview disabled).
+- **Only the official data sets the alert colour.** A channel writing "відбій" or "чисто" can no longer turn
+  the band green.
+- **Region**: Kyiv city, Kyiv oblast and the oblasts around it (Zhytomyr, Chernihiv, Sumy, Poltava, Cherkasy,
+  Vinnytsia).
+- Cruise and ballistic missiles look like missiles and are smaller; the uncertainty ring stops at 25 km and
+  says "position no longer known"; the ⚠ for an unknown type stays upright with an orange course arrow.
+
+### Fixed
+- **News is not a threat**: press releases, reported speech, tallies and long posts no longer become marks.
+- **Banderol is a jet drone**, never a cruise missile — in parsing, tags and track chaining.
+- kievinfo_kyiv parsing: "Димерка" is not Dymer, "A - B" routes give the heading, one mark per line, ✈️ is a
+  drone on the live channels.
+
+### Added
+- **Clear Sky Light** (`/light`): one place, its official status, what is near, installable on its own.
+
+### Removed
+- "Show original Ukrainian", the "All threats / Towards me" switch, fire and ground-damage marks.
+
+## 1.12.0 — 2026-09-22
+
+### Added
+- **Threat lifecycle**: the stage a post reports (prep, take-off, launch line, launch, entering), read only
+  from the post's own words, with hedges kept as hedges.
+- **Immediate weapons**: ballistic, Kh-22/32 (now its own type, not "cruise") and MiG-31K ignore every radius
+  and concern the whole region; the banner takes its colour from the official alert.
+- **Four places** — Home, Work, Kids, Pin — kept only on the phone; zones at 10 / 30 / 60 km; a conditional
+  ETA band only for a stated course toward the place.
+- **Marks point where the post said**: a silhouette per weapon, turned only to a reported course; a five-minute
+  tail; no animation that could read as an observed path.
+- **Display modes**: daylight (inverted, contrast-tested), night (dim), blackout.
+- **Shoot-down notice** for a target the reader was warned about, worded so it can never read as an all-clear.
+- The Shahed silhouette is the real airframe.
+
 ## 1.11.0 — 2026-09-17
 
 ### Added

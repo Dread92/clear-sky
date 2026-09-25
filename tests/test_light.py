@@ -37,14 +37,16 @@ def test_it_is_part_of_the_build_hash():
 
 
 def test_it_stays_light():
-    """Measured as it travels: the server gzips text. Page + map outlines stay under 60 KB on the wire —
-    a few seconds on 2G, and the status is painted before the outlines arrive."""
+    """Measured as it travels: the server gzips text. Page + map outlines + Kyiv districts stay under 60 KB on
+    the wire — a few seconds on 2G — and the status is painted before any of the map data arrives."""
     import gzip
     page = len(gzip.compress(LIGHT.encode("utf-8"), 6))
-    with open(os.path.join(ROOT, "static", "light-map.json"), "rb") as f:
-        outlines = len(gzip.compress(f.read(), 6))
-    assert page < 14_000, f"the light page is no longer light ({page} B gzipped)"
-    assert page + outlines < 60_000, f"page + outlines = {page + outlines} B gzipped"
+    extra = 0
+    for f in ("light-map.json", "kyiv-districts.json"):
+        with open(os.path.join(ROOT, "static", f), "rb") as fh:
+            extra += len(gzip.compress(fh.read(), 6))
+    assert page < 17_000, f"the light page is no longer light ({page} B gzipped)"
+    assert page + extra < 60_000, f"page + map data = {page + extra} B gzipped"
     for heavy in ("kyiv-map.json", "EventSource", "tile.openstreetmap", "/api/feed"):
         assert heavy not in LIGHT, f"the light page loads {heavy}"
 
@@ -112,3 +114,29 @@ def test_every_light_string_is_in_all_three_languages():
     for k in sorted(keys):
         n = len(re.findall(rf"(?<![A-Za-z_]){k}:", I18N))
         assert n == 3, f"{k} appears {n} times"
+
+
+def test_it_watches_thirty_kilometres():
+    js = _script()
+    assert "R_KM=30" in js.replace(" ", "")
+    assert "if(d<=R_KM) rows.push(r)" in js
+    # beyond the radius, only what a post says is heading here — never "everything within 100 km"
+    assert "else if(toHere&&!m.stale&&d<=FAR_KM) far.push(r)" in js
+    for pat in (r"lt_none:'([^']*)'",):
+        for v in re.findall(pat, I18N):
+            assert "30" in v and "60" not in v, v
+
+
+def test_the_notice_shows_once_per_opening_on_both_pages():
+    full = open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
+    for page in (full, LIGHT):
+        assert "sessionStorage.getItem('disc_seen')" in page and "sessionStorage.setItem('disc_seen','1')" in page
+    assert "shown on every open, on purpose" not in full
+
+
+def test_the_switch_is_on_both_pages_and_each_half_says_what_it_is():
+    full = open(os.path.join(ROOT, "static", "kyiv.html"), encoding="utf-8").read()
+    assert 'href="/light"' in full[full.index('<header id="top">'):full.index('<header id="top">') + 800]
+    assert '<nav class="sw" id="sw">' in LIGHT and 'href="/m"' in LIGHT[LIGHT.index('<nav class="sw"'):LIGHT.index('<nav class="sw"') + 300]
+    for k in ("sw_light_b", "sw_tac_b"):
+        assert I18N.count(k + ":") == 3

@@ -6,7 +6,8 @@ convenience, cleverness and features.
 
 ## Before changing anything in `app/`
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — how the pieces fit.
+- [docs/TECHNICAL.md](docs/TECHNICAL.md) — the complete technical reference: how the pieces fit, every
+  route, setting, table and source.
 - `python -m pytest` must pass. Parsing changes need a test built from a **real post**.
 - A new warning path (anything that can raise the red banner or place a marker) needs a test for the
   false-positive case too: the post that looks similar but must *not* trigger it.
@@ -31,8 +32,9 @@ and without waiting for an attack.
 - Front end: no build step, no framework, no CDN dependency at runtime. `static/kyiv.html` stays one
   self-contained file.
 - Every user-visible string goes through `t()` in all three languages — CI enforces it.
-- Bump the `build …` tag in `static/kyiv.html` when you change the front end. It is how you tell, at
-  a glance on a phone, which version is actually deployed.
+- Every patch follows the checklist in [docs/TECHNICAL.md §18](docs/TECHNICAL.md#18-the-patch-checklist):
+  version bump, a `CHANGELOG.md` entry, and the technical documentation updated in the same commit.
+  `tests/test_docs.py` fails when they drift apart.
 
 ## Commits
 

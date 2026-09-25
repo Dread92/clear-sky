@@ -1,11 +1,11 @@
 # Clear Sky
 
-**Unofficial air-raid and drone tracker for Kyiv and all of Ukraine.**
+**Unofficial air-raid and drone tracker for Kyiv, Kyiv oblast and the oblasts around it.**
 
-A single Python service (standard library only) reads public sources every few seconds — the Air
-Force, oblast and city administrations, volunteer monitoring channels, the official alert feeds —
-parses the Ukrainian text, and draws what was reported on one map: where drones and missiles were
-seen, which oblasts and raions are under alert, where explosions and confirmed shoot-downs happened.
+A single Python service (standard library only) reads the official «Повітряна тривога» alert data raion
+by raion, and six public Telegram channels — the Air Force and the live trackers of the Kyiv sky — parses the
+Ukrainian text, and shows what was reported in two ways: **Tactical** (`/m`), the full map with the evidence
+behind every mark, and **Light** (`/light`), one place, its raion's official status and what is within 30 km.
 
 > ### ⚠ This is not an official warning system
 >
@@ -48,7 +48,8 @@ and opens the browser. Linux/macOS: `scripts/start.sh`.
 
 | | |
 |---|---|
-| **Map first** | Every oblast and all 136 raions, coloured red/yellow exactly as the government app shows them. Kyiv has its own simplified 10-district map. Crimea is drawn hatched as temporarily occupied. |
+| **Alerts by raion** | Each raion coloured by its own official alert, at the government app's level — red (massed drones, missiles) or yellow (drones) — never the whole oblast for one raion. |
+| **Light version** | `/light`: Home, Work, Kids or a pin; the official status of that place's raion; a 30 km radar over a small local map; tap a row for what the post said. The places never leave the phone. |
 | **Targets where they were reported** | Shaheds are drawn loitering around the reported point (their real path is erratic) with a chevron for the reported heading. No extrapolated trajectory unless you switch on EST, no invented ETA — [why](docs/SAFETY.md#no-liberties-with-trajectories). |
 | **Per-target justification** | Tap any marker: the sentence it came from, the channel, the time, how position / heading / count were read, the confidence, and other reports nearby. |
 | **Goes grey, then goes away** | A target with no new report for 5 minutes turns grey with a `?`, fades in steps, and disappears after 15 minutes. Stale is never shown as active. |
@@ -58,7 +59,7 @@ and opens the browser. Linux/macOS: `scripts/start.sh`.
 | **Stats** | Alerts per day, time of day, longest alert, explosions and shoot-downs by oblast, and what the Air Force says was *launched* over Ukraine (24 h / 7 d / 30 d) — kept separate from the count of *reports*, which is a volume of posts, not of targets. |
 | **Three languages** | Full UI in 🇬🇧 English, 🇺🇦 Ukrainian, 🇫🇷 French — including place names, raions, districts and channel names. See [docs/I18N.md](docs/I18N.md). |
 | **Altitude when it is stated** | A post saying `знижується` marks the target ↓ DESCENDING in crimson — it is diving. Climbing, low, high and values in metres are read the same way. Never inferred: no public source publishes altitude. |
-| **Push notifications** | Web Push (VAPID / RFC 8291, hand-rolled on `cryptography`) wakes the phone with the app closed — for your oblast, your chosen place, or anything reported within a radius of your location. |
+| **Push notifications** | Web Push (VAPID / RFC 8291, hand-rolled on `cryptography`) wakes the phone with the app closed — for a target reported within your radius, a MiG-31K take-off or a ballistic threat. No siren-start or all-clear pushes: the siren already says that. |
 | **Share in one tap** | The status of any target as text, for a chat: what, where, when, descent, heading, distance, source, and the caveat that it is not radar. |
 | **Install as an app** | A PWA: add it to the home screen and it runs full-screen with no browser bar. No store, no download. |
 | **Blackout mode** | For 2G during an attack: black and white, no tiles, no images, minimal data. |
@@ -72,25 +73,29 @@ clear-sky/
 ├── app/                    the service — four modules, no framework
 │   ├── server.py           HTTP + API + SSE, pollers, SQLite store, marker logic
 │   ├── geo.py              Ukrainian parsing: places, declensions, headings, counts, channel formats
-│   ├── translate.py        offline UA→EN glossary, boilerplate cleaning
+│   ├── translate.py        offline UA→EN glossary; DeepL / Google machine translation, on demand
 │   └── push.py             Web Push: VAPID ES256 JWT + aes128gcm
 ├── static/                 the whole front end
-│   ├── kyiv.html           the app: SVG map, markers, sheets, stats (one self-contained page)
+│   ├── kyiv.html           Tactical: SVG map, markers, sheets, stats (one self-contained page)
+│   ├── light.html          Light: one place, its raion, a 30 km radar (one self-contained page)
+│   ├── light-map.json      raion outlines, rivers, roads, towns for the Light map (built)
 │   ├── i18n.js             EN / UK / FR strings, place and channel names
 │   ├── kyiv-map.json       27 oblasts + 136 raions, projected to km around Kyiv
 │   ├── kyiv-districts.json the 10 Kyiv city districts (OSM boundaries)
 │   ├── sw.js               service worker (push + notification clicks)
 │   └── manifest.json       PWA manifest ("add to home screen")
-├── tests/                  parsing and tagging tests — the safety-critical parts
-├── docs/                   architecture, deployment, sources, safety, i18n
-├── scripts/                start.sh, dev.sh, tunnel.bat, github-push.bat
+├── data/                   ua_regions.json (official region ids, built) · corpus.jsonl (regression corpus)
+├── tests/                  ~370 tests — parsing, alerts by raion, privacy, languages, documentation
+├── docs/                   TECHNICAL.md (complete reference), SAFETY, DEPLOY, I18N, CORPUS
+├── scripts/                build_geo.py, corpus.py, github-push.bat, start.sh, dev.sh, tunnel.bat
 ├── start.bat               Windows: double-click to run
 ├── deploy-fly.bat          Windows: one-click deploy to Fly.io
 ├── Dockerfile · fly.toml · render.yaml
 └── config.example.json     template — copy to config.json and add your token
 ```
 
-Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before changing anything in `app/`.
+Read [docs/TECHNICAL.md](docs/TECHNICAL.md) before changing anything in `app/` — it is the complete
+technical reference, updated with every patch.
 
 ## Configuration
 
@@ -99,10 +104,11 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before changing anything in `a
 | Key | Default | What it does |
 |---|---|---|
 | `port` | `8642` | HTTP port (`PORT` env var wins — that is what Fly.io sets). |
-| `alerts_in_ua_token` | `""` | Primary alert feed. Free token: <https://alerts.in.ua/api-request>. |
-| `ukrainealarm_key` | `""` | Backend of the official app — primary if no alerts.in.ua token, else cross-check. |
-| `use_ubilling_fallback` | `true` | Keyless oblast-level mirror, used when you have no token at all. |
-| `telegram_channels` | 36 channels | Public channels polled through `t.me/s/<name>` previews. Add any public channel; a dedicated parser is only needed for exotic formats. |
+| `use_siren_proxy` | `true` | Official alerts by raion through the keyless siren.pp.ua proxy. |
+| `ukrainealarm_key` | `""` | Read the official API (api.ukrainealarm.com) directly instead. |
+| `alerts_in_ua_token` | `""` | Optional: alerts.in.ua as the primary alert source. |
+| `use_ubilling_fallback` | `true` | Oblast-level mirror, only while the raion source is down. |
+| `deepl_key` | `""` | EN/FR machine translation of the feed (or `google_translate_key`). |
 | `favourites` | `["31","14"]` | Region UIDs that drive notifications (31 = Kyiv city, 14 = Kyiv oblast). |
 | `poll_alerts_seconds` | `15` | Alert feed interval. |
 | `poll_telegram_seconds` | `30` | Telegram interval, normally. |
@@ -112,12 +118,13 @@ Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) before changing anything in `a
 | `history_backfill_hours` | `6` | How much history to pull at startup. |
 | `bind` | `0.0.0.0` | Set to `127.0.0.1` to keep it on this machine only. |
 
-Environment variables: `PORT`, `DB_PATH`, `CONFIG_PATH`, `ACCESS_KEY` (when set, every request needs
-`?key=…` once per device — use it for a public deployment).
+Environment variables and every other key: [docs/TECHNICAL.md §5](docs/TECHNICAL.md#5-runtime-configuration-and-secrets).
+The channels read are fixed in code (`AUTHORITATIVE_CHANNELS`), not in the config.
 
 ## HTTP API
 
-Everything the page uses is public JSON; you can build your own client on it.
+Everything the page uses is public JSON; you can build your own client on it. The complete list, including
+the admin routes: [docs/TECHNICAL.md §12](docs/TECHNICAL.md#12-http-api).
 
 | Route | Returns |
 |---|---|
@@ -126,10 +133,11 @@ Everything the page uses is public JSON; you can build your own client on it.
 | `GET /api/markers` | Live targets with position, heading, count, staleness, and full evidence. |
 | `GET /api/impacts?hours=24` | Explosions and confirmed shoot-downs in the window. |
 | `GET /api/stats?days=14` | Daily series, hour-of-day histogram, launch totals, per-oblast outcomes. |
-| `GET /api/feed?limit=150` | Recent parsed posts with tags and machine translation. |
+| `GET /light` | The Light version (also `/l`). |
+| `GET /api/feed?limit=150&lang=en` | Recent parsed posts with tags and translations (`lang` asks for machine translation). |
 | `GET /api/history?hours=24&oblast=31,14` | Past alerts for those regions. |
 | `GET /api/version` | Tiny version ping (`v`, `now`, `missile`) — the page polls this, not the whole state. |
-| `GET /api/stream` | Server-sent events: `start`, `end`, `threat`, `update`, `feed`, `eradar`. |
+| `GET /api/stream` | Server-sent events: `start`, `end`, `threat`, `update`, `feed`, `eradar`, `tr`. |
 | `GET /api/places?oblast=all` | Gazetteer of places with coordinates. |
 | `GET /healthz` | Liveness. |
 | `POST /api/push/{subscribe,unsubscribe,test}` | Web Push subscriptions. |
@@ -161,7 +169,7 @@ nothing else. With no key set at all, the dashboard is not served — it cannot 
 
 ## The regression corpus
 
-`tests/corpus/cases.jsonl` holds real posts and the parse each one must produce. It runs with the ordinary
+`data/corpus.jsonl` holds real posts and the parse each one must produce. It runs with the ordinary
 test suite, and `python scripts/corpus.py replay` runs it alone. When something looks wrong on the live map,
 capture it while you are looking at it:
 
@@ -198,10 +206,10 @@ including Render and running it at home behind a tunnel: [docs/DEPLOY.md](docs/D
 
 ## Sources
 
-Official feeds (alerts.in.ua, api.ukrainealarm.com, the ubilling mirror) plus 36 public Telegram
-channels: the Air Force @kpszsu, the alert map @povitryanatrivogaaa, oblast administrations,
-єТривога, єРадар, the city-siren network, and live monitoring channels.
-What each one gives and how it is parsed: [docs/SOURCES.md](docs/SOURCES.md).
+The official «Повітряна тривога» data by raion (api.ukrainealarm.com, or its keyless proxy siren.pp.ua), with
+the ubilling mirror as a stand-in; and six public Telegram channels: @kyiv_airdef, @chyste_nebo,
+@kievinfo_kyiv, @war_monitor, @eRadarrua and the Air Force @kpszsu.
+What each one gives and how it is parsed: [docs/TECHNICAL.md §6–7](docs/TECHNICAL.md#6-official-alert-data).
 
 Map data: raion and oblast boundaries from [geoBoundaries](https://www.geoboundaries.org/) (CC BY
 4.0); Kyiv district boundaries from OpenStreetMap via Nominatim (ODbL); street tiles from

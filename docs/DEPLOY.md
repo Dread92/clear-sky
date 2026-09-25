@@ -8,7 +8,8 @@ free allowance, but Fly requires a payment method on the account before it will 
 ### First time
 
 Windows: double-click **`deploy-fly.bat`** — it installs `flyctl`, logs you in, creates the app and
-the volume, asks for an access key and deploys.
+the volume, asks for the dashboard key (`ADMIN_KEY`) and, optionally, a DeepL key for EN/FR translation,
+then deploys.
 
 Manually, anywhere:
 
@@ -16,12 +17,28 @@ Manually, anywhere:
 fly auth login
 fly apps create clear-sky --org personal
 fly volumes create data --size 1 --region ams --yes -a clear-sky
-fly secrets set ACCESS_KEY=a-long-random-string -a clear-sky
-fly secrets set ALERTS_IN_UA_TOKEN=your-token -a clear-sky
+fly secrets set ADMIN_KEY=a-long-random-string -a clear-sky     # protects /admin only; the map stays public
+fly secrets set DEEPL_KEY=your-deepl-key -a clear-sky            # optional: clear EN/FR translation
+fly secrets set UKRAINEALARM_KEY=your-key -a clear-sky           # optional: official API instead of the proxy
 fly deploy -a clear-sky --ha=false
 ```
 
 Change `app = "…"` in `fly.toml` to your app name.
+
+### Secrets
+
+| Secret | Needed | What it does |
+|---|---|---|
+| `ADMIN_KEY` | recommended | Protects `/admin` (usage, flagged readings, corpus review). |
+| `DEEPL_KEY` | optional | EN/FR machine translation of the feed. Free plan keys end in `:fx`. |
+| `GOOGLE_TRANSLATE_KEY` | optional | Alternative translator (Google Cloud Translation). |
+| `UKRAINEALARM_KEY` | optional | Reads api.ukrainealarm.com directly instead of the keyless siren.pp.ua proxy. |
+| `ALERTS_IN_UA_TOKEN` | optional | Makes alerts.in.ua the primary alert source. |
+| `ACCESS_KEY` | **never on the public app** | Locks the whole map behind a key. |
+
+Without any of the optional ones the app is complete: official alerts by raion come from the keyless proxy,
+and English uses the offline glossary. The full list of settings is in
+[TECHNICAL.md §5](TECHNICAL.md#5-runtime-configuration-and-secrets).
 
 ### Updating
 

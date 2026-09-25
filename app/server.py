@@ -319,7 +319,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.11"
+APP_VERSION = "1.15"
 BUILD = None    # filled at startup
 
 
