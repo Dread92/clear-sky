@@ -34,6 +34,7 @@ Change `app = "…"` in `fly.toml` to your app name.
 | `GOOGLE_TRANSLATE_KEY` | optional | Alternative translator (Google Cloud Translation). |
 | `UKRAINEALARM_KEY` | optional | Reads api.ukrainealarm.com directly instead of the keyless siren.pp.ua proxy. |
 | `ALERTS_IN_UA_TOKEN` | optional | Makes alerts.in.ua the primary alert source. |
+| `TG_API_ID`, `TG_API_HASH`, `TG_SESSION` | optional | Read chyste_nebo through the Telegram API. Set by `scripts\telegram-login.bat`, never by hand. |
 | `ACCESS_KEY` | **never on the public app** | Locks the whole map behind a key. |
 
 Without any of the optional ones the app is complete: official alerts by raion come from the keyless proxy,

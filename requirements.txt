@@ -1,4 +1,6 @@
-# Clear Sky runs on the Python standard library alone.
-# The single optional dependency below only enables Web Push notifications
-# (phone alerts with the app closed). Without it the app runs, push is disabled.
+# Clear Sky runs on the Python standard library alone. Both dependencies below are optional:
+# cryptography enables Web Push notifications (phone alerts with the app closed); without it push is off.
 cryptography>=42.0
+# telethon reads the channels whose web preview is switched off (chyste_nebo) through the Telegram API,
+# once scripts/telegram-login.bat has set TG_API_ID / TG_API_HASH / TG_SESSION. Without it they are not read.
+telethon>=1.36

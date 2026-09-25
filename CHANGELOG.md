@@ -2,6 +2,18 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.18.0 — 2026-09-25
+
+### Added
+- **chyste_nebo is read through the Telegram API.** Its owner switched the web preview off, so the channel that
+  states drone heights most often could not be read at all. A new reader signs in with a Telegram session and
+  receives its posts as they are published (plus a catch-up read every 30 s); every post goes through the same
+  path as the other channels, so its heights, positions and courses appear on both pages like any other.
+- **`scripts\telegram-login.bat`**: the one-time sign-in. It asks for the api_id / api_hash from my.telegram.org
+  and the phone of the reading account, signs in with the code Telegram sends, joins the channel, and stores the
+  session in Fly's secret store — never on screen, in a file or in the repository.
+- Dependency: `telethon` (only used when the Telegram secrets are set).
+
 ## 1.17.0 — 2026-09-25
 
 ### Fixed

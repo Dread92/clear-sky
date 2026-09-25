@@ -73,6 +73,7 @@ DEFAULT_CONFIG = {
     "ukrainealarm_key": "",
     "use_ubilling_fallback": True,
     "use_siren_proxy": True,
+    "telegram_api_channels": ["chyste_nebo"],   # read through the Telegram API (web preview off); needs TG_* secrets
     "deepl_key": "",                  # machine translation of the feed (EN/FR); or env DEEPL_KEY
     "google_translate_key": "",       # alternative: Google Cloud Translation; or env GOOGLE_TRANSLATE_KEY          # keyless proxy of the official API (siren.pp.ua) — raion-level alerts without a key
     "poll_ukrainealarm_seconds": 10,
@@ -319,7 +320,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.17"
+APP_VERSION = "1.18"
 BUILD = None    # filled at startup
 
 
@@ -1920,6 +1921,7 @@ class Telegram(threading.Thread):
             log(f"telegram: {len(extra)} channel(s) in config ignored — only {', '.join(AUTHORITATIVE_CHANNELS)} are read")
         self.official = OfficialAlerts(state)
         self.seen_channels = set()
+        self.api_channels = set()   # channels TelegramAPI is reading right now — this poller leaves them alone
 
     def run(self):
         interval = max(30, int(self.cfg.get("poll_telegram_seconds", 45)))
@@ -1941,18 +1943,33 @@ class Telegram(threading.Thread):
             time.sleep(rush if lvl >= 2 else fast if lvl else interval)
 
     def poll(self, ch):
+        if ch in self.api_channels:
+            return            # read through the Telegram API (TelegramAPI) — its preview is switched off
         st, _, body = http_get(f"https://t.me/s/{ch}", {"Accept-Language": "uk,en"})
         page = body.decode("utf-8", "replace")
-        posts = []
+        if 'tgme_widget_message_wrap' not in page:
+            # The owner has switched the web preview off: t.me/s/ shows the landing page and no posts at all.
+            # Reported as a failed source, not a quiet one — "no drones reported" and "we cannot read this
+            # channel" must never look the same in the sources panel.
+            self.state.set_source(f"tg:{ch}", False, error="web preview disabled by the channel — cannot be read via t.me/s/")
+            return
+        raw_posts = []
         for part in page.split('<div class="tgme_widget_message_wrap')[1:]:
             mid = re.search(r'data-post="([^"]+)"', part)
             mtxt = re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', part, re.S)
             mdt = re.search(r'<time[^>]*datetime="([^"]+)"', part)
             if not (mid and mtxt and mdt):
                 continue
-            post_id, raw, dt = mid.group(1), mtxt.group(1), mdt.group(1)
-            text = html.unescape(self.STRIP_RE.sub("", self.TAG_RE.sub("\n", raw))).strip()
-            text = re.sub(r"[ \t]+", " ", text)
+            text = html.unescape(self.STRIP_RE.sub("", self.TAG_RE.sub("\n", mtxt.group(1)))).strip()
+            raw_posts.append((mid.group(1), mdt.group(1), text))
+        self.ingest(ch, raw_posts, f"tg:{ch}")
+
+    def ingest(self, ch, raw_posts, source):
+        """Everything a channel post goes through, whichever way it was read (web preview or Telegram API):
+        raw_posts is a list of (post_id "channel/123", ISO time, text)."""
+        posts = []
+        for post_id, dt, text in raw_posts:
+            text = re.sub(r"[ \t]+", " ", (text or "").strip())
             if not text:
                 continue
             if self.state.store.has_post(post_id):
@@ -1967,13 +1984,7 @@ class Telegram(threading.Thread):
             en, fb = (_tr.translate_offline(text), True) if _tr else (text, True)
             posts.append({"post_id": post_id, "channel": ch, "ts": dt, "text": text, "tags": tags, "text_en": en, "en_fallback": fb})
         new = self.state.store.add_feed(posts)
-        if 'tgme_widget_message_wrap' not in page:
-            # The owner has switched the web preview off: t.me/s/ shows the landing page and no posts at all.
-            # Reported as a failed source, not a quiet one — "no drones reported" and "we cannot read this
-            # channel" must never look the same in the sources panel.
-            self.state.set_source(f"tg:{ch}", False, error="web preview disabled by the channel — cannot be read via t.me/s/")
-            return
-        self.state.set_source(f"tg:{ch}", True, count=len(posts), new=len(new))
+        self.state.set_source(source, True, count=len(posts), new=len(new))
         if ch == "eRadarrua" and geo:
             for p in sorted(posts, key=lambda p: p["ts"], reverse=True):
                 summ = geo.parse_eradar_summary(p["text"]) if "◦" in p["text"] else None
@@ -1990,6 +2001,112 @@ class Telegram(threading.Thread):
         if OFFICIAL_ALERTS_FROM_TELEGRAM and geo and ch in geo.OFFICIAL_PARSERS:
             self.official.ingest(ch, sorted(new, key=lambda p: p["ts"]), initial=ch not in self.seen_channels)
         self.seen_channels.add(ch)
+        return new
+
+
+class TelegramAPI(threading.Thread):
+    """Reads the channels whose web preview is switched off — chyste_nebo — through the Telegram client API.
+
+    chyste_nebo is the channel that states drone heights most often, and its owner switched t.me/s/ off, so the
+    preview reader sees nothing. A user session (api_id / api_hash from my.telegram.org, and a one-time sign-in
+    with scripts/telegram-login.bat) reads it the way the Telegram app does. That session is a key to a whole
+    Telegram account: it lives only in Fly secrets (TG_SESSION) — never in config.json, the logs or the repository.
+
+    New posts arrive as updates the moment they are published (the sign-in joins the channel); a catch-up read
+    every 30 s — 10 s while a missile is in the air — covers a reconnect. Every post goes through the same
+    Telegram.ingest() as the preview reader, so nothing downstream knows or cares how it was read."""
+    NAME = "tgapi"
+
+    def __init__(self, state, cfg, tg):
+        super().__init__(daemon=True, name="tgapi")
+        self.state, self.cfg, self.tg = state, cfg, tg
+        self.channels = [c for c in (cfg.get("telegram_api_channels") or []) if c in AUTHORITATIVE_CHANNELS]
+
+    @staticmethod
+    def configured(cfg):
+        return bool(cfg.get("tg_api_id") and cfg.get("tg_api_hash") and cfg.get("tg_session") and cfg.get("telegram_api_channels"))
+
+    @staticmethod
+    def raw_of(ch, msg):
+        """A Telethon message → the (post_id, time, text) the preview reader produces for the same post."""
+        return (f"{ch}/{msg.id}", msg.date.astimezone(timezone.utc).isoformat(), msg.message or "")
+
+    def _status(self, ok, **kw):
+        for ch in self.channels:
+            self.state.set_source(f"tga:{ch}", ok, via="Telegram API", **kw)
+
+    def run(self):
+        try:
+            import asyncio
+
+            from telethon import TelegramClient, events
+            from telethon.sessions import StringSession
+        except Exception as e:
+            self._status(False, error="telethon is not installed")
+            log("telegram api: telethon not available —", e)
+            return
+        while True:
+            try:
+                asyncio.run(self._session(TelegramClient, events, StringSession))
+                return            # stopped for good (session revoked)
+            except Exception as e:
+                self.tg.api_channels -= set(self.channels)     # let the preview reader report the channel again
+                self._status(False, error=str(e)[:160])
+                log("telegram api error:", e)
+                time.sleep(30)
+
+    async def _session(self, TelegramClient, events, StringSession):
+        import asyncio
+        try:
+            sess = StringSession(self.cfg["tg_session"])
+        except ValueError:
+            self._status(False, error="TG_SESSION is not a Telegram session — run scripts\\telegram-login.bat again")
+            log("telegram api: TG_SESSION is not a valid session string")
+            return
+        client = TelegramClient(sess, int(self.cfg["tg_api_id"]), self.cfg["tg_api_hash"],
+                                device_model="Clear Sky server", app_version=APP_VERSION, receive_updates=True)
+        await client.connect()
+        if not await client.is_user_authorized():
+            self._status(False, error="Telegram session no longer valid — run scripts\\telegram-login.bat again")
+            log("telegram api: session not authorised — run scripts/telegram-login.bat")
+            await client.disconnect()
+            return
+        ents, names = {}, {}
+        for ch in self.channels:
+            e = await client.get_entity(ch)
+            ents[ch], names[e.id] = e, ch
+        self.tg.api_channels |= set(self.channels)
+        with self.state.lock:
+            for ch in self.channels:
+                self.state.sources.pop(f"tg:{ch}", None)       # no longer a failed preview source
+        log("telegram api: reading " + ", ".join("@" + c for c in self.channels))
+
+        @client.on(events.NewMessage(chats=list(ents.values())))
+        async def _new(ev):
+            ch = names.get(getattr(ev.message.peer_id, "channel_id", None))
+            if ch:
+                self.tg.ingest(ch, [self.raw_of(ch, ev.message)], f"tga:{ch}")
+
+        async def catch_up():
+            while client.is_connected():
+                for ch, e in ents.items():
+                    try:
+                        msgs = await client.get_messages(e, limit=20)
+                        self.tg.ingest(ch, [self.raw_of(ch, m) for m in reversed(msgs) if m.message], f"tga:{ch}")
+                    except Exception as ex:
+                        wait = getattr(ex, "seconds", None)       # FloodWaitError: Telegram says how long to wait
+                        self.state.set_source(f"tga:{ch}", False, via="Telegram API", error=str(ex)[:160])
+                        if wait:
+                            await asyncio.sleep(min(int(wait), 600))
+                await asyncio.sleep(10 if self.state.missile_active() else 30)
+
+        task = asyncio.ensure_future(catch_up())
+        try:
+            await client.run_until_disconnected()
+        finally:
+            task.cancel()
+            self.tg.api_channels -= set(self.channels)
+        raise ConnectionError("disconnected from Telegram")
 
 
 class OfficialAlerts:
@@ -2774,7 +2891,8 @@ def load_config(args):
         cfg["alerts_in_ua_token"] = os.environ["ALERTS_IN_UA_TOKEN"]
     if os.environ.get("UKRAINEALARM_KEY"):
         cfg["ukrainealarm_key"] = os.environ["UKRAINEALARM_KEY"]
-    for env, key in (("DEEPL_KEY", "deepl_key"), ("GOOGLE_TRANSLATE_KEY", "google_translate_key")):
+    for env, key in (("DEEPL_KEY", "deepl_key"), ("GOOGLE_TRANSLATE_KEY", "google_translate_key"),
+                     ("TG_API_ID", "tg_api_id"), ("TG_API_HASH", "tg_api_hash"), ("TG_SESSION", "tg_session")):
         if os.environ.get(env):
             cfg[key] = os.environ[env]
     return cfg
@@ -2852,8 +2970,14 @@ def main():
             log("source: ubilling keyless mirror" + (" (cross-check)" if keyed else
                 " (stands in, oblast level only, when the raion-level source is down)" if detail else " (primary — oblast level only)"))
     if cfg.get("telegram_channels"):
-        Telegram(state, cfg).start()
+        tg = Telegram(state, cfg)
+        tg.start()
         log("feed:", ", ".join("t.me/" + c for c in cfg["telegram_channels"]))
+        if TelegramAPI.configured(cfg):
+            TelegramAPI(state, cfg, tg).start()
+        elif cfg.get("telegram_api_channels"):
+            log("telegram api: not configured — " + ", ".join("@" + c for c in cfg["telegram_api_channels"])
+                + " can only be read after scripts/telegram-login.bat (TG_API_ID, TG_API_HASH, TG_SESSION)")
 
     bind = cfg.get("bind", "127.0.0.1")
     # machine translation of the feed: DeepL / Google Cloud with a key (config or env), off the alert path

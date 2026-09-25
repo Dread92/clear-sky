@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.17** · last updated 2026-09-25
+**Documented version: 1.18** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -85,8 +85,9 @@ Summarised here, argued in [SAFETY.md](SAFETY.md), and each pinned by tests:
  alerts.in.ua (token) ────────┤─▶ AlertsInUa ────┤  apply_snapshot()
  ubilling mirror (stand-in) ──┘─▶ Ubilling ──────┤        │
                                                  ▼        ▼
- 6 Telegram channels ──▶ Telegram ──▶ Store ◀── State ──▶ /api/state ─────────▶ kyiv.html (/m)
-   (t.me/s previews)       │  tag_feed_text   (SQLite)     /api/markers ───────▶ light.html (/light)
+ 5 Telegram channels ──▶ Telegram ──▶ Store ◀── State ──▶ /api/state ─────────▶ kyiv.html (/m)
+   (t.me/s previews)       │  ingest()        (SQLite)     /api/markers ───────▶ light.html (/light)
+ chyste_nebo ──▶ TelegramAPI ─┘ (Telegram API, preview off)
                            │  is_relevant                  /api/feed?lang=
                            │  translate_offline            /api/stream (SSE) ──▶ both
                            ▼                               /api/version (ping)
@@ -130,6 +131,7 @@ clear-sky/
 │   ├── build_geo.py        rebuilds data/ua_regions.json and static/light-map.json
 │   ├── corpus.py           add / review / pull corpus cases
 │   ├── release.bat         ships a patch: checks all is committed, fly deploy, git push, shows the live version
+│   ├── telegram-login.bat  one-time Telegram sign-in for the API reader (runs telegram_login.py)
 │   ├── github-push.bat     creates the private GitHub repo and pushes (browser sign-in via GitHub CLI)
 │   └── start.sh, dev.sh, tunnel.bat
 ├── tests/                  pytest suites (see §14) and tests/fixtures/
@@ -151,7 +153,8 @@ clear-sky/
 | `UkraineAlarm` | official alerts by raion (keyless proxy or keyed API) | `/alerts/status` every 10 s, full list on change or every 2 min |
 | `AlertsInUa` | official alerts from alerts.in.ua, when a token is set | 15 s |
 | `Ubilling` | oblast-level mirror; applies only while the raion source is down | 30 s |
-| `Telegram` | reads the six channels' `t.me/s/` previews | 30 s; 10 s while a missile threat is open |
+| `Telegram` | reads the channels' `t.me/s/` previews (all but those the API reads) | 30 s; 10 s while a missile threat is open |
+| `TelegramAPI` | reads `telegram_api_channels` (chyste_nebo) through the Telegram client API | updates as published + catch-up every 30 s (10 s in a missile threat) |
 | `Translations` | machine-translates feed posts into a language somebody reads | on demand, ~3 calls/s max |
 | `Pusher` | sends Web Push | queue |
 | `proximity` | per-subscriber distance checks → push | continuous |
@@ -174,6 +177,7 @@ the committed template.
 | `alerts_in_ua_token` | `""` | alerts.in.ua token; when set, alerts.in.ua is the primary alert source. |
 | `ukrainealarm_key` | `""` | Official API key; when set, the API is read directly instead of the proxy. |
 | `use_siren_proxy` | `true` | Read the keyless siren.pp.ua proxy of the official API when there is no key. |
+| `telegram_api_channels` | `["chyste_nebo"]` | Channels read through the Telegram API (their web preview is off); needs the `TG_*` secrets. |
 | `use_ubilling_fallback` | `true` | Run the oblast-level mirror (stand-in only). |
 | `poll_ukrainealarm_seconds` | `10` | Official raion data interval. |
 | `poll_alerts_seconds` | `15` | alerts.in.ua interval. |
@@ -205,6 +209,9 @@ Environment variables win over `config.json`. On Fly they are set as **secrets**
 | `DEEPL_KEY` | DeepL key (`…:fx` = free plan → api-free.deepl.com). |
 | `GOOGLE_TRANSLATE_KEY` | Google Cloud Translation key. |
 | `TRANSLATOR` | `google` (default) allows the free Google endpoint as last resort; anything else disables it. |
+| `TG_API_ID` | Telegram API app id (my.telegram.org). |
+| `TG_API_HASH` | Telegram API app hash. |
+| `TG_SESSION` | The signed-in Telegram session (a key to that account). Set only by `scripts/telegram-login.bat`, via `fly secrets import`. |
 
 Secrets live only in `config.json` (git-ignored) or in Fly secrets. They are never committed, never printed
 by the scripts, and `.dockerignore` keeps `config.json` out of the image.
@@ -292,7 +299,7 @@ config whitelist would have changed nothing on any machine):
 | Channel | Kind | Parser |
 |---|---|---|
 | `kyiv_airdef` | fast live tracker over Kyiv | `parse_kyiv_airdef` (one mark per line, ✈️ = drone, "A - B" routes) |
-| `chyste_nebo` | fast live tracker | same — **unreadable today**: the owner disabled the web preview; reported as a failed source |
+| `chyste_nebo` | fast live tracker; **states drone heights** | same — its web preview is off, so it is read through the **Telegram API** (`TelegramAPI`, §7.2) once the `TG_*` secrets are set; without them it shows as a failed source |
 | `kievinfo_kyiv` | live tracker + news | same, with the news guard |
 | `war_monitor` | wider picture, jet drones | general `parse_post` |
 | `eRadarrua` | per-oblast group counts + live lines | `parse_eradar`, `parse_eradar_summary` (counts on oblast tags, never marks) |
@@ -303,7 +310,12 @@ drones reported" and "cannot read this channel" never look the same.
 
 ### 7.2 From page to stored post
 
-`Telegram.poll()` parses the preview HTML, skips posts already stored, runs `tag_feed_text()` and
+Two readers, one path. `Telegram.poll()` parses a channel's preview HTML; `TelegramAPI` receives a channel's
+posts as Telegram updates (and re-reads the last 20 every 30 s). Both hand `(post_id, time, text)` to
+`Telegram.ingest()`, so a post read through the API is stored, tagged, parsed and shown exactly like one read
+from a preview. The preview reader skips a channel the API is reading (`api_channels`).
+
+`Telegram.ingest()` skips posts already stored, runs `tag_feed_text()` and
 `is_relevant()` (news, fundraising, culture → dropped), stores the post with the **offline** English (§8) and
 publishes a `feed` event. Tagging order matters: forecasts first (`FORECAST_RX` — "оцінка загроз", "може
 відбутись у будь-який момент" — never raise anything), then the news guard (`geo.looks_like_news`: strong news
@@ -430,6 +442,10 @@ names, `OBL_N` / `oblFull()`. A test fails when a key is missing in one language
 
 - The four places never leave the phone; the Light page's requests carry no place (checked in the render tests).
 - Push subscriptions: a ~10 km cell only; older stored homes are coarsened at start.
+- The Telegram session (`TG_SESSION`) is a key to a whole Telegram account. It is created on the owner's PC by
+  `scripts/telegram-login.bat` and goes straight into Fly's secret store (`fly secrets import`, read from stdin):
+  never on a command line, in a file, in the logs, in `config.json` or in the repository. Revoke it in Telegram:
+  Settings → Devices → "Clear Sky server" → Terminate.
 - Usage counters (`usage`, `usage_seen`): a daily salted hash, no IP address, no location, no per-person
   history.
 - Flags and the corpus review are behind `ADMIN_KEY`.
@@ -535,7 +551,13 @@ answers.
 `python scripts/build_geo.py` — downloads the official region list, rewrites `data/ua_regions.json` and
 `static/light-map.json`, prints any raion it could not match to a map shape. Run the tests; commit both files.
 
+**Telegram sign-in for the API reader**: create an app on <https://my.telegram.org> (API development tools),
+then run `scripts\telegram-login.bat`: it asks for the api_id, the api_hash and the phone number of the reading
+account (a dedicated account is best), signs in with the code Telegram sends, joins the channel, and stores the
+three secrets on Fly. If the sources panel ever shows "Telegram session no longer valid", run it again.
+
 **Add or remove a channel**: edit `AUTHORITATIVE_CHANNELS` in `server.py` (and `DEFAULT_CONFIG` for the record);
+a channel whose web preview is off also goes in `telegram_api_channels`;
 a fixed format gets a parser in `geo.py` registered in `CHANNEL_PARSER`; add real posts to the corpus
 (`scripts/corpus.py add`); a mixed channel goes in `NEWS_CHANNELS`.
 
@@ -549,9 +571,9 @@ the Light page's place list (`/api/places?oblast=…`).
 
 ## 17. Known limitations and open items
 
-- `chyste_nebo` cannot be read through the web preview — and it is the channel that gives drone heights most
-  often. Reading it needs the Telegram API (a user session: `api_id`/`api_hash` and a one-time login), ideally
-  on a dedicated Telegram account; not built yet.
+- `chyste_nebo` is read through the Telegram API with a user session. Telegram can restrict an account that
+  reads channels by program; a dedicated account keeps the owner's own out of that risk. Its post formats have
+  not been seen yet (the preview never showed them): check the first live posts and tune the parser.
 - siren.pp.ua is a volunteer proxy of the official API; an official key is more robust (§16).
 - Without a DeepL / Google key, English is the offline glossary and French shows English.
 - Ukrainian declension of place names after a preposition ("біля …") is not implemented; labels avoid it.
