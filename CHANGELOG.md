@@ -2,6 +2,23 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.24.0 — 2026-09-25
+
+### Fixed
+- **The server froze again a few minutes after 1.23 went live.** The real cause, reproduced here: every new post
+  made every open page ask for the marks, the feed and the state at the same moment, and each request recomputed
+  them from scratch — and the marks' computation called the machine translator over the network (up to 6 s a
+  post) for any post without an English text. During an attack the requests piled up faster than they finished.
+  On a copy with 200 posts in the window, 1.23 answered 3 requests a second with time-outs; 1.24 answers about
+  1,000 a second, 95 % of them within 55 ms, with 150 pages asking at once.
+  - Each answer (marks, state, feed, statistics, impact history) is built **once per change**, by one thread
+    while the others wait for it, serialised and compressed once, and sent as the same bytes to every page.
+  - No network call is ever made while answering a page: the marks use the offline English glossary; machine
+    translation stays in its own background worker.
+  - The connection queue holds 128 pages instead of 5.
+- The watchdog no longer restarts a server that is only busy — a restart under load brings every page back at
+  once. It restarts only when a lock stays held for about two minutes.
+
 ## 1.23.0 — 2026-09-25
 
 ### Fixed

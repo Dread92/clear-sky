@@ -321,7 +321,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.23"
+APP_VERSION = "1.24"
 BUILD = None    # filled at startup
 
 
@@ -804,9 +804,16 @@ class Store:
                 pass
         return new
 
+    _fc = (0.0, 0)
+
     def feed_count(self):
+        """Asked by every page's ping, every 1–15 s: counted at most every 3 s."""
+        if time.time() - self._fc[0] < 3:
+            return self._fc[1]
         with self.lock:
-            return self.conn.execute("SELECT COUNT(*) FROM feed").fetchone()[0]
+            n = self.conn.execute("SELECT COUNT(*) FROM feed").fetchone()[0]
+        self._fc = (time.time(), n)
+        return n
 
     # -- the record of what the app said ------------------------------------------------------------
     def log_markers(self, markers):
@@ -907,7 +914,11 @@ class Store:
         since = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
         with self.lock:
             rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en FROM feed WHERE ts>=? ORDER BY ts DESC LIMIT ?", (since, limit)).fetchall()
-        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": json.loads(r[4]), "text_en": r[5] or (to_en(r[3]) if translate else None)} for r in rows]
+        # Never a network call here: this runs inside the marks' computation. It used to call the machine
+        # translator for any post without an English text — one call per post, each up to 6 s, on every request
+        # for the marks — and during an attack the pages' requests piled up behind it until the server froze.
+        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": json.loads(r[4]),
+                 "text_en": r[5] or (_tr.translate_offline(r[3]) if (translate and _tr) else None)} for r in rows]
 
     def feed(self, limit=80):
         with self.lock:
@@ -1177,6 +1188,41 @@ class State:
             self._marker_cache.clear()
             self._ev_cache.clear()
         return out
+
+    # -- one computation for everybody --------------------------------------------------------------------------
+    # 25 Sep 2026, during an attack: every new post made EVERY open page ask for the marks, the feed and the
+    # state at the same moment, and each request recomputed them from scratch — the marks from 45 minutes of
+    # posts, the feed with its offline translation, each serialised on its own. With the pages that reconnect
+    # after a restart on top, the one shared CPU never caught up and the server stopped answering. Now each
+    # answer is built once per change (and at most every `ttl` seconds), by one thread while the others wait for
+    # it, serialised and compressed once, and the same bytes go to every page.
+    _resp = {}
+    _resp_locks = {}
+    _resp_guard = threading.Lock()
+
+    def cached(self, name, ttl, build, ver=None):
+        """(built_at, body, gzipped body or None, object) for `build()`; rebuilt when `ver` changes or `ttl`
+        seconds have passed, never by two threads at once."""
+        hit = self._resp.get(name)
+        if hit and hit[4] == ver and time.time() - hit[0] < ttl:
+            return hit
+        with self._resp_guard:
+            lk = self._resp_locks.setdefault(name, threading.Lock())
+        with lk:
+            hit = self._resp.get(name)
+            if hit and hit[4] == ver and time.time() - hit[0] < ttl:
+                return hit
+            obj = build()
+            body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
+            hit = (time.time(), body, gzip.compress(body, 5) if len(body) > 1400 else None, obj, ver)
+            self._resp[name] = hit
+            return hit
+
+    def markers_now(self):
+        """The marks as the pages see them — the cached computation, never a private recomputation."""
+        return self.cached("markers", 10, lambda: {"now": now_iso(), "ttl_minutes": int(self.cfg.get("marker_ttl_minutes", 45)),
+                                                     "stale_minutes": int(self.cfg.get("track_stale_minutes", 5)),
+                                                     "markers": self.markers()}, ver=self.seq)[3]["markers"]
 
     # -- the dashboard: is every source alive, is every channel still posting, how early was the map ---------
     _health_res = None
@@ -2215,9 +2261,10 @@ class Watchdog(threading.Thread):
     25 Sep 2026: the process stopped answering — pages, the version ping, the official alert reader — while
     /healthz still said "ok", and nothing restarted it. Every 20 s this checks that the database and the alert
     state can be had within 15 s, and that the process itself is not starved (its own 20 s sleep did not take a
-    minute). A miss writes every thread's stack to the log, which says exactly where it is stuck. Three misses in
-    a row (about a minute) and the process exits: Fly starts it again in seconds."""
-    INTERVAL, WAIT, MISSES = 20, 15, 3
+    minute). A held lock writes every thread's stack to the log, which says exactly where it is stuck; a lock held
+    through five checks in a row (about two minutes) and the process exits: Fly starts it again in seconds. A
+    starved process is only logged — that is load, and a restart under load would bring every page back at once."""
+    INTERVAL, WAIT, MISSES = 20, 15, 5
 
     def __init__(self, state):
         super().__init__(daemon=True, name="watchdog")
@@ -2243,8 +2290,13 @@ class Watchdog(threading.Thread):
             if not why:
                 self.misses = 0
                 continue
-            self.misses += 1
+            locked = any("lock held" in w for w in why)
+            # starvation alone is load, not a deadlock: logged, never a restart (a restart under load brings
+            # every page back at once and makes it worse)
+            self.misses = self.misses + 1 if locked else 0
             log(f"WATCHDOG ({self.misses}/{self.MISSES}): " + "; ".join(why))
+            if not locked:
+                continue
             names = {t.ident: t.name for t in threading.enumerate()}
             for ident, frame in sys._current_frames().items():
                 log(f"--- thread {names.get(ident, ident)}\n" + "".join(traceback.format_stack(frame)[-8:]))
@@ -2528,7 +2580,7 @@ def proximity_watch(state, interval=20):
             subs = [x for x in state.store.push_all() if (x.get("home") or {}).get("lat") is not None]
             if not subs:
                 continue
-            live = [m for m in state.markers() if not m.get("status") and not m.get("stale") and not m.get("endedBy")]
+            live = [m for m in state.markers_now() if not m.get("status") and not m.get("stale") and not m.get("endedBy")]
             if not live:
                 continue
             now = time.time()
@@ -2621,6 +2673,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def log_message(self, fmt, *args):  # quiet
         pass
+
+    def _send_cached(self, hit):
+        """A cached answer: the same bytes for everybody, gzipped once when the client takes it."""
+        _, body, gz, _, _ = hit
+        use_gz = gz is not None and "gzip" in (self.headers.get("Accept-Encoding") or "")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Vary", "Accept-Encoding")
+        if use_gz:
+            self.send_header("Content-Encoding", "gzip")
+        data = gz if use_gz else body
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
 
     def _json(self, obj, code=200):
         body = json.dumps(obj, ensure_ascii=False).encode("utf-8")
@@ -2810,7 +2877,8 @@ class Handler(BaseHTTPRequestHandler):
                 pl = [{"name": n.split(" (")[0], "lon": v[0], "lat": v[1], "oblast_uid": v[2]} for n, v in (geo.PLACES.items() if geo else []) if obl is None or v[2] in obl]
                 return self._json({"places": pl})
             if u.path == "/api/markers":
-                return self._json({"now": now_iso(), "ttl_minutes": int(st.cfg.get("marker_ttl_minutes", 45)), "stale_minutes": int(st.cfg.get("track_stale_minutes", 5)), "markers": st.markers()})
+                st.markers_now()
+                return self._send_cached(st._resp["markers"])
             # The dashboard is yours alone: it needs ACCESS_KEY, and it refuses to serve anything when no key
             # is configured, so an open deployment can never expose it by accident.
             if u.path in ("/api/usage", "/admin"):
@@ -2836,20 +2904,22 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"v": f"{seq}-{st.store.feed_count()}", "now": now_iso(),
                                    "missile": bool(lvl), "msl": lvl, "build": BUILD, "app": APP_VERSION})
             if u.path == "/api/stats":
-                return self._json(st.stats(int(q.get("days", ["14"])[0])))
+                days = max(1, min(int(q.get("days", ["14"])[0]), 30))
+                return self._send_cached(st.cached(f"stats:{days}", 120, lambda: st.stats(days)))
             if u.path == "/api/impacts":
-                hours = int(q.get("hours", ["24"])[0])
-                return self._json({"now": now_iso(), "hours": hours, "impacts": st.impacts(hours)})
+                hours = max(1, min(int(q.get("hours", ["24"])[0]), 168))
+                return self._send_cached(st.cached(f"impacts:{hours}", 30, lambda: {"now": now_iso(), "hours": hours, "impacts": st.impacts(hours)}))
             if u.path == "/api/state":
-                return self._json(st.snapshot())
+                return self._send_cached(st.cached("state", 5, st.snapshot, ver=st.seq))
             if u.path == "/api/feed":
-                posts = st.store.feed(int(q.get("limit", ["80"])[0]))
+                limit = max(1, min(int(q.get("limit", ["80"])[0]), 200))
                 lang = q.get("lang", [""])[0]
+                hit = st.cached(f"feed:{limit}", 15, lambda: {"feed": st.store.feed(limit)}, ver=st.seq)
                 tr = getattr(st, "tr", None)
                 if tr and lang in ("en", "fr"):
                     tr.want(lang)
-                    tr.add([p for p in posts if not (p["en_mt"] if lang == "en" else p["text_fr"])], lang)
-                return self._json({"feed": posts})
+                    tr.add([p for p in hit[3]["feed"] if not (p["en_mt"] if lang == "en" else p["text_fr"])], lang)
+                return self._send_cached(hit)
             if u.path == "/api/history":
                 hours = int(q.get("hours", ["24"])[0])
                 obl = q.get("oblast", [None])[0]
@@ -3141,6 +3211,8 @@ def main():
     state.tr.start()
     Watchdog(state).start()
 
+    # the listen backlog: Python's default of 5 left a burst of pages (a new post, a restart) waiting on SYN retries
+    ThreadingHTTPServer.request_queue_size = 128
     srv = ThreadingHTTPServer((bind, int(cfg["port"])), Handler)
     srv.daemon_threads = True
     log(f"dashboard → http://localhost:{cfg['port']}   mobile → http://localhost:{cfg['port']}/m")

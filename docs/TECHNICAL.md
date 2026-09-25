@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.23** · last updated 2026-09-25
+**Documented version: 1.24** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -156,11 +156,18 @@ clear-sky/
 | `Ubilling` | oblast-level mirror; applies only while the raion source is down | 30 s |
 | `Telegram` | reads the channels' `t.me/s/` previews (all but those the API reads) | 30 s; 10 s while a missile threat is open |
 | `TelegramAPI` | reads `telegram_api_channels` (chyste_nebo) through the Telegram client API — polls the channel, **never subscribes to updates** | last 20 posts every 15 s (8 s in a missile threat) |
-| `Watchdog` | the database and alert-state locks must be free within 15 s and the process not starved; a miss logs every thread's stack; three in a row (~1 min) → exit, Fly restarts it | 20 s |
+| `Watchdog` | the database and alert-state locks must be free within 15 s; a held lock logs every thread's stack, five in a row (~2 min) → exit, Fly restarts it; a starved process is only logged (load, not a deadlock) | 20 s |
 | `Translations` | machine-translates feed posts into a language somebody reads | on demand, ~3 calls/s max |
 | `Pusher` | sends Web Push | queue |
 | `proximity` | per-subscriber distance checks → push | continuous |
 | `AlertsInUa.backfill` | a month of history for the favourite regions | once at start |
+
+**One computation for everybody** (`State.cached`): `/api/markers`, `/api/state`, `/api/feed`, `/api/stats`,
+`/api/impacts` are built once per change (the publish sequence `seq`) and at most every few seconds, by one
+thread while the others wait, serialised and gzipped once; every page gets the same bytes (`_send_cached`). The
+proximity pushes use the same marks (`markers_now()`). Nothing in a request path calls the network: the marks'
+English text is the offline glossary (machine translation is the `Translations` worker's alone). The listen
+backlog is 128. Measured on a 200-post window: ~1,000 requests/s, p95 ≈ 50 ms, where 1.23 managed 3/s.
 
 `poll_gap()` shortens the official-source and Telegram intervals while a missile threat is open; the pages
 follow `/api/version`'s `msl` level (0 → 15 s, 1 → 5 s, 2 → 1 s pings).
@@ -567,6 +574,7 @@ python app/server.py --demo --port 8099
 | `test_cadence`, `test_version`, `test_keys`, `test_docs` | refresh rates, build info, keys, this documentation |
 | `test_official_stats`, `test_ui_details` | Air Force-only stats, the dashboard's health view and lead time, pin, zoom, language, logo |
 | `test_destination`, `test_scripts_parse` | where it is vs where it is going; every page script parses (node) |
+| `test_load`, `test_watchdog` | no network in the marks' path, one computation for everybody; the watchdog |
 
 **The corpus** (`data/corpus.jsonl`, [CORPUS.md](CORPUS.md)): real posts with their expected reading; a
 changed reading fails the suite until it is re-verified as the intended change.
