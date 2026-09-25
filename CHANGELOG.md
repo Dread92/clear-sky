@@ -41,7 +41,9 @@ Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md
 - **The OpenStreetMap credit sat on the place chips**; it is small, in the bottom corner.
 - **`telegram-login.bat` stopped with "No module named 'telethon'"** right after installing it, on a PC where it
   was the first package installed for the user: Python only looks in that folder when it starts. It now adds
-  the folder itself and carries on.
+  the folder itself and carries on. The api_hash is now typed visibly and checked (32 characters, 0-9 a-f)
+  before Telegram sees it — a hidden prompt could swallow a Ctrl+V paste — and a pair Telegram refuses is asked
+  again instead of ending the script.
 
 ## 1.18.0 — 2026-09-25
 

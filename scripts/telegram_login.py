@@ -14,8 +14,8 @@ The session string is a key to that Telegram account. It exists only in Fly's se
 To revoke it: Telegram > Settings > Devices > "Clear Sky server" > Terminate.
 """
 import asyncio
-import getpass
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -48,23 +48,46 @@ def app_name():
     return open(p, encoding="utf-8").read().strip() if os.path.exists(p) else "kyiv-air-watch-gb"
 
 
+def ask_app():
+    """api_id and api_hash, checked for their shape before Telegram sees them. The hash is shown as it is typed:
+    a hidden prompt swallowed a Ctrl+V paste in some Windows consoles, and nobody could see why it failed."""
+    while True:
+        api_id = input("api_id (the number from my.telegram.org): ").strip()
+        if api_id.isdigit():
+            break
+        print("  api_id is a number only, like 1234567 - try again.")
+    while True:
+        raw = input("api_hash (32 letters and digits from my.telegram.org): ")
+        api_hash = "".join(c for c in raw if c.isalnum()).lower()
+        if re.fullmatch(r"[0-9a-f]{32}", api_hash):
+            return api_id, api_hash
+        print(f"  That is {len(api_hash)} characters, an api_hash has 32 (0-9, a-f). Paste it again"
+              " (right-click pastes in this window).")
+
+
 def main():
     TelegramClient, StringSession, JoinChannelRequest = telethon()
     print()
     print("=== Clear Sky - Telegram sign-in for the server ===")
     print("The values you type here stay on this PC and go straight to Fly's secret store.")
     print()
-    api_id = input("api_id (the number from my.telegram.org): ").strip()
-    if not api_id.isdigit():
-        sys.exit("api_id must be a number.")
-    api_hash = getpass.getpass("api_hash (hidden while you type or paste, then Enter): ").strip()
-    if len(api_hash) < 16:
-        sys.exit("That does not look like an api_hash (32 characters).")
+    api_id, api_hash = ask_app()
     phone = input("Phone number of the account that will read the channel (+380..., +33...): ").strip()
 
     async def sign_in():
-        client = TelegramClient(StringSession(), int(api_id), api_hash, device_model="Clear Sky server")
-        await client.start(phone=phone)          # asks here for the code Telegram sends, and the 2-step password
+        nonlocal api_id, api_hash
+        while True:
+            client = TelegramClient(StringSession(), int(api_id), api_hash, device_model="Clear Sky server")
+            try:
+                await client.start(phone=phone)  # asks here for the code Telegram sends, and the 2-step password
+                break
+            except Exception as e:
+                await client.disconnect()
+                if type(e).__name__ != "ApiIdInvalidError":
+                    raise
+                print("\nTelegram refused this api_id / api_hash pair. On https://my.telegram.org > API development")
+                print("tools, copy 'App api_id' and 'App api_hash' again (the hash is 32 letters and digits).\n")
+                api_id, api_hash = ask_app()
         me = await client.get_me()
         print(f"\nSigned in as {me.first_name or ''} {me.last_name or ''}".rstrip())
         for ch in CHANNELS:
