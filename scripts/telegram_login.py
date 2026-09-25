@@ -71,15 +71,19 @@ def ask_code():
 
 
 def ask_password():
-    """The account's two-step verification password. Hidden, like any password — and said so, because a prompt
-    where nothing appears looks like a prompt that does not work. Nothing received: asked again, visibly."""
-    print("\nThis account has two-step verification: its password is needed.")
-    print("Nothing appears while you type it - not even stars. That is normal: type it, then press Enter.")
-    print("(To paste it, right-click in this window.)")
-    pw = getpass.getpass("Two-step password: ")
-    if not pw:
-        print("Nothing was received. Type it once more - this time it WILL be visible on the screen.")
-        pw = input("Two-step password (visible): ")
+    """The account's two-step verification password. It can be shown while typed: typed blind, a keyboard left on
+    УКР / РУС or Caps Lock turns the right password into "Invalid password" three times, with no way to see why."""
+    print("\nThis account has two-step verification. Its password is the one set in Telegram > Settings >")
+    print("Privacy and Security > Two-Step Verification (not the code, not any other password).")
+    print("Check the keyboard language (FR / EN, not УКР / РУС) and Caps Lock.")
+    show = input("Show the password on screen while you type it? (y + Enter = shown, Enter = hidden): ").strip().lower()
+    if show in ("y", "yes", "o", "oui"):
+        pw = input("Two-step password (shown): ")
+    else:
+        pw = getpass.getpass("Two-step password (hidden - nothing appears, type it then press Enter): ")
+        if not pw:
+            print("Nothing was received. Type it once more - this time it is shown on the screen.")
+            pw = input("Two-step password (shown): ")
     return pw
 
 
