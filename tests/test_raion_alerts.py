@@ -143,3 +143,23 @@ def test_drones_over_an_oblast_with_raion_alerts_only_are_not_pruned():
     m = {"id": "c#1", "type": "drones", "lon": 31.3, "lat": 51.5, "ts": ts, "channel": "war_monitor", "place": "Чернігів",
          "heading": None, "count": 1, "oblast_uid": "25"}
     assert len(st._chain_and_prune([m], 45)) == 1
+
+
+def test_yellow_turning_red_on_an_alert_already_on_is_applied_at_once():
+    """25 Sep 2026: "we are in red now and it is still yellow here". The level changes on an alert that is
+    already running; the snapshot must carry it over, and the source must re-read the full list soon even when
+    the change index did not move."""
+    st, ua = _src()
+    raw = [{"regionId": "31", "regionType": "State", "regionName": "м. Київ", "activeAlerts": [
+        {"regionId": "31", "regionType": "State", "type": "AIR", "lastUpdate": "2026-09-25T15:37:39Z",
+         "activeAlertLevels": [{"alertLevel": "Yellow", "reason": "Дронова загроза (жовтий рівень)", "createdAt": "2026-09-25T15:37:40Z"}]}]}]
+    st.apply_snapshot(ua.NAME, ua.normalise(raw), {"oblast", "raion", "hromada", "city", "unknown"})
+    assert st.snapshot()["oblasts"]["31"]["level"] == "yellow"
+    raw[0]["activeAlerts"][0]["activeAlertLevels"].append(
+        {"alertLevel": "Red", "reason": "Ракетна загроза (червоний рівень)", "createdAt": "2026-09-25T18:30:00Z"})
+    st.apply_snapshot(ua.NAME, ua.normalise(raw), {"oblast", "raion", "hromada", "city", "unknown"})
+    snap = st.snapshot()
+    assert snap["oblasts"]["31"]["level"] == "red"
+    assert [a["alert_level"] for a in snap["active"] if a["oblast_uid"] == "31"] == ["red"]
+    body = open(server.__file__, encoding="utf-8").read()
+    assert "time.time() - self.last_full < 30" in body, "a level change could wait two minutes for the full list"

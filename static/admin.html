@@ -6,6 +6,7 @@
 <meta name="theme-color" content="#0b0d11">
 <meta name="robots" content="noindex, nofollow">
 <title>Clear Sky — usage</title>
+<link rel="icon" href="/static/logo-cs-64.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{--bg:#0b0d11;--ink:#e8e6df;--ink2:#a9a79f;--ink3:#6c6b66;--line:#242830;--panel:#12151b;
@@ -32,20 +33,17 @@ td.n{text-align:right;font-family:var(--mono)}
 .foot{color:var(--ink3);font:12px/1.5 var(--sans);margin-top:24px;border-top:1px solid var(--line);padding-top:12px}
 .note{color:var(--ink2);font:12px/1.55 var(--sans);border-left:2px solid var(--ua-yellow);padding-left:9px;margin:-8px 0 18px}
 .err{background:#3a1512;border-left:3px solid var(--red);padding:12px;font:13px var(--sans)}
-button.rv{border:1px solid var(--line);padding:9px 12px;font:600 12.5px var(--sans);cursor:pointer;border-radius:2px}
-button.rv:disabled{opacity:.45;cursor:default}
-#review .card{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--line);padding:12px 14px}
 a{color:#8fb4ff}
 .lang span{display:inline-block;margin-right:12px;font:600 12px var(--mono)}
-/* EN / UA for the dashboard itself. The posts under review are Ukrainian; whoever is reviewing them may not
-   be, and somebody reviewing in Ukrainian should not have to read an English interface to do it. */
+/* EN / UA for the dashboard itself */
 .langsw{position:absolute;top:16px;right:16px;display:flex;gap:0;border:1px solid var(--line)}
 .langsw button{background:transparent;border:0;color:var(--ink3);font:600 11.5px var(--mono);letter-spacing:.08em;padding:6px 11px;cursor:pointer}
 .langsw button.on{background:var(--panel);color:var(--ua-yellow)}
 .hdr{position:relative}
-.posthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px}
-.posthead .tagl{font:600 10.5px var(--mono);letter-spacing:.08em;color:var(--ink3)}
-.alt{border-top:1px dashed var(--line);margin-top:9px;padding-top:8px;color:var(--ink2);font:12.5px/1.5 var(--sans);white-space:pre-wrap}
+tr.bad td{color:#ffd6d6;background:rgba(224,52,44,.08)}tr.warn td{color:#ffe0b8}
+.st{font:600 11px var(--mono);letter-spacing:.06em}.st.ok{color:var(--green)}.st.bad{color:var(--red)}
+.lead{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--green);padding:12px 14px;font:14px/1.5 var(--sans)}
+.tscroll{overflow-x:auto}
 </style>
 </head>
 <body>
@@ -68,41 +66,39 @@ const T={
   c_today:'devices today',c_7:'device-days · 7 d',c_30:'device-days · 30 d',c_push:'push subscribers',
   c_opens:'app opens · 30 d',c_pwa:'opened as an app',
   note:'A <b>device-day</b> is one device on one day. Somebody who opens the app every day for a week counts seven times, and that is on purpose: the daily hash is regenerated every midnight precisely so the same person cannot be recognised tomorrow. There is no unique-visitor figure here and there cannot be one — that is the cost of not tracking anybody, and it is worth it.',
-  h_devices:'Devices per day',h_lang:'Language',h_review:'Review readings',h_flags:'Flagged readings',h_daily:'Daily detail',
-  t_day:'Day',t_dev:'Devices',t_opens:'Opens',t_pings:'Pings',t_app:'As app',t_black:'Blackout',
-  rv_loading:'Loading…',rv_none:'Nothing left to review.',rv_pull:'Run {0} to merge your answers into the repo.',
-  rv_left:'{0} left',rv_makes:'WHAT THE APP MAKES OF IT',rv_nomarker:'no marker',rv_conf:'confidence',
-  rv_tags:'tags',rv_ok:'✓ Correct — enforce it',rv_bad:'✗ Wrong — record it as a bug',rv_skip:'Skip',
-  rv_hint:'The question is not whether the app did something reasonable — it is whether that is what the post actually says. When unsure, skip.',
-  rv_wrong:'What is wrong with it?',rv_err:'could not load the corpus',
-  p_orig:'ORIGINAL (UK)',p_en:'ENGLISH',p_open:'open the post ↗',p_nolink:'source post not kept',
-  p_auto:'rough offline translation — the glossary, not a service',p_fetching:'translating…',
-  p_retry:'translate again ↻',p_failed:'translation service unreachable — showing the glossary',
-  fl_open:'{0} open. To turn them into regression cases:',fl_none:'Nothing flagged. The ⚑ button on any marker files one.',
-  fl_err:'could not load flagged readings',
-  r_place:'wrong place',r_type:'wrong threat type',r_nt:'not a threat — news / announcement',
-  r_gone:'already gone / shot down',r_other:'something else',
+  h_devices:'Devices per day',h_lang:'Language',h_daily:'Daily detail',
+  t_day:'Day',t_dev:'Devices',t_opens:'Opens',t_pings:'Pings',t_app:'As app',t_black:'Light',
   foot:'<b>What is counted, and what is not.</b><br>A device is counted once a day through a one-way hash of its address and browser, salted with a random value that is thrown away and regenerated every midnight — so the same person cannot be followed from one day to the next, and no hash can be turned back into an address. No IP is stored. No location, no path through the app, no per-person history, nothing that identifies anybody. Only the daily totals on this page are kept.<br><br>This page needs <code>ADMIN_KEY</code> and is not served at all unless it is set. <code>ADMIN_KEY</code> protects this dashboard only — the map stays public. (<code>ACCESS_KEY</code> is the other one: it puts a password box in front of the whole map, for a private deployment.)',
+  c_light:'Light opens · 30 d',
+  h_lead:'Early warning — Kyiv and Kyiv oblast, 30 days',
+  ld_txt:'{0} alert waves. The map already showed a threat in the hour before {1} of them — median <b>{2} min</b> ahead of the official alert (half of them between {3} and {4} min).',
+  ld_none:'No alert wave in this period had a mark on the map in the hour before it.',ld_empty:'No official alert over Kyiv or the oblast in this period.',
+  ld_note:'A wave is the official alerts over Kyiv and the oblast that start within 30 minutes of each other. “Ahead” runs from the first live mark in Kyiv or the oblast to the start of the alert. A wave with nothing on the map before it counts as not warned — never as zero.',
+  h_sources:'Official alert sources',s_name:'Source',s_state:'State',s_last:'Last check',s_detail:'Detail',s_ok:'OK',s_fail:'FAILING',s_none:'no source has reported yet',s_count:'{0} active alerts',
+  h_channels:'Telegram channels',ch_name:'Channel',ch_24:'Posts 24 h',ch_marks:'Marks 24 h',ch_read:'Read 7 d',ch_last:'Last post',ch_state:'Reader',
+  ch_api:'Telegram API',ch_prev:'web preview',ch_off:'not read',
+  ch_note:'“Read” is the share of the channel’s posts over 7 days that put something on the map. A channel silent for 12 h or more, or whose reader fails, is highlighted.',
+  h_tr:'Translation',tr_av:'in use: {0}',tr_none:'no translation service reachable — offline glossary only',tr_paused:'paused after an error: {0}',
+  ago_m:'{0} min ago',ago_h:'{0} h ago',ago_d:'{0} d ago',never:'never',
   gen:'generated {0}'},
  uk:{title:'Clear Sky — використання',
   c_today:'пристроїв сьогодні',c_7:'пристроє-днів · 7 д',c_30:'пристроє-днів · 30 д',c_push:'підписок на сповіщення',
   c_opens:'відкриттів · 30 д',c_pwa:'відкрито як застосунок',
   note:'<b>Пристрій-день</b> — це один пристрій за один день. Той, хто відкриває застосунок щодня протягом тижня, рахується сім разів, і це навмисно: денний хеш перегенеровується щопівночі саме для того, щоб завтра ту саму людину не можна було впізнати. Показника унікальних відвідувачів тут немає і бути не може — така ціна того, що ми ні за ким не стежимо, і вона того варта.',
-  h_devices:'Пристроїв на день',h_lang:'Мова',h_review:'Перевірка зчитувань',h_flags:'Позначені зчитування',h_daily:'Деталі за днями',
-  t_day:'День',t_dev:'Пристроїв',t_opens:'Відкриттів',t_pings:'Пінгів',t_app:'Як застосунок',t_black:'Блекаут',
-  rv_loading:'Завантаження…',rv_none:'Немає чого перевіряти.',rv_pull:'Виконайте {0}, щоб злити відповіді в репозиторій.',
-  rv_left:'залишилось: {0}',rv_makes:'ЯК ЦЕ ЗЧИТАВ ЗАСТОСУНОК',rv_nomarker:'позначки немає',rv_conf:'впевненість',
-  rv_tags:'теги',rv_ok:'✓ Правильно — зафіксувати',rv_bad:'✗ Хибно — записати як помилку',rv_skip:'Пропустити',
-  rv_hint:'Питання не в тому, чи застосунок зробив щось розумне — а в тому, чи саме це сказано в дописі. Якщо не впевнені, пропустіть.',
-  rv_wrong:'Що саме тут не так?',rv_err:'не вдалося завантажити корпус',
-  p_orig:'ОРИГІНАЛ (УКР)',p_en:'АНГЛІЙСЬКОЮ',p_open:'відкрити допис ↗',p_nolink:'вихідний допис не збережено',
-  p_auto:'грубий офлайн-переклад — глосарій, не сервіс',p_fetching:'перекладаємо…',
-  p_retry:'перекласти ще раз ↻',p_failed:'сервіс перекладу недоступний — показано глосарій',
-  fl_open:'Відкритих: {0}. Щоб зробити з них регресійні випадки:',fl_none:'Нічого не позначено. Кнопка ⚑ на будь-якій позначці створює запис.',
-  fl_err:'не вдалося завантажити позначені зчитування',
-  r_place:'неправильне місце',r_type:'неправильний тип загрози',r_nt:'не загроза — новина / оголошення',
-  r_gone:'вже збито / зникло',r_other:'щось інше',
+  h_devices:'Пристроїв на день',h_lang:'Мова',h_daily:'Деталі за днями',
+  t_day:'День',t_dev:'Пристроїв',t_opens:'Відкриттів',t_pings:'Пінгів',t_app:'Як застосунок',t_black:'Light',
   foot:'<b>Що рахується, а що ні.</b><br>Пристрій рахується раз на день через односторонній хеш адреси та браузера, посолений випадковим значенням, яке щопівночі відкидається й генерується заново — тож ту саму людину не можна відстежити з дня на день, і жоден хеш не можна перетворити назад на адресу. IP не зберігається. Ні місця, ні шляху застосунком, ні історії по людині, нічого, що когось ідентифікує. Зберігаються лише денні підсумки на цій сторінці.<br><br>Ця сторінка потребує <code>ADMIN_KEY</code> і взагалі не віддається, якщо його не задано. <code>ADMIN_KEY</code> захищає лише цю панель — карта лишається публічною. (<code>ACCESS_KEY</code> — це інше: він ставить форму пароля перед усією картою, для приватного розгортання.)',
+  c_light:'відкриттів Light · 30 д',
+  h_lead:'Раннє попередження — Київ і Київська область, 30 днів',
+  ld_txt:'Хвиль тривог: {0}. Перед {1} з них мапа вже показувала загрозу впродовж години — медіана <b>{2} хв</b> до офіційної тривоги (половина — від {3} до {4} хв).',
+  ld_none:'Перед жодною хвилею тривог за цей період на мапі не було позначки впродовж години.',ld_empty:'За цей період не було офіційних тривог у Києві чи області.',
+  ld_note:'Хвиля — це офіційні тривоги в Києві та області, що починаються в межах 30 хвилин одна від одної. «Раніше» рахується від першої живої позначки в Києві чи області до початку тривоги. Хвиля без позначок перед нею рахується як без попередження — ніколи не як нуль.',
+  h_sources:'Офіційні джерела тривог',s_name:'Джерело',s_state:'Стан',s_last:'Остання перевірка',s_detail:'Деталі',s_ok:'OK',s_fail:'ЗБІЙ',s_none:'жодне джерело ще не відповіло',s_count:'активних тривог: {0}',
+  h_channels:'Telegram-канали',ch_name:'Канал',ch_24:'Дописів 24 г',ch_marks:'Позначок 24 г',ch_read:'Зчитано 7 д',ch_last:'Останній допис',ch_state:'Читання',
+  ch_api:'Telegram API',ch_prev:'веб-перегляд',ch_off:'не читається',
+  ch_note:'«Зчитано» — частка дописів каналу за 7 днів, що поставили щось на мапу. Канал, що мовчить 12 год і більше, або чиє читання збоїть, підсвічено.',
+  h_tr:'Переклад',tr_av:'працює: {0}',tr_none:'жоден сервіс перекладу недоступний — лише офлайн-глосарій',tr_paused:'призупинено після помилки: {0}',
+  ago_m:'{0} хв тому',ago_h:'{0} год тому',ago_d:'{0} д тому',never:'ніколи',
   gen:'згенеровано {0}'}};
 
 let L='en'; try{const v=localStorage.getItem('adminlang'); if(v==='en'||v==='uk') L=v;}catch(e){}
@@ -111,9 +107,8 @@ const tr=(k,...a)=>{let s=(T[L]&&T[L][k])!==undefined?T[L][k]:(T.en[k]!==undefin
 const fmt=n=>(n||0).toLocaleString(L==='uk'?'uk-UA':'en-GB');
 const esc=t=>String(t==null?'':t).replace(/[<>&]/g,'');
 
-let D=null, FLAGS=null, FLAGS_ERR=false;
+let D=null, H=null, H_ERR='';
 const KEYQ=location.search.includes('key=')?'&'+location.search.slice(1):'';
-let QUEUE=[], LEFT=0;
 
 function drawAll(){
   document.documentElement.lang=L;
@@ -137,6 +132,7 @@ function drawAll(){
       <div class="card g"><div class="v">${fmt(D.push_subs)}</div><div class="l">${tr('c_push')}</div></div>
       <div class="card o"><div class="v">${fmt(sum(last30,'loads'))}</div><div class="l">${tr('c_opens')}</div></div>
       <div class="card o"><div class="v">${fmt(sum(last30,'pwa'))}</div><div class="l">${tr('c_pwa')}</div></div>
+      <div class="card o"><div class="v">${fmt(sum(last30,'lite'))}</div><div class="l">${tr('c_light')}</div></div>
     </div>
 
     <div class="note">${tr('note')}</div>
@@ -148,133 +144,57 @@ function drawAll(){
     <h2>${tr('h_lang')}</h2>
     <div class="lang">${[['uk','UA'],['en','EN'],['fr','FR']].map(([l,code])=>`<span>${code}: ${Math.round((langs[l]||0)/langTot*100)}% <span style="color:var(--ink3)">(${fmt(langs[l]||0)})</span></span>`).join('')}</div>
 
-    <h2>${tr('h_review')}</h2>
-    <div id="review">…</div>
-
-    <h2>${tr('h_flags')}</h2>
-    <div id="flags">…</div>
+    <div id="health"></div>
 
     <h2>${tr('h_daily')}</h2>
     <table><tr><th>${tr('t_day')}</th><th style="text-align:right">${tr('t_dev')}</th><th style="text-align:right">${tr('t_opens')}</th><th style="text-align:right">${tr('t_pings')}</th><th style="text-align:right">${tr('t_app')}</th><th style="text-align:right">${tr('t_black')}</th></tr>
       ${days.slice().reverse().map(x=>`<tr><td>${x.day}</td><td class="n">${fmt(x.devices)}</td><td class="n">${fmt(x.loads)}</td><td class="n">${fmt(x.pings)}</td><td class="n">${fmt(x.pwa)}</td><td class="n">${fmt(x.lite)}</td></tr>`).join('')}
     </table>`;
-  drawReview();
-  drawFlags();
+  drawHealth();
 }
 
-// Reviewing the corpus from a browser instead of a terminal. One post, what this build makes of it, and
-// three answers. Verdicts are stored on the server and merged back into the repo by `corpus.py pull` —
-// the corpus file itself ships inside the image and cannot be written here.
-function drawReview(){
-  const box=$('review'); if(!box) return;
-  if(!QUEUE.length){
-    box.innerHTML=LEFT
-      ? `<div style="color:var(--ink3);font:13px var(--sans)">${tr('rv_loading')}</div>`
-      : `<div style="color:var(--green);font:13px var(--sans)">${tr('rv_none')} `
-        + tr('rv_pull','<code style="color:#8fb4ff">python scripts/corpus.py pull</code>')+'</div>';
-    return;
-  }
-  const c=QUEUE[0];
-  const r=c.reading||{markers:[],tags:[]};
-  const marks=r.markers.length
-    ? r.markers.map(m=>`<div style="font:600 13px var(--mono);color:${m.status?'#ffb3ad':'#8fb4ff'}">
-        ${esc(m.status||m.type)} · ${esc(m.place||'—')}${m.count?' ×'+m.count:''}${m.jet?' · jet':''}
-        ${m.likely?' · likely '+esc(m.likely):''} <span style="color:var(--ink3)">· ${esc(m.conf)} ${tr('rv_conf')}</span></div>`).join('')
-    : `<div style="font:600 13px var(--mono);color:var(--ink3)">${tr('rv_nomarker')}</div>`;
-  // The reviewer's own language goes first; the other is always there underneath, because the judgement is
-  // about what the Ukrainian says and a translation is a reading of it, not the evidence itself.
-  const ua=esc(c.text).slice(0,900), en=c.text_en?esc(c.text_en).slice(0,900):'';
-  // only the glossary output carries the caveat — labelling a real translation as rough would be a lie in
-  // the one panel whose entire job is judging whether a reading matches the words
-  const cav=c.en_src==='offline'?tr('p_auto'):c.en_src==='failed'?tr('p_failed'):(c.en_src===undefined?tr('p_fetching'):'');
-  const first=L==='uk'?{lbl:tr('p_orig'),body:ua}:{lbl:tr('p_en'),body:en||ua};
-  const second=L==='uk'?(en?{lbl:tr('p_en'),body:en}:null):{lbl:tr('p_orig'),body:ua};
-  const link=c.post_id
-    ? `<a href="https://t.me/${esc(c.post_id)}" target="_blank" rel="noopener">${tr('p_open')}</a>`
-    : `<a href="https://t.me/s/${esc(c.channel)}" target="_blank" rel="noopener">@${esc(c.channel)} ↗</a>
-       <span style="color:var(--ink3)"> · ${tr('p_nolink')}</span>`;
+const ago=ts=>{ const t=Date.parse(ts||''); if(!t) return tr('never'); const m=Math.max(0,Math.round((Date.now()-t)/60000));
+  return m<90?tr('ago_m',m):m<48*60?tr('ago_h',Math.round(m/60)):tr('ago_d',Math.round(m/1440)); };
+
+// What matters on a live night: is every source answering, is every channel still posting and being read, and
+// how far ahead of the official alert the map has been. Counters only — no post, no reader, nobody.
+function drawHealth(){
+  const box=$('health'); if(!box) return;
+  if(H_ERR){ box.innerHTML=`<div class="err">${esc(H_ERR)}</div>`; return; }
+  if(!H){ box.innerHTML=''; return; }
+  const ld=H.lead||{};
+  const lead=!ld.waves?tr('ld_empty'):ld.warned?tr('ld_txt',ld.waves,ld.warned,ld.median_min,ld.p25_min,ld.p75_min):tr('ld_none');
+  const off=(H.official||[]);
+  const detail=x=>esc(x.error||x.note||(x.count!=null?tr('s_count',x.count):'')||'');
+  const src=off.length?`<div class="tscroll"><table><tr><th>${tr('s_name')}</th><th>${tr('s_state')}</th><th>${tr('s_last')}</th><th>${tr('s_detail')}</th></tr>
+    ${off.map(x=>`<tr class="${x.ok?'':'bad'}"><td>${esc(x.name)}</td><td><span class="st ${x.ok?'ok':'bad'}">${x.ok?tr('s_ok'):tr('s_fail')}</span></td><td>${ago(x.last)}</td><td>${detail(x)}</td></tr>`).join('')}</table></div>`
+    :`<div style="color:var(--ink3)">${tr('s_none')}</div>`;
+  const silent=c=>{ const t=Date.parse(c.last_post||''); return !t||Date.now()-t>12*3600e3; };
+  const ch=(H.channels||[]).map(c=>{ const bad=c.ok===false, warn=!bad&&silent(c);
+    const pct=c.posts_7d?Math.round(c.read_7d/c.posts_7d*100)+'%':'—';
+    const via=c.via==='api'?tr('ch_api'):c.via==='preview'?tr('ch_prev'):tr('ch_off');
+    return `<tr class="${bad?'bad':warn?'warn':''}" title="${esc(c.error||'')}"><td>@${esc(c.channel)}</td><td class="n">${fmt(c.posts_24h)}</td><td class="n">${fmt(c.marks_24h)}</td><td class="n">${pct}</td><td>${ago(c.last_post)}</td><td><span class="st ${bad?'bad':c.ok?'ok':''}">${via}</span>${bad&&c.error?` <span style="color:var(--ink3)">${esc(c.error).slice(0,80)}</span>`:''}</td></tr>`; }).join('');
+  const trn=H.translation||{};
+  const paused=Object.keys(trn.paused||{});
   box.innerHTML=`
-    <div style="color:var(--ink3);font:12px var(--mono);margin-bottom:8px">${tr('rv_left',LEFT)} · @${esc(c.channel)} · ${esc((c.ts||'').slice(0,16).replace('T',' '))} · ${link}</div>
-    <div class="card" style="border-left-color:var(--blue)">
-      <div class="posthead"><span class="tagl">${first.lbl}</span><span class="tagl" style="color:var(--ink3);font-weight:400">${cav?esc(cav)+' · ':''}<a href="#" id="retr">${tr('p_retry')}</a></span></div>
-      <div style="font:13px/1.5 var(--sans);white-space:pre-wrap">${first.body}</div>
-      ${second?`<div class="alt"><span class="tagl">${second.lbl}</span><br>${second.body}</div>`:''}
-    </div>
-    <div class="card" style="border-left-color:var(--ua-yellow);margin-top:8px">
-      <div style="font:600 10.5px var(--mono);letter-spacing:.08em;color:var(--ink3);margin-bottom:6px">${tr('rv_makes')}</div>
-      ${marks}
-      <div style="font:11px var(--mono);color:var(--ink3);margin-top:6px">${tr('rv_tags')}: ${r.tags.join(', ')||'—'}</div>
-    </div>
-    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
-      <button class="rv" data-v="verified" style="background:#123020;border-color:var(--green);color:#c9f2da">${tr('rv_ok')}</button>
-      <button class="rv" data-v="known_bad" style="background:#3a1512;border-color:var(--red);color:#ffd6d6">${tr('rv_bad')}</button>
-      <button class="rv" data-v="skip" style="background:transparent;color:var(--ink3)">${tr('rv_skip')}</button>
-    </div>
-    <div style="color:var(--ink3);font:11.5px/1.5 var(--sans);margin-top:8px">${tr('rv_hint')}</div>`;
-  // A real translation for the case on screen: automatically when all we have is the glossary, and on
-  // demand otherwise — a stored translation can be a glossary fallback too, and a reviewer judging whether a
-  // reading matches the words cannot do it against transliterated Ukrainian.
-  function retranslate(force){
-    c._asked=true;
-    fetch('/api/corpus/translate'+(KEYQ?'?'+KEYQ.slice(1):''),{method:'POST',
-      headers:{'Content-Type':'application/json'},body:JSON.stringify({id:c.id,text:c.text,force:!!force})})
-      .then(r=>r.json()).then(d=>{
-        if(d&&d.text_en){ c.text_en=d.text_en; c.en_src=d.en_src==='online'?'online':'failed'; }
-        else c.en_src='failed';
-        if(QUEUE[0]&&QUEUE[0].id===c.id) drawReview();
-      }).catch(()=>{ c.en_src='failed'; if(QUEUE[0]&&QUEUE[0].id===c.id) drawReview(); });
-  }
-  const rt=$('retr'); if(rt) rt.onclick=e=>{e.preventDefault(); c.en_src=undefined; drawReview(); retranslate(true);};
-  if(c.en_src==='offline'&&!c._asked) retranslate(false);
-  box.querySelectorAll('.rv').forEach(b=>b.onclick=async()=>{
-    const v=b.dataset.v;
-    box.querySelectorAll('.rv').forEach(x=>x.disabled=true);
-    if(v!=='skip'){
-      let note='';
-      if(v==='known_bad'){ note=prompt(tr('rv_wrong'))||''; }
-      try{
-        await fetch('/api/corpus/review'+(KEYQ?'?'+KEYQ.slice(1):''),{method:'POST',
-          headers:{'Content-Type':'application/json'},body:JSON.stringify({id:c.id,state:v,note})});
-        LEFT=Math.max(0,LEFT-1);
-      }catch(e){ /* keep it in the queue if it could not be saved */ }
-    }
-    QUEUE.shift();
-    if(QUEUE.length<3&&LEFT>QUEUE.length) loadReview(true);
-    drawReview();
-  });
-}
-async function loadReview(more){
-  try{
-    const r=await fetch('/api/corpus?limit=25'+KEYQ);
-    const d=await r.json();
-    if(d.error){ if($('review')) $('review').innerHTML='<div class="err">'+esc(d.error)+'</div>'; return; }
-    LEFT=d.pending||0;
-    const have=new Set(QUEUE.map(c=>c.id));
-    (d.cases||[]).forEach(c=>{ if(!have.has(c.id)) QUEUE.push(c); });
-    if(!more) drawReview();
-  }catch(e){ if($('review')) $('review').innerHTML=`<div class="err">${tr('rv_err')}</div>`; }
-}
+    <h2>${tr('h_lead')}</h2>
+    <div class="lead">${lead}</div>
+    <div class="note" style="margin:8px 0 0">${tr('ld_note')}</div>
 
-// Markers somebody using the map said were wrong. Nothing here identifies who: the post, the reading and
-// what they said about it, and that is all that was ever stored.
-function drawFlags(){
-  const box=$('flags'); if(!box) return;
-  if(FLAGS_ERR){ box.innerHTML=`<div class="err">${tr('fl_err')}</div>`; return; }
-  if(FLAGS===null){ box.innerHTML=`<div style="color:var(--ink3);font:12px var(--sans)">${tr('rv_loading')}</div>`; return; }
-  const R={place:tr('r_place'),type:tr('r_type'),not_a_threat:tr('r_nt'),already_gone:tr('r_gone'),other:tr('r_other')};
-  box.innerHTML=FLAGS.length?`
-    <div style="color:var(--ink3);font:12px var(--sans);margin-bottom:10px">
-      ${tr('fl_open',FLAGS.length)}
-      <code style="color:#8fb4ff">python scripts/corpus.py flags --import</code>
-    </div>`+FLAGS.map(f=>`
-    <div class="card" style="border-left-color:var(--orange);margin-bottom:8px">
-      <div style="font:600 12px var(--mono);color:var(--orange)">${(R[f.reason]||esc(f.reason)).toUpperCase()}
-        <span style="color:var(--ink3);font-weight:400"> · @${esc(f.channel||'?')} · ${esc((f.ts||'').replace('T',' ').replace('Z',''))} · ${esc(f.place||'')} ${esc(f.kind||'')}</span>
-        ${f.post_id?` · <a href="https://t.me/${esc(f.post_id)}" target="_blank" rel="noopener">${tr('p_open')}</a>`:''}</div>
-      ${f.note?`<div style="font:500 13px var(--sans);margin-top:6px">"${esc(f.note)}"</div>`:''}
-      <div style="font:12px/1.45 var(--sans);color:var(--ink2);margin-top:6px;white-space:pre-wrap">${esc((f.text||'').slice(0,320))}</div>
-    </div>`).join('')
-    : `<div style="color:var(--ink3);font:12px var(--sans)">${tr('fl_none')}</div>`;
+    <h2>${tr('h_sources')}</h2>${src}
+
+    <h2>${tr('h_channels')}</h2>
+    <div class="tscroll"><table><tr><th>${tr('ch_name')}</th><th style="text-align:right">${tr('ch_24')}</th><th style="text-align:right">${tr('ch_marks')}</th><th style="text-align:right">${tr('ch_read')}</th><th>${tr('ch_last')}</th><th>${tr('ch_state')}</th></tr>${ch}</table></div>
+    <div class="note" style="margin:8px 0 0">${tr('ch_note')}</div>
+
+    <h2>${tr('h_tr')}</h2>
+    <div style="font:13px var(--sans)">${(trn.available||[]).length?esc(tr('tr_av',trn.available.join(' → '))):esc(tr('tr_none'))}${paused.length?' · <span style="color:var(--orange)">'+esc(tr('tr_paused',paused.join(', ')))+'</span>':''}</div>`;
+}
+async function loadHealth(){
+  try{ const r=await fetch('/api/health'+(KEYQ?'?'+KEYQ.slice(1):'')); const d=await r.json();
+       if(d.error) throw new Error(d.error); H=d; H_ERR=''; }
+  catch(e){ H_ERR=String(e.message||e); }
+  drawHealth();
 }
 
 $('langsw').addEventListener('click',e=>{
@@ -289,13 +209,8 @@ $('langsw').addEventListener('click',e=>{
        D=await r.json(); if(D.error) throw new Error(D.error); }
   catch(e){ $('out').innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; $('gen').textContent=''; D=null; return; }
   drawAll();
-  loadReview();
-  try{
-    const fr=await fetch('/api/flags?limit=100'+(location.search.includes('key=')?'&'+location.search.slice(1):''));
-    const fd=await fr.json();
-    FLAGS=fd.flags||[];
-  }catch(e){ FLAGS_ERR=true; }
-  drawFlags();
+  loadHealth();
+  setInterval(loadHealth,60000);   // the health view is worth leaving open on a live night
 })();
 </script>
 </body>

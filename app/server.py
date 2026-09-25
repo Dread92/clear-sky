@@ -14,6 +14,7 @@ Sources (all optional except at least one alert source):
 Standard library only. Optional: `pip install plyer` for OS desktop notifications.
 """
 import argparse
+import bisect
 import collections
 import gzip
 import hashlib
@@ -320,7 +321,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.18"
+APP_VERSION = "1.19"
 BUILD = None    # filled at startup
 
 
@@ -1161,6 +1162,71 @@ class State:
             self._ev_cache.clear()
         return out
 
+    # -- the dashboard: is every source alive, is every channel still posting, how early was the map ---------
+    _health_res = None
+
+    def health(self):
+        if self._health_res and time.time() - self._health_res[0] < 60:
+            return self._health_res[1]
+        now = datetime.now(timezone.utc)
+        with self.lock:
+            sources = {k: dict(v) for k, v in self.sources.items()}
+        since24 = (now - timedelta(hours=24)).isoformat()
+        with self.store.lock:
+            c = self.store.conn
+            f24 = {r[0]: r[1] for r in c.execute("SELECT channel, COUNT(*) FROM feed WHERE ts>=? GROUP BY channel", (since24,))}
+            m24 = {r[0]: r[1] for r in c.execute(
+                "SELECT channel, COUNT(*) FROM marker_log WHERE ts>=? AND status IS NULL GROUP BY channel", (since24,))}
+            last = {r[0]: r[1] for r in c.execute("SELECT channel, MAX(ts) FROM feed GROUP BY channel")}
+        week = {r["channel"]: r for r in self.store.channel_report(7)}
+        names = list(AUTHORITATIVE_CHANNELS) + [ch for ch in list(f24) + list(week) if ch not in AUTHORITATIVE_CHANNELS]
+        channels = []
+        for ch in dict.fromkeys(names):
+            src = sources.get(f"tga:{ch}") or sources.get(f"tg:{ch}") or {}
+            w = week.get(ch) or {}
+            channels.append({"channel": ch, "posts_24h": f24.get(ch, 0), "marks_24h": m24.get(ch, 0), "last_post": last.get(ch),
+                             "posts_7d": w.get("posts", 0), "read_7d": w.get("with_marker", 0), "outcomes_7d": w.get("outcomes", 0),
+                             "flagged_7d": w.get("flagged", 0), "ok": src.get("ok"), "checked": src.get("last"),
+                             "error": src.get("error"), "via": "api" if f"tga:{ch}" in sources else ("preview" if src else None)})
+        official = [{"name": k, **v} for k, v in sorted(sources.items()) if not k.startswith(("tg:", "tga:"))]
+        tr = {"available": [], "paused": {}}
+        if _tr:
+            try:
+                tr["available"] = [n for n, _ in _tr.backends()]
+                tr["paused"] = {n: int(u - time.time()) for n, u in _tr._DOWN.items() if u > time.time()}
+            except Exception:
+                pass
+        out = {"generated": now_iso(), "official": official, "channels": channels, "translation": tr, "lead": self.lead_times(30)}
+        self._health_res = (time.time(), out)
+        return out
+
+    def lead_times(self, days=30):
+        """How long before each official air-raid alert over Kyiv or Kyiv oblast the map already showed a threat
+        there (a live mark in the hour before it). Alerts that start within 30 min of another are one wave, counted
+        once. A wave with nothing on the map in the hour before it counts as no warning — never as a zero lead."""
+        now = datetime.now(timezone.utc)
+        since = now - timedelta(days=days)
+        starts = sorted(st for st in (parse_iso(a["started_at"]) for a in self.store.history(days * 24, ["31", "14"])
+                                      if (a.get("alert_type") or "air_raid") == "air_raid") if st and st >= since)
+        marks = sorted(parse_iso(m["ts"]) for m in self.store.markers_between((since - timedelta(hours=1)).isoformat(), now.isoformat())
+                       if m.get("oblast_uid") in ("31", "14"))
+        marks = [m for m in marks if m]
+        leads, waves, prev = [], 0, None
+        for st in starts:
+            if prev and (st - prev).total_seconds() < 1800:
+                prev = st
+                continue
+            prev = st
+            waves += 1
+            i = bisect.bisect_left(marks, st - timedelta(hours=1))
+            if i < len(marks) and marks[i] <= st:
+                leads.append((st - marks[i]).total_seconds() / 60)
+        leads.sort()
+
+        def q(f):
+            return round(leads[min(len(leads) - 1, int(f * len(leads)))]) if leads else None
+        return {"days": days, "waves": waves, "warned": len(leads), "median_min": q(.5), "p25_min": q(.25), "p75_min": q(.75)}
+
     # -- statistics of past attacks (cached 5 min) ---------------------------
     _stats_res = {}
 
@@ -1266,9 +1332,14 @@ class State:
                 continue
             pts = parse_iso(p["ts"]) or now
             d = pts.astimezone(kyiv_tz).strftime("%Y-%m-%d")
-            cur = day_max.get(d, {"drones": 0, "missiles": 0, "down": 0, "age": 0})
+            cur = day_max.get(d, {"drones": 0, "missiles": 0, "down": 0, "age": 0, "post": None, "best": -1, "ch": ""})
+            # the post shown for the day: the fullest summary, the Air Force's own channel over a re-post of it
+            score = summ["drones"] + summ["missiles"]
+            better = score > cur["best"] or (score == cur["best"] and p.get("channel") == "kpszsu" and cur["ch"] != "kpszsu")
             day_max[d] = {"drones": max(cur["drones"], summ["drones"]), "missiles": max(cur["missiles"], summ["missiles"]),
-                          "down": max(cur["down"], summ["down"]), "age": (now - pts).total_seconds() / 86400}
+                          "down": max(cur["down"], summ["down"]), "age": (now - pts).total_seconds() / 86400,
+                          "post": p.get("post_id") if better else cur["post"], "best": max(score, cur["best"]),
+                          "ch": p.get("channel") if better else cur["ch"]}
         for d, v in day_max.items():
             for w, acc in windows.items():
                 if v["age"] <= w:
@@ -1293,7 +1364,10 @@ class State:
                "fires_total": sum(1 for m in imp if m["status"] == "fire"),
                "damage_total": sum(1 for m in imp if m["status"] == "damage"),
                "impact_window_h": min(days * 24, 96), "windows": {str(k): v for k, v in windows.items()},
-               "imp_windows": {str(k): v for k, v in imp_windows.items()}, "imp_max_h": min(days * 24, 96)}
+               "imp_windows": {str(k): v for k, v in imp_windows.items()}, "imp_max_h": min(days * 24, 96),
+               # the Stats tab shows only these: the Air Force's own summaries, one row a day, newest first
+               "af_days": [{"day": d, "drones": v["drones"], "missiles": v["missiles"], "down": v["down"], "post": v["post"]}
+                           for d, v in sorted(day_max.items(), reverse=True)]}
         self._stats_res[days] = (time.time(), out)
         return out
 
@@ -1734,7 +1808,9 @@ class UkraineAlarm(threading.Thread):
             h["Authorization"] = self.key
         _, _, body = http_get(self.base + "/alerts/status", h)
         action = json.loads(body.decode()).get("lastActionIndex")
-        if action is not None and action == self.last_action and time.time() - self.last_full < 120:
+        # Unchanged index: skip the full list — but never for long. A change of level on an alert that is already
+        # on (yellow → red) must not wait on the index moving, so the full list is read at least every 30 s.
+        if action is not None and action == self.last_action and time.time() - self.last_full < 30:
             self.state.set_source(self.NAME, True, note="unchanged")
             return
         _, _, body = http_get(self.base + "/alerts", h)
@@ -2625,7 +2701,7 @@ class Handler(BaseHTTPRequestHandler):
         if u.path == "/healthz":
             return self._json({"ok": True})
         if u.path.startswith("/static/logo") or u.path == "/favicon.ico":
-            return self._file(u.path.split("/")[-1] if u.path != "/favicon.ico" else "logo-64.png", "image/png")
+            return self._file(u.path.split("/")[-1] if u.path != "/favicon.ico" else "logo-cs-64.png", "image/png")
         auth = self._authorized(u, q)
         if not auth:
             body = b"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><body style='font-family:system-ui;background:#0b0e13;color:#e6e9ef;padding:40px;text-align:center'><img src='/static/logo-192.png' style='width:96px;border-radius:18px'><h2>Clear Sky</h2><form><input name=key placeholder='access key' style='padding:10px;font-size:16px;border-radius:8px;border:1px solid #333'> <button style='padding:10px 14px;border-radius:8px'>Enter</button></form></body>"
@@ -2717,6 +2793,11 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._admin_ok(q):
                     return self._json({"error": "set ADMIN_KEY to review the corpus"}, 403)
                 return self._json(self._corpus_pending(int(q.get("limit", ["30"])[0])))
+            # The dashboard's health view: sources, channels, how early the map was. Yours alone as well.
+            if u.path == "/api/health":
+                if not self._admin_ok(q):
+                    return self._json({"error": "set ADMIN_KEY to read the source health"}, 403)
+                return self._json(st.health())
             if u.path == "/api/flags":
                 if not self._admin_ok(q):
                     return self._json({"error": "set ADMIN_KEY to read flagged readings"}, 403)
@@ -2732,7 +2813,7 @@ class Handler(BaseHTTPRequestHandler):
             if u.path.startswith("/static/"):
                 return self._file(u.path[len("/static/"):], None)
             if u.path == "/favicon.ico":
-                return self._file("logo-64.png", "image/png")
+                return self._file("logo-cs-64.png", "image/png")
             self._json({"error": "not found"}, 404)
         except (BrokenPipeError, ConnectionResetError):
             pass

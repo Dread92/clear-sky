@@ -103,3 +103,15 @@ def test_banderol_is_never_labelled_a_cruise_missile_in_any_language():
     import re
     for v in re.findall(r"th_band:'([^']*)'", i18n):
         assert "крилат" not in v.lower() and "cruise" not in v.lower() and "croisière" not in v.lower()
+
+
+def test_a_metro_notice_is_news_not_a_route():
+    """24 Sep: KCSA's red-line notice — trains "from Akademmistechko to Teatralna" — became a target flying across
+    Kyiv, because two names joined by "від … до" read as a route."""
+    text = ("🚇 Зміни в роботі червоної лінії метро Києва, – КМДА.\n\nПоїзди курсують:\n"
+            "▪️у напрямку центру – від «Академмістечка» до «Театральної»;\n"
+            "▪️у напрямку виїзду з міста – від «Арсенальної» до «Академмістечка».\n"
+            "Повітряна тривога триває. Залишайтеся в укриттях.\n\n🇺🇦 Київ ІНФО")
+    assert geo.looks_like_news(geo._norm(text))
+    assert geo.parse_for_channel("kievinfo_kyiv", text) == []
+    assert server.tag_feed_text(text, "kievinfo_kyiv") == ["news"]

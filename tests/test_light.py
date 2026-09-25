@@ -37,7 +37,7 @@ def test_it_is_part_of_the_build_hash():
 
 
 def test_it_stays_light():
-    """Measured as it travels: the server gzips text. Page + map outlines + Kyiv districts stay under 60 KB on
+    """Measured as it travels: the server gzips text. Page + map outlines + Kyiv districts stay under 61 KB on
     the wire — a few seconds on 2G — and the status is painted before any of the map data arrives."""
     import gzip
     page = len(gzip.compress(LIGHT.encode("utf-8"), 6))
@@ -45,8 +45,9 @@ def test_it_stays_light():
     for f in ("light-map.json", "kyiv-districts.json"):
         with open(os.path.join(ROOT, "static", f), "rb") as fh:
             extra += len(gzip.compress(fh.read(), 6))
-    assert page < 17_000, f"the light page is no longer light ({page} B gzipped)"
-    assert page + extra < 60_000, f"page + map data = {page + extra} B gzipped"
+    # 1.19 raised both by ~2.5 KB for the map's own zoom and the tap-to-open card (about 0.2 s on 2G)
+    assert page < 19_500, f"the light page is no longer light ({page} B gzipped)"
+    assert page + extra < 61_000, f"page + map data = {page + extra} B gzipped"
     for heavy in ("kyiv-map.json", "EventSource", "tile.openstreetmap", "/api/feed"):
         assert heavy not in LIGHT, f"the light page loads {heavy}"
 

@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0b0d11">
 <title>Clear Sky Light</title>
 <link rel="manifest" href="/light.webmanifest">
-<link rel="icon" href="/static/logo-64.png">
-<link rel="apple-touch-icon" href="/static/logo-192.png">
+<link rel="icon" href="/static/logo-cs-64.png">
+<link rel="apple-touch-icon" href="/static/logo-cs-192.png">
 <style>
 /* Clear Sky Light — one place, what concerns it, nothing else.
    No map tiles and no feed: it has to load and be read on 2G, at night, in a corridor. The small map under the
@@ -21,6 +21,8 @@ body{padding:env(safe-area-inset-top,0) 0 env(safe-area-inset-bottom,0);max-widt
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 header{display:flex;align-items:center;gap:8px;padding:10px 14px}
 header b{font:800 17px/1 var(--sans);letter-spacing:.06em}
+header .hlogo{width:26px;height:26px;flex:none;margin-right:-2px}
+#dm .dlogo{display:block;width:88px;height:88px;margin:0 auto 6px}
 /* Light | Tactical: the two versions, as one big switch across the top — the first thing the eye meets,
    each half saying what it is. Not a link hidden in a menu or a footer. */
 .sw{display:flex;margin:0 14px 12px;border:2px solid var(--ora);border-radius:8px;overflow:hidden;box-shadow:0 0 0 3px rgba(255,138,61,.12)}
@@ -30,7 +32,7 @@ header b{font:800 17px/1 var(--sans);letter-spacing:.06em}
 .sw .on{background:var(--ora);color:#14100a}
 .sw a b::after{content:' ›'}
 .sw a:hover,.sw a:focus{background:#242c3a}
-header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
+header .up{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font:11px var(--mono);color:var(--ink3)}header b{white-space:nowrap}
 .slots{display:flex;gap:6px;padding:0 14px 10px;overflow-x:auto}
 .slots button{flex:0 0 auto;display:flex;gap:5px;align-items:center;padding:8px 11px;border:1px solid var(--line);background:var(--panel);border-radius:3px;font:600 13px var(--sans);color:var(--ink2)}
 .slots button.on{border-color:var(--ora);color:var(--ink);background:#281e12}
@@ -51,7 +53,22 @@ header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
 .status .nb{font-size:12.5px;margin-top:6px;color:var(--ink2)}
 .status .nb b{color:#ffe9a8;font-weight:600}.status .nb b.R{color:#ffb4ae}
 .status .oo{font-size:12.5px;margin-top:6px;color:#ffe9a8}
-#radar{display:block;width:100%;max-width:440px;margin:12px auto 0}
+#rwrap{position:relative;width:100%;max-width:440px;margin:12px auto 0}
+/* the map zooms by itself, never the page; unzoomed, one finger still scrolls the page */
+#radar{display:block;width:100%;touch-action:pan-y;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;cursor:pointer}
+#radar.zoomed{touch-action:none;cursor:grab}
+#rwrap .zc{position:absolute;right:4px;top:4px;z-index:2;display:flex;flex-direction:column;gap:6px}
+#rwrap .zc button{width:38px;height:38px;border:1px solid var(--line);border-radius:4px;background:rgba(22,27,36,.94);color:var(--ink);font:700 19px/1 var(--mono)}
+#rwrap .zc button:disabled{opacity:.3;cursor:default}#rwrap .zc button[hidden]{display:none}
+#rwrap.empty .zc{display:none}
+#rcard{position:absolute;left:6px;right:6px;bottom:6px;z-index:3;max-height:62%;overflow:auto;background:rgba(16,20,27,.97);border:1px solid var(--line);border-left:4px solid var(--ora);border-radius:4px;padding:0 10px;box-shadow:0 6px 20px rgba(0,0,0,.55)}
+#rcard.top{top:6px;bottom:auto}#rcard[hidden]{display:none}
+#rcard .row{border-bottom:0;cursor:default}#rcard .row .l1{padding-right:30px}
+#rcard .x{position:absolute;right:2px;top:4px;z-index:1;padding:6px 10px;color:var(--ink2);font-size:16px}
+#radar .selr{fill:rgba(255,255,255,.08);stroke:#fff;stroke-width:1.4px;vector-effect:non-scaling-stroke}
+#radar .tg.gone{opacity:.35}
+.lsel{padding:5px 6px;border:1px solid var(--line);border-radius:3px;background:var(--panel);color:var(--ink);font:600 12px var(--sans);max-width:46%}
+#dm .dmh{display:flex;align-items:flex-start;gap:10px}#dm .dmh b{flex:1}
 #radar .bg{fill:#10141b}
 #radar .obl{fill:none;stroke:#4a5566;stroke-width:1.1px;vector-effect:non-scaling-stroke;stroke-dasharray:5 3}
 #radar .rb{fill:none;stroke:#2a313d;stroke-width:.8px;vector-effect:non-scaling-stroke}
@@ -88,7 +105,7 @@ header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
 .row .more div+div{margin-top:4px}
 .row .tap{font-size:11px;color:var(--ink3);margin-top:3px}
 .sec{margin:14px 0 2px;padding-top:10px;border-top:1px solid var(--line);font:700 11.5px var(--mono);letter-spacing:.06em;color:#ffb3a6;text-transform:uppercase}
-#radar .ring{fill:none;stroke:#2f5480;stroke-width:.5;stroke-dasharray:1.6 2}
+#radar .ring{fill:none;stroke:#2f5480;stroke-width:1.5px;vector-effect:non-scaling-stroke;stroke-dasharray:5 6}
 #radar .ring.r10{stroke:var(--ora);stroke-dasharray:none;stroke-opacity:.7}
 #radar .rl{fill:#56637a;font:3.4px var(--mono)}
 #radar .nn{fill:var(--ink3);font:700 4.2px var(--mono)}
@@ -127,7 +144,8 @@ footer a{color:var(--blu)}
 #dm .dbox{max-width:440px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--yel);border-radius:4px;padding:16px 18px;max-height:90vh;overflow:auto}
 #dm b{display:block;font:800 17px/1.2 var(--sans);margin-bottom:8px}
 #dm p{font-size:14px;line-height:1.45;color:var(--ink2);margin:0 0 10px}#dm p b,#dm p strong{display:inline;font-size:inherit;color:var(--ink)}
-#dm button{display:block;margin:12px 0 0 auto;padding:10px 16px;border:1px solid var(--yel);border-radius:3px;color:var(--yel);font-weight:700}
+/* big, full width, centred: a small button at the edge was missed */
+#dm #dmok{display:block;width:100%;max-width:340px;margin:18px auto 2px;padding:15px 18px;border:2px solid var(--yel);border-radius:6px;background:var(--yel);color:#111;font:800 17px/1.1 var(--sans);letter-spacing:.03em;text-transform:uppercase}
 #pick{position:fixed;inset:0;background:rgba(5,6,9,.94);display:none;flex-direction:column;padding:16px 14px;z-index:9}
 #pick.show{display:flex}
 #pick h3{font:700 17px var(--sans)}#pick p{color:var(--ink2);font-size:13px;margin:6px 0 12px}
@@ -140,17 +158,19 @@ footer a{color:var(--blu)}
 </style>
 </head>
 <body>
-<header><b>CLEAR SKY</b><span class="up" id="up"></span></header>
+<header><img class="hlogo" src="/static/logo-cs-64.png" alt=""><b>CLEAR SKY</b><span class="up" id="up"></span><select class="lsel" id="langsel" aria-label="Language"></select></header>
 <nav class="sw" id="sw"><span class="on"><b id="swl">LIGHT</b><small id="swl2"></small></span><a href="/m"><b id="swt">TACTICAL</b><small id="swt2"></small></a></nav>
 <div class="slots" id="slots"></div>
 <div id="imm" hidden></div>
 <div class="status U" id="status"><div class="big">…</div></div>
-<svg id="radar" viewBox="-66 -66 132 132" aria-hidden="true"></svg>
+<div id="rwrap" class="empty"><svg id="radar" viewBox="-66 -66 132 132" aria-hidden="true"></svg>
+  <div class="zc"><button type="button" id="zin">+</button><button type="button" id="zout" disabled>−</button><button type="button" id="zreset" hidden>⟲</button></div>
+  <div id="rcard" hidden></div></div>
 <div class="lg" id="lg" hidden></div>
 <div id="list"></div>
 <div id="off" hidden></div>
 <footer><div id="disc"></div><div style="margin-top:8px"><a href="/m" id="full"></a></div></footer>
-<div id="dm" hidden><div class="dbox"><b id="dmt"></b><p id="dm1"></p><p id="dm2"></p><p id="dm3"></p><button id="dmok"></button></div></div>
+<div id="dm" hidden><div class="dbox"><img class="dlogo" src="/static/logo-cs.png" alt="Clear Sky" loading="lazy"><div class="dmh"><b id="dmt"></b><select class="lsel" id="dmlang" aria-label="Language"></select></div><p id="dm1"></p><p id="dm2"></p><p id="dm3"></p><button id="dmok"></button></div></div>
 <div id="pick"><button class="x" id="pickx">✕</button><h3 id="pickh"></h3><p id="pickp"></p>
   <input id="pickq" autocomplete="off"><button class="loc" id="pickloc"></button><div class="res" id="pickres"></div></div>
 <script src="/static/i18n.js"></script>
@@ -161,6 +181,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const NS='http://www.w3.org/2000/svg';
 document.documentElement.lang=LANG;
+langSelect($('langsel'),false,true); langSelect($('dmlang'),true);   // the language, as on the Tactical page
 const fmtT=ts=>{try{return new Date(ts).toLocaleTimeString('uk-UA',{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'});}catch(e){return '';}};
 const agoMin=ts=>Math.max(0,Math.round((Date.now()-Date.parse(ts))/60000));
 
@@ -257,6 +278,12 @@ const statedCourse=m=>m.heading!=null&&!!(m.evidence&&m.evidence.heading&&m.evid
 // The radius the page watches: 30 km. Inside 10 km is "near"; 10–30 "approaching". Beyond 30 km only what a
 // post says is heading here is listed, apart, under "approaching" — up to 100 km out.
 const R_KM=30, FAR_KM=100, S=2;   // S: SVG units per kilometre on the radar (the disc is 60 units = 30 km)
+// The radar's own zoom: 1 = the 30 km disc, up to 4. Symbols and names sit in groups scaled by 1/zoom (--iz):
+// they keep their size while the map grows.
+const RZ={z:1,cx:0,cy:0}, ZMAX=4;
+const symAt=(x,y)=>`transform:translate(${x.toFixed(2)}px,${y.toFixed(2)}px) scale(var(--iz,1))`;
+const inView=(x,y,m=4)=>Math.abs(x-RZ.cx)<=66/RZ.z+m&&Math.abs(y-RZ.cy)<=66/RZ.z+m;
+let SEL=null, RT=[];   // the mark whose card is open; where the marks are, for a tap
 const ZONES=[[10,'near'],[30,'approach']];
 const zoneOf=d=>{for(const [r,k] of ZONES) if(d<=r) return k; return null;};
 const CLOSING=new Set(['down','impact','lost','clear']);
@@ -330,7 +357,7 @@ function alertedShapes(){
     if(L) out[r.obl+':'+r.k]=L; }
   return out;
 }
-function mapLayer(p,kx,loc){
+function mapLayer(p,kx,loc,iz){
   if(!LM) return '';
   // outline km (the full map's grid, centred on Kyiv) → radar units around the place, the frame the markers are in
   const sx=kx/LM.kx, tx=(LM.center[0]-p.lon)*kx, ty=(p.lat-LM.center[1])*LM.ky;
@@ -358,29 +385,32 @@ function mapLayer(p,kx,loc){
   const boxes=[];
   const fits=(bx)=>!boxes.some(b=>bx[0]<b[0]+b[2]&&b[0]<bx[0]+bx[2]&&bx[1]<b[1]+b[3]&&b[1]<bx[1]+bx[3])
     &&Math.hypot(bx[0]+bx[2],bx[1]+bx[3])<59&&Math.hypot(bx[0],bx[1])<59&&Math.hypot(bx[0]+bx[2],bx[1])<59&&Math.hypot(bx[0],bx[1]+bx[3])<59;
-  boxes.push([-5,-5,10,10]);   // the place's own dot
+  boxes.push([-5*iz,-5*iz,10*iz,10*iz]);   // the place's own dot
   // district names first inside the city (they are the words people use there), then towns, rivers, villages
   if(kdOn) for(const k of KD){ const pts=(k.path.match(/-?\d+(?:\.\d+)?,-?\d+(?:\.\d+)?/g)||[]).map(q=>q.split(',').map(Number));
     if(!pts.length) continue; const cx=pts.reduce((a,q)=>a+q[0],0)/pts.length, cy=pts.reduce((a,q)=>a+q[1],0)/pts.length;
-    const [x,y]=[(cx*sx+tx)*S,(cy+ty)*S], nm=LANG==='uk'?k.uk.replace(/\s*район$/,''):k.name, w=nm.length*1.75+1;
-    const bx=[x-w/2,y-2.6,w,3.4]; if(!fits(bx)) continue; boxes.push(bx);
-    s+=`<text class="kdl" x="${x.toFixed(1)}" y="${y.toFixed(1)}">${esc(nm)}</text>`; }
+    const [x,y]=[(cx*sx+tx)*S,(cy+ty)*S], nm=LANG==='uk'?k.uk.replace(/\s*район$/,''):k.name, w=(nm.length*1.75+1)*iz;
+    if(!inView(x,y)) continue;
+    const bx=[x-w/2,y-2.6*iz,w,3.4*iz]; if(!fits(bx)) continue; boxes.push(bx);
+    s+=`<g style="${symAt(x,y)}"><text class="kdl">${esc(nm)}</text></g>`; }
   const tw=LM.towns.map(tn=>({n:townName(tn[0]),xy:loc(tn[1],tn[2]),big:tn[3]===1})).filter(o=>Math.hypot(o.xy[0],o.xy[1])<58).sort((a,b)=>b.big-a.big);
-  for(const o of tw){ const [x,y]=o.xy, w=o.n.length*(o.big?2.3:1.9)+2, h=o.big?5:4.2, bx=[x+1.6,y-h+1,w,h];
-    if(Math.hypot(x,y)<4) continue;
-    if(!fits(bx)){ s+=`<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r=".7"/>`; continue; }
+  for(const o of tw){ const [x,y]=o.xy, w=(o.n.length*(o.big?2.3:1.9)+2)*iz, h=(o.big?5:4.2)*iz, bx=[x+1.6*iz,y-h+iz,w,h];
+    if(Math.hypot(x,y)<4*iz||!inView(x,y)) continue;
+    if(!fits(bx)){ s+=`<g style="${symAt(x,y)}"><circle class="tw" r=".7"/></g>`; continue; }
     boxes.push(bx);
-    s+=`<circle class="tw" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${o.big?1.2:.8}"/><text class="tl${o.big?' big':''}" x="${(x+1.8).toFixed(1)}" y="${(y+1.3).toFixed(1)}">${esc(o.n)}</text>`; }
-  for(const [w0,pts,name] of LM.rivers){ if(!name) continue; const inside=pts.map(q=>loc(q[0],q[1])).filter(q=>Math.hypot(q[0],q[1])<46);
-    if(!inside.length) continue; const [x,y]=inside[Math.floor(inside.length/2)], nm=riverName(name), w=nm.length*1.8+1, bx=[x+1.5,y-2.5,w,3.4];
+    s+=`<g style="${symAt(x,y)}"><circle class="tw" r="${o.big?1.2:.8}"/><text class="tl${o.big?' big':''}" x="1.8" y="1.3">${esc(o.n)}</text></g>`; }
+  for(const [w0,pts,name] of LM.rivers){ if(!name) continue; const inside=pts.map(q=>loc(q[0],q[1])).filter(q=>Math.hypot(q[0],q[1])<46&&inView(q[0],q[1],-6*iz));
+    if(!inside.length) continue; const [x,y]=inside[Math.floor(inside.length/2)], nm=riverName(name), w=(nm.length*1.8+1)*iz, bx=[x+1.5*iz,y-2.5*iz,w,3.4*iz];
     if(tw.some(o=>o.n.toLowerCase()===nm.toLowerCase())) continue;
-    if(!fits(bx)) continue; boxes.push(bx); s+=`<text class="rvl" x="${(x+1.5).toFixed(1)}" y="${(y+.6).toFixed(1)}">${esc(nm)}</text>`; }
+    if(!fits(bx)) continue; boxes.push(bx); s+=`<g style="${symAt(x,y)}"><text class="rvl" x="1.5" y=".6">${esc(nm)}</text></g>`; }
   // villages and city neighbourhoods from the place list, nearest first, as many as fit
   if(VIL){ const townSet=new Set([...LM.towns.map(tn=>townName(tn[0]).toLowerCase()),...(KD||[]).map(k=>(LANG==='uk'?k.uk.replace(/\s*район$/,''):k.name).toLowerCase())]);
-    const vs=VIL.map(v=>({v,xy:loc(v.lon,v.lat)})).map(o=>({...o,r:Math.hypot(o.xy[0],o.xy[1])})).filter(o=>o.r<56&&o.r>4).sort((a,b)=>a.r-b.r);
-    let n=0; for(const o of vs){ if(n>=28) break; const nm=LANG==='uk'?o.v.name:pn(o.v.name); if(townSet.has(nm.toLowerCase())) continue;
-      const [x,y]=o.xy, w=nm.length*1.6+1.5, bx=[x+1.2,y-2.3,w,3.3]; if(!fits(bx)) continue; boxes.push(bx); n++;
-      s+=`<circle class="vd" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r=".55"/><text class="vl" x="${(x+1.2).toFixed(1)}" y="${(y+.9).toFixed(1)}">${esc(nm)}</text>`; } }
+    const vs=VIL.map(v=>({v,xy:loc(v.lon,v.lat)})).map(o=>({...o,r:Math.hypot(o.xy[0],o.xy[1]),rv:Math.hypot(o.xy[0]-RZ.cx,o.xy[1]-RZ.cy)}))
+      .filter(o=>o.r<56&&o.r>4*iz&&inView(o.xy[0],o.xy[1])).sort((a,b)=>a.rv-b.rv);
+    let n=0; const most=Math.min(90,Math.round(28*RZ.z));
+    for(const o of vs){ if(n>=most) break; const nm=LANG==='uk'?o.v.name:pn(o.v.name); if(townSet.has(nm.toLowerCase())) continue;
+      const [x,y]=o.xy, w=(nm.length*1.6+1.5)*iz, bx=[x+1.2*iz,y-2.3*iz,w,3.3*iz]; if(!fits(bx)) continue; boxes.push(bx); n++;
+      s+=`<g style="${symAt(x,y)}"><circle class="vd" r=".55"/><text class="vl" x="1.2" y=".9">${esc(nm)}</text></g>`; } }
   return s;
 }
 
@@ -396,7 +426,8 @@ function paint(){
   $('swl').textContent=t('sw_light'); $('swt').textContent=t('sw_tac'); $('sw').title=t('sw_title');
   $('swl2').textContent=t('sw_light_b'); $('swt2').textContent=t('sw_tac_b');
   if(!p){ $('status').className='status U'; $('status').innerHTML=`<div class="big">${esc(t('lt_noplace'))}</div><div class="pl">${esc(t('lt_noplace_b'))}</div>`;
-    $('radar').innerHTML=''; $('list').innerHTML=''; $('imm').hidden=true; return; }
+    $('radar').innerHTML=''; $('list').innerHTML=''; $('imm').hidden=true; $('rcard').hidden=true; $('rwrap').classList.add('empty'); return; }
+  $('rwrap').classList.remove('empty');
 
   // the status: official data only, for the place's own raion
   if(!OBL&&PR===null){ $('status').className='status U'; $('status').innerHTML=`<div class="big">…</div><div class="pl">${esc(placeName(p))}</div>`; }
@@ -441,37 +472,40 @@ function paint(){
 
   const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
   // the radar: the place in the middle, north up, over a small map of the 30 km around it
-  const kx=111*Math.cos(rad(p.lat)), loc=(lon,lat)=>[(lon-p.lon)*kx*S,-(lat-p.lat)*111*S];
+  const kx=111*Math.cos(rad(p.lat)), loc=(lon,lat)=>[(lon-p.lon)*kx*S,-(lat-p.lat)*111*S], iz=1/RZ.z;
   let g=`<defs><clipPath id="disc"><circle r="60"/></clipPath></defs><circle class="bg" r="60"/>`
-    +`<g clip-path="url(#disc)">${mapLayer(p,kx,loc)}</g>`
-    +[10,20,30].map(k=>`<circle class="ring${k===10?' r10':''}" r="${k*S}"/><text class="rl" x="1.5" y="${(-k*S-.8).toFixed(1)}">${k}</text>`).join('')
-    +`<text class="nn" x="-1.4" y="-62.5">N</text><circle class="me" r="1.8"/>`;
+    +`<g clip-path="url(#disc)">${mapLayer(p,kx,loc,iz)}</g>`
+    +[10,20,30].map(k=>`<circle class="ring${k===10?' r10':''}" r="${k*S}"/><g style="${symAt(0,-k*S)}"><text class="rl" x="1.5" y="-.8">${k}</text></g>`).join('')
+    +`<g style="${symAt(0,-60)}"><text class="nn" x="-1.4" y="-2.5">N</text></g><g style="${symAt(0,0)}"><circle class="me" r="1.8"/></g>`;
   const CRI=getComputedStyle(document.documentElement).getPropertyValue('--cri').trim(), ORA=getComputedStyle(document.documentElement).getPropertyValue('--ora').trim();
+  RT=[];
   for(const r of rows){ const m=r.m, [x,y]=loc(m.lon,m.lat), c=r.toHere?CRI:colOf(m), gone=m.stale?' gone':'';
     // where it was reported before: reported points joined, nothing drawn ahead of it
     if(m.history&&m.history.length){ const pts=[...m.history.filter(h=>h.lon!=null&&h.lat!=null).map(h=>loc(h.lon,h.lat)),[x,y]];
       if(pts.length>1) g+=`<polyline class="tail${gone}" stroke="${c}" points="${pts.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}"/>`; }
-    const T=`translate(${x.toFixed(1)} ${y.toFixed(1)})`;
+    RT.push({id:m.id,x,y});
+    let q=`<g class="tg${gone}" style="${symAt(x,y)}">`+(SEL===m.id?`<circle class="selr" r="7.5"/>`:'');
     // the weapon's own silhouette, as on the Tactical map; turned only to a course the post reported
     // missiles are slender shapes: drawn a little larger so they read at this size as well as a Shahed does
     const sc=/missile/.test(m.type)&&m.type!=='banderol_missiles'?.42:.34;
-    g+=`<g class="t${gone}" transform="${T} rotate(${markOrient(m)}) scale(${sc})"><g class="${silCls(m)}" style="--c:${c}">${G[silKey(m)]||''}</g></g>`;
+    q+=`<g class="t" transform="rotate(${markOrient(m)}) scale(${sc})"><g class="${silCls(m)}" style="--c:${c}">${G[silKey(m)]||''}</g></g>`;
     if(m.type==='unknown'){
       // nobody said what it is: the warning sign stays upright; a reported course is a small orange arrow beside it
-      if(statedCourse(m)) g+=`<path class="t${gone}" transform="${T} rotate(${m.heading}) translate(0 -5.6)" d="M0 -1.8 L1.5 1.2 L0 .5 L-1.5 1.2 Z" fill="${ORA}"/>`;
-    } else if(!statedCourse(m)) g+=`<text class="qm" x="${x.toFixed(1)}" y="${(y-4.4).toFixed(1)}">?</text>`;   // upright because no course was reported
+      if(statedCourse(m)) q+=`<path class="t" transform="rotate(${m.heading}) translate(0 -5.6)" d="M0 -1.8 L1.5 1.2 L0 .5 L-1.5 1.2 Z" fill="${ORA}"/>`;
+    } else if(!statedCourse(m)) q+=`<text class="qm" x="0" y="-4.4">?</text>`;   // upright because no course was reported
     // its number in the list below, and how many
-    g+=`<text class="no" x="${(x+3.2).toFixed(1)}" y="${(y-2.2).toFixed(1)}">${r.no}${m.count&&m.count>1?`<tspan fill="${c}"> ×${m.count}</tspan>`:''}</text>`;
+    q+=`<text class="no" x="3.2" y="-2.2">${r.no}${m.count&&m.count>1?`<tspan fill="${c}"> ×${m.count}</tspan>`:''}</text>`;
     // the stated height under it; ↓ in crimson when a post said it is descending or reported it lower
     { const tr=altTrend(m), dsc=(m.alt&&m.alt.state==='descending')||(tr&&tr.dir==='down');
       const v=m.alt&&m.alt.m!=null?fmtAlt(m.alt.m):'', txt=(dsc?'↓':'')+(v||((m.alt&&m.alt.state&&!dsc)?(ALTL[m.alt.state]||''):''));
-      if(txt) g+=`<text class="altl${dsc?' dsc':''}" x="${(x+3.2).toFixed(1)}" y="${(y+2.6).toFixed(1)}">${esc(txt)}</text>`; }
+      if(txt) q+=`<text class="altl${dsc?' dsc':''}" x="3.2" y="2.6">${esc(txt)}</text>`; }
+    g+=q+'</g>';
   }
   $('radar').innerHTML=g;
-  $('lg').hidden=!LM; $('lg').textContent=t('lt_legend');
+  $('lg').hidden=!LM; $('lg').textContent=t('lt_legend')+' · '+t('lt_zhint');
 
   // the list — each row opens on a tap: what the post said, the track so far, the source
-  const row=({m,d,zone,toHere,eta,no})=>{
+  const row=({m,d,zone,toHere,eta,no},force)=>{
     const n=(m.count&&m.count>1)?' ×'+m.count:'';
     const bits=[zone?t('lt_z_'+zone):t('lt_far')]; if(toHere) bits.push(`<b class="hr">${esc(t('lt_here'))}</b>`);
     if(m.place) bits.push(`<span class="wh">${esc(t('lt_at',pn(m.place)))}</span>`);
@@ -487,7 +521,7 @@ function paint(){
     const said=LANG==='uk'?m.text:((LANG==='fr'&&m.text_fr)||m.text_en||m.text);
     const track=(m.history||[]).filter(h=>h.place).slice(-4).map(h=>`${esc(pn(h.place))} ${fmtT(h.ts)}`);
     const alt=m.alt?[m.alt.state?(ALTL[m.alt.state]||m.alt.state):'',m.alt.m!=null?fmtAlt(m.alt.m):''].filter(Boolean).join(' · '):'';
-    const open=OPEN.has(m.id);
+    const open=force||OPEN.has(m.id);
     return `<div class="row${toHere?' here':''}${m.stale?' gone':''}${open?' open':''}" data-id="${esc(m.id)}"><div class="ic">${icoSvg(m,toHere?getComputedStyle(document.documentElement).getPropertyValue('--cri').trim():colOf(m))}</div><div class="bd">`
       +`<div class="l1"><b>${no?`<span class="no">${no}</span>`:''}${esc(label(m))}${n}</b><span class="d">${Math.round(d)} ${esc(t('lt_km'))}</span></div>`
       +`<div class="l2">${bits.map(x=>x.startsWith('<')?x:esc(x)).join(' · ')}</div>`
@@ -498,13 +532,71 @@ function paint(){
       +`<div>${esc(t('lt_src2'))}: @${esc(m.channel||'?')} · ${fmtT(m.ts)}</div></div>`
       +(open?'':`<div class="tap">${esc(t('lt_tap'))}</div>`)
       +`</div></div>`; };
-  $('list').innerHTML=(rows.length?rows.map(row).join(''):`<div class="none"><b>${esc(t('lt_none'))}</b><small>${esc(t('lt_none_b'))}</small></div>`)
-    +(far.length?`<div class="sec">${esc(t('lt_appr'))}</div>`+far.map(row).join(''):'');
+  // the card of the mark tapped on the map, kept current, closed when the mark is gone
+  const selR=SEL?rows.find(r=>r.m.id===SEL):null; if(SEL&&!selR) SEL=null;
+  $('rcard').hidden=!selR;
+  if(selR){ $('rcard').innerHTML=`<button type="button" class="x" id="rcx" aria-label="${esc(t('lt_close'))}">✕</button>`+row(selR,true);
+    $('rcard').classList.toggle('top',loc(selR.m.lon,selR.m.lat)[1]>RZ.cy); }
+  $('list').innerHTML=(rows.length?rows.map(r=>row(r)).join(''):`<div class="none"><b>${esc(t('lt_none'))}</b><small>${esc(t('lt_none_b'))}</small></div>`)
+    +(far.length?`<div class="sec">${esc(t('lt_appr'))}</div>`+far.map(r=>row(r)).join(''):'');
 
   // a buzz for something new inside 10 km, or anything that outruns a radius — once per target
   for(const r of rows) if(r.zone==='near'&&!SEEN.has(r.m.id)){ SEEN.add(r.m.id); if(navigator.vibrate) navigator.vibrate([200,100,200]); }
   for(const m of imm) if(!SEEN.has(m.id)){ SEEN.add(m.id); if(navigator.vibrate) navigator.vibrate([300,80,300,80,300]); }
 }
+
+// ---- the map's own zoom, and a tap on a mark -----------------------------------------------------------------
+function applyRZ(repaint){ const h=66/RZ.z, lim=66-h;
+  RZ.cx=Math.max(-lim,Math.min(lim,RZ.cx)); RZ.cy=Math.max(-lim,Math.min(lim,RZ.cy));
+  const sv=$('radar'); sv.setAttribute('viewBox',`${(RZ.cx-h).toFixed(2)} ${(RZ.cy-h).toFixed(2)} ${(2*h).toFixed(2)} ${(2*h).toFixed(2)}`);
+  sv.style.setProperty('--iz',(1/RZ.z).toFixed(4)); sv.classList.toggle('zoomed',RZ.z>1.01);
+  $('zreset').hidden=RZ.z<=1.01; $('zin').disabled=RZ.z>=ZMAX-.01; $('zout').disabled=RZ.z<=1.01;
+  clearTimeout(applyRZ.t); if(repaint!==false) applyRZ.t=setTimeout(paint,180); }
+function zoomAt(f,ux,uy){ const nz=Math.max(1,Math.min(ZMAX,RZ.z*f)); if(Math.abs(nz-RZ.z)<1e-4) return;
+  RZ.cx=ux-(ux-RZ.cx)*RZ.z/nz; RZ.cy=uy-(uy-RZ.cy)*RZ.z/nz; RZ.z=nz; applyRZ(); }
+function resetRZ(repaint){ RZ.z=1; RZ.cx=0; RZ.cy=0; applyRZ(repaint); }
+const toU=(x,y)=>{ const sv=$('radar'), m=sv.getScreenCTM(); if(!m) return [RZ.cx,RZ.cy]; const pt=sv.createSVGPoint(); pt.x=x; pt.y=y; const q=pt.matrixTransform(m.inverse()); return [q.x,q.y]; };
+const unitsPerPx=()=>{ const r=$('radar').getBoundingClientRect(); return r.width?(132/RZ.z)/r.width:1; };
+function selectThreat(id){ if(id===SEL) return; SEL=id; if(id&&navigator.vibrate) navigator.vibrate(12); paint(); }
+function tapAt(x,y){ const [ux,uy]=toU(x,y); let best=null, bd=26*unitsPerPx();
+  for(const q of RT){ const d=Math.hypot(q.x-ux,q.y-uy); if(d<bd){ bd=d; best=q; } }
+  selectThreat(best?best.id:null); }
+$('zin').onclick=()=>zoomAt(1.6,RZ.cx,RZ.cy); $('zout').onclick=()=>zoomAt(1/1.6,RZ.cx,RZ.cy); $('zreset').onclick=()=>resetRZ();
+for(const k of ['zin','zout','zreset']){ $(k).title=t('lt_'+k); $(k).setAttribute('aria-label',t('lt_'+k)); }
+$('rcard').addEventListener('click',e=>{ if(e.target.closest('#rcx')) selectThreat(null); });
+(()=>{ const sv=$('radar'); let T0=null, pinch=null, moved=false, lastTap=0, lastXY=null;
+  const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY), mid=(a,b)=>[(a.clientX+b.clientX)/2,(a.clientY+b.clientY)/2];
+  sv.addEventListener('touchstart',e=>{
+    if(e.touches.length>=2){ const [a,b]=e.touches; pinch={d:dist(a,b),m:mid(a,b)}; moved=true; T0=null; }
+    else { const a=e.touches[0]; T0={x:a.clientX,y:a.clientY,lx:a.clientX,ly:a.clientY}; moved=false; } },{passive:true});
+  sv.addEventListener('touchmove',e=>{
+    if(e.touches.length>=2){ e.preventDefault(); const [a,b]=e.touches, d=dist(a,b), m=mid(a,b);
+      if(!pinch){ pinch={d,m}; return; }
+      const [ux,uy]=toU(m[0],m[1]); zoomAt(d/pinch.d,ux,uy);
+      const k=unitsPerPx(); RZ.cx-=(m[0]-pinch.m[0])*k; RZ.cy-=(m[1]-pinch.m[1])*k; applyRZ(); pinch={d,m}; return; }
+    if(!T0) return; const a=e.touches[0];
+    if(!moved&&Math.hypot(a.clientX-T0.x,a.clientY-T0.y)<8) return;
+    moved=true;
+    if(RZ.z>1.01){ e.preventDefault(); const k=unitsPerPx(); RZ.cx-=(a.clientX-T0.lx)*k; RZ.cy-=(a.clientY-T0.ly)*k; applyRZ(); }
+    T0.lx=a.clientX; T0.ly=a.clientY; },{passive:false});
+  sv.addEventListener('touchend',e=>{ if(e.touches.length<2) pinch=null;
+    if(e.touches.length===0&&T0&&!moved){ const c=e.changedTouches[0]; e.preventDefault();
+      const now=Date.now();
+      if(now-lastTap<320&&lastXY&&Math.hypot(c.clientX-lastXY[0],c.clientY-lastXY[1])<30){ lastTap=0;
+        if(RZ.z>=ZMAX-.01) resetRZ(); else { const [ux,uy]=toU(c.clientX,c.clientY); zoomAt(2,ux,uy); } }
+      else { lastTap=now; lastXY=[c.clientX,c.clientY]; tapAt(c.clientX,c.clientY); } }
+    if(e.touches.length===0) T0=null; },{passive:false});
+  sv.addEventListener('touchcancel',()=>{ T0=null; pinch=null; });
+  sv.addEventListener('gesturestart',e=>e.preventDefault());
+  // mouse: drag when zoomed, click a mark, double-click or ctrl + wheel to zoom
+  let md=null;
+  sv.addEventListener('mousedown',e=>{ if(e.button!==0) return; e.preventDefault(); md={x:e.clientX,y:e.clientY,lx:e.clientX,ly:e.clientY,moved:false}; });
+  window.addEventListener('mousemove',e=>{ if(!md) return; if(!md.moved&&Math.hypot(e.clientX-md.x,e.clientY-md.y)<5) return; md.moved=true;
+    if(RZ.z>1.01){ const k=unitsPerPx(); RZ.cx-=(e.clientX-md.lx)*k; RZ.cy-=(e.clientY-md.ly)*k; applyRZ(); } md.lx=e.clientX; md.ly=e.clientY; });
+  window.addEventListener('mouseup',e=>{ if(!md) return; const w=md; md=null; if(!w.moved) tapAt(e.clientX,e.clientY); });
+  sv.addEventListener('dblclick',e=>{ e.preventDefault(); if(RZ.z>=ZMAX-.01) resetRZ(); else { const [ux,uy]=toU(e.clientX,e.clientY); zoomAt(2,ux,uy); } });
+  sv.addEventListener('wheel',e=>{ if(!e.ctrlKey) return; e.preventDefault(); const [ux,uy]=toU(e.clientX,e.clientY); zoomAt(Math.exp(-e.deltaY*.01),ux,uy); },{passive:false});
+})();
 
 // a row opens and closes on a tap; the page repaints every 15 s, so which rows are open is remembered
 const OPEN=new Set();
@@ -521,7 +613,7 @@ async function refresh(){
 }
 
 let PR=null;   // the raion(s) of the place
-async function usePlace(){ const p=place(); OBL=null; OBL_GUESS=false; PR=null;
+async function usePlace(){ const p=place(); OBL=null; OBL_GUESS=false; PR=null; SEL=null; resetRZ(false);   // a new place: the whole disc again
   paint();                                   // the status first, the outlines after
   if(!p) return;
   await loadLM(); PR=raionsOf(p);

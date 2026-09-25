@@ -10,8 +10,8 @@ self.addEventListener('push', e => {
   const title = d.title || 'Clear Sky';
   const opts = {
     body: d.body || '',
-    icon: '/static/logo-192.png',
-    badge: '/static/logo-64.png',
+    icon: '/static/logo-cs-192.png',
+    badge: '/static/logo-cs-badge.png',   // white on transparent: Android draws a badge from its alpha alone
     tag: d.tag || 'alert',
     renotify: true,
     requireInteraction: d.tag === 'threat' || /🔴|🚀|MiG/.test(title),

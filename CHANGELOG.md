@@ -2,6 +2,44 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.19.0 — 2026-09-25
+
+### Added
+- **The Clear Sky logo** — the radar over Ukraine — is the app icon on both pages (home screen, maskable icon,
+  favicon, notification icon and badge) and heads the opening notice. The NGO 07300 logo stays in the header and
+  the Black Flame Studio logo in the credits.
+- **Light: the map zooms by itself** — pinch, double-tap, the + / − / ⟲ buttons — never the page around it.
+  Marks and names keep their size; more village names appear as you zoom in.
+- **Light: tap a mark on the map** to open what the post said, the track, the height and the source, right on
+  the map. A tap no longer selects a place name (which also brought up the phone's translate bubble).
+- **Pin: tap the empty 📍 chip, then tap the map** where the pin goes (with a Cancel).
+- **The dashboard shows what matters on a live night**: every official source and whether it answers, every
+  channel read (posts and marks in 24 h, share of posts read, last post, reader failing), the translation
+  service, and how many minutes ahead of the official alert the map was in Kyiv and the oblast over 30 days.
+
+### Changed
+- **Stats show only the official figures of the Air Force**: drones and missiles launched and shot down over
+  24 h, 7 and 30 days, and each summary with a link to its post. The explosion and shoot-down counts the app
+  read from channels are gone — next to official numbers they were read as totals, and they never were. The
+  live tally of what is on the map moved to the Alerts tab.
+- **The language is a drop-down**: in the Tactical menu and notice, in the Light header and notice.
+- **"I understand" is a big, centred, full-width button**, well clear of the links above it.
+- The official alert list is re-read at least every 30 s, so a level change on an alert already on (yellow →
+  red) is never more than half a minute behind (up to 2 minutes before).
+- The dashboard no longer reviews posts or reported readings (still possible from `scripts/corpus.py`).
+
+### Fixed
+- **Changing the language in the opening notice closed it** before it could be read. It now stays open, in
+  the new language.
+- **The KCSA metro notice was drawn as a threat** ("Changes in the operation of the red line of the Kyiv
+  metro … Stay in shelters"). Transport notices — metro lines, trains, changes in operation — are news.
+- **The "10 km" zone label** was sized in kilometres and filled the screen when zoomed in; it is screen-sized now.
+- **The Crimea Cossack glitched when zoomed out**: the raion outlines ran across him. He is drawn above them.
+- **Press and hold to drop the pin almost never worked**: the slightest tremble of the finger (0.2 km — less
+  than a pixel at oblast zoom) counted as a drag. A drag now starts past 10 screen pixels, a ring fills while you
+  hold, and the phone's long-press menu no longer interrupts it.
+- **The OpenStreetMap credit sat on the place chips**; it is small, in the bottom corner.
+
 ## 1.18.0 — 2026-09-25
 
 ### Added

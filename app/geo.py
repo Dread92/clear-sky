@@ -592,7 +592,12 @@ NEWS_STRONG_RX = re.compile(
     r"форум|конференц|фестивал|концерт|виставк|презентац|семінар|тренінг|нарад[аиі]|інтерв'?ю|подкаст|"
     r"прокурат|кримінальн\w*\s+(?:провадж|справ)|оголошено\s+підозр|затрима\w*|вирок|розслідуванн|"
     r"читайте\s+також|детальніше\s+(?:за\s+посиланням|на\s+сайті)|підписуйтесь|#новини|"
-    r"відбудов|реконструкц|ремонтн\w*\s+робот|відновлен\w*\s+(?:будин|школ|лікарн|об'єкт|енерго)", re.I)
+    r"відбудов|реконструкц|ремонтн\w*\s+робот|відновлен\w*\s+(?:будин|школ|лікарн|об'єкт|енерго)|"
+    # public-transport notices: "🚇 Зміни в роботі червоної лінії метро … Поїзди курсують від «Академмістечка» до
+    # «Театральної»" — two station names joined by "від … до" were read as a target's route across Kyiv
+    # (not a bare "метро": the live trackers use stations as landmarks — "БпЛА в районі метро Лісова")
+    r"метрополітен|поїзд\w*\s+курсу|курсують\s+(?:поїзд|потяг|автобус|трамва|тролейбус)|рух\s+поїзд|електричк|"
+    r"(?:червон|синь|зелен)\w*\s+лінії\s+метро|зміни\s+в\s+роботі|рух\s+(?:громадського\s+)?транспорт|графік\w*\s+руху", re.I)
 # Signs of a report. One of them in a short post is normal ("за даними моніторингу, шахед над Броварами");
 # two of them, or one in a long post, is an article.
 NEWS_SOFT_RX = re.compile(
@@ -1367,6 +1372,11 @@ CHANNEL_PARSER = {"povitryanatrivogaaa": parse_arrows, "kyiv_airdef": parse_kyiv
 def parse_for_channel(channel, text):
     if channel == "eRadarrua" and "◦" in text:
         return []          # per-oblast group-count summary: counts only, no positions (see parse_eradar_summary)
+    # A notice that is plainly not about the sky — a press release, a metro timetable — places nothing, whichever
+    # channel posted it and whichever parser would read it. (The softer news signs are left to the tagger: a live
+    # tracker's short post can say "поранені" and still be a live report.)
+    if NEWS_STRONG_RX.search(_norm(text)):
+        return []
     fn = CHANNEL_PARSER.get(channel)
     if fn:
         r = fn(text)

@@ -37,7 +37,9 @@ en:{
   lv_now:'On the map right now',lv_none:'Nothing being tracked right now.',
   fo_on:'Towards me',fo_off:'All threats',fo_help:'Dim targets whose reported course does not point here. Targets with no reported course are never dimmed — unknown is not the same as not coming.',tel_gs:'Ground speed ~{0} km/h',tel_gs_src:'measured between the last two reports, {0} min apart — not radar',lost_t:'Contact lost',lost_b:'No new report for {0} min. This means the channels stopped seeing it — NOT that it was shot down.',
   z_near:'NEAR ZONE · under 10 km',z_approach:'APPROACH ZONE · under 30 km',z_observe:'OBSERVATION · under 60 km',eta_band:'{0}–{1} min away',eta_if:'if it holds the course the post reported — it can turn',
-  sl_home:'Home',sl_work:'Work',sl_kids:'Kids',sl_pin:'Pin',sl_switch:'Watch {0}',sl_set:'Hold to set {0}',sl_pin_how:'Press and hold anywhere on the map to drop the pin',sl_pin_set:'📍 Pin dropped',sl_pin_b:'Watching this point. Press and hold elsewhere to move it.',sl_pin_dropped:'Dropped pin',sl_local:'These four places stay on this phone. They are never sent anywhere.',
+  sl_home:'Home',sl_work:'Work',sl_kids:'Kids',sl_pin:'Pin',sl_switch:'Watch {0}',sl_set:'Hold to set {0}',sl_pin_how:'Press and hold anywhere on the map to drop the pin',sl_pin_set:'📍 Pin dropped',sl_pin_b:'Watching this point. Press and hold elsewhere to move it.',sl_pin_dropped:'Dropped pin',sl_pin_arm:'Tap the map where the pin goes',sl_pin_cancel:'Cancel',
+  st_af_each:'Each Air Force summary',st_af_post:'the summary ↗',st_af_src:'Official figures of the Air Force of the Armed Forces of Ukraine, from its own summaries (@kpszsu), for all of Ukraine. Launched: what the Air Force says the enemy launched. Shot down: what it reports shot down or suppressed.',
+  lt_zin:'Zoom in',lt_zout:'Zoom out',lt_zreset:'Back to 30 km',lt_close:'Close',lt_zhint:'Pinch or double-tap to zoom the map · tap a mark for its details',sl_local:'These four places stay on this phone. They are never sent anywhere.',
   ts_calm_near:'nearest report: {0}, {1} km',ts_calm_ua:'see all of Ukraine',
   th_super:'Supersonic missile (Kh-22/32)',
   ts_conf:'{0} channels agree',
@@ -156,7 +158,9 @@ uk:{
   lv_now:'Зараз на мапі',lv_none:'Зараз нічого не відстежується.',
   fo_on:'До мене',fo_off:'Усі загрози',fo_help:'Притлумити цілі, чий вказаний курс не веде сюди. Цілі без вказаного курсу ніколи не притлумлюються — невідомо не означає «не летить».',tel_gs:'Швидкість ~{0} км/год',tel_gs_src:'виміряно між двома останніми дописами з різницею {0} хв — не радар',lost_t:'Контакт втрачено',lost_b:'Немає нових дописів {0} хв. Це означає, що канали перестали її бачити — НЕ що її збили.',
   z_near:'БЛИЗЬКА ЗОНА · до 10 км',z_approach:'ЗОНА ПІДХОДУ · до 30 км',z_observe:'СПОСТЕРЕЖЕННЯ · до 60 км',eta_band:'{0}–{1} хв',eta_if:'якщо збереже курс, вказаний у дописі — може змінити',
-  sl_home:'Дім',sl_work:'Робота',sl_kids:'Діти',sl_pin:'Мітка',sl_switch:'Стежити: {0}',sl_set:'Утримуйте, щоб задати: {0}',sl_pin_how:'Натисніть і утримуйте будь-де на мапі, щоб поставити мітку',sl_pin_set:'📍 Мітку поставлено',sl_pin_b:'Стежимо за цією точкою. Утримуйте в іншому місці, щоб перенести.',sl_pin_dropped:'Мітка',sl_local:'Ці чотири місця лишаються на цьому телефоні. Вони нікуди не надсилаються.',
+  sl_home:'Дім',sl_work:'Робота',sl_kids:'Діти',sl_pin:'Мітка',sl_switch:'Стежити: {0}',sl_set:'Утримуйте, щоб задати: {0}',sl_pin_how:'Натисніть і утримуйте будь-де на мапі, щоб поставити мітку',sl_pin_set:'📍 Мітку поставлено',sl_pin_b:'Стежимо за цією точкою. Утримуйте в іншому місці, щоб перенести.',sl_pin_dropped:'Мітка',sl_pin_arm:'Торкніться мапи там, де поставити мітку',sl_pin_cancel:'Скасувати',
+  st_af_each:'Кожне зведення Повітряних сил',st_af_post:'зведення ↗',st_af_src:'Офіційні дані Повітряних сил ЗСУ з їхніх зведень (@kpszsu), по всій Україні. Запущено — те, що, за даними Повітряних сил, запустив ворог. Збито — збито або подавлено за їхнім повідомленням.',
+  lt_zin:'Наблизити',lt_zout:'Віддалити',lt_zreset:'Назад до 30 км',lt_close:'Закрити',lt_zhint:'Зведіть пальці або двічі торкніться, щоб наблизити мапу · торкніться позначки, щоб побачити деталі',sl_local:'Ці чотири місця лишаються на цьому телефоні. Вони нікуди не надсилаються.',
   ts_calm_near:'найближче повідомлення: {0}, {1} км',ts_calm_ua:'вся Україна',
   th_super:'Надзвукова ракета (Х-22/32)',
   ts_conf:'підтверджують {0} канали',
@@ -274,7 +278,9 @@ fr:{
   lv_now:'Sur la carte en ce moment',lv_none:'Rien n\'est suivi en ce moment.',
   fo_on:'Vers moi',fo_off:'Toutes',fo_help:'Atténue les cibles dont le cap signalé ne mène pas ici. Les cibles sans cap signalé ne sont jamais atténuées — inconnu ne veut pas dire pas en approche.',tel_gs:'Vitesse sol ~{0} km/h',tel_gs_src:'mesurée entre les deux derniers signalements, {0} min d\'écart — pas un radar',lost_t:'Contact perdu',lost_b:'Aucun nouveau signalement depuis {0} min. Les canaux ont cessé de la voir — cela ne veut PAS dire qu\'elle a été abattue.',
   z_near:'ZONE PROCHE · moins de 10 km',z_approach:'ZONE D\'APPROCHE · moins de 30 km',z_observe:'OBSERVATION · moins de 60 km',eta_band:'{0}–{1} min',eta_if:'s\'il garde le cap indiqué dans le message — il peut virer',
-  sl_home:'Maison',sl_work:'Travail',sl_kids:'Enfants',sl_pin:'Repère',sl_switch:'Surveiller {0}',sl_set:'Maintenir pour définir {0}',sl_pin_how:'Appuyez longuement n\'importe où sur la carte pour poser le repère',sl_pin_set:'📍 Repère posé',sl_pin_b:'Ce point est surveillé. Maintenez ailleurs pour le déplacer.',sl_pin_dropped:'Repère',sl_local:'Ces quatre lieux restent sur ce téléphone. Ils ne sont envoyés nulle part.',
+  sl_home:'Maison',sl_work:'Travail',sl_kids:'Enfants',sl_pin:'Repère',sl_switch:'Surveiller {0}',sl_set:'Maintenir pour définir {0}',sl_pin_how:'Appuyez longuement n\'importe où sur la carte pour poser le repère',sl_pin_set:'📍 Repère posé',sl_pin_b:'Ce point est surveillé. Maintenez ailleurs pour le déplacer.',sl_pin_dropped:'Repère',sl_pin_arm:'Touchez la carte à l’endroit du repère',sl_pin_cancel:'Annuler',
+  st_launched:'Lancés sur l’Ukraine — Forces aériennes',st_af_each:'Chaque bilan des Forces aériennes',st_af_post:'le bilan ↗',st_af_src:'Chiffres officiels des Forces aériennes des Forces armées ukrainiennes, tirés de leurs bilans (@kpszsu), pour toute l’Ukraine. Lancés : ce que les Forces aériennes disent que l’ennemi a lancé. Abattus : abattus ou neutralisés selon elles.',
+  lt_zin:'Zoomer',lt_zout:'Dézoomer',lt_zreset:'Revenir à 30 km',lt_close:'Fermer',lt_zhint:'Pincez ou touchez deux fois pour zoomer la carte · touchez une cible pour ses détails',sl_local:'Ces quatre lieux restent sur ce téléphone. Ils ne sont envoyés nulle part.',
   ts_calm_near:'signalement le plus proche : {0}, {1} km',ts_calm_ua:'voir toute l\'Ukraine',
   th_super:'Missile supersonique (Kh-22/32)',
   ts_conf:'{0} canaux concordent',
@@ -395,3 +401,10 @@ function altTrend(m){ const hs=[...(m.history||[]).map(h=>h.alt_m).filter(v=>v!=
   if(hs.length<2) return null; const d=hs[hs.length-1]-hs[0];
   return {hs, dir:d<0?'down':d>0?'up':'level', text:(d<0?'↓ ':d>0?'↑ ':'')+hs.slice(-4).map(fmtAlt).join(' → ')}; }
 const LOCALE=()=>LANG==='uk'?'uk-UA':LANG==='fr'?'fr-FR':'en-GB';
+// The language, as a drop-down, on both pages. `again`: the one in the opening notice — after the reload the
+// notice is shown once more, in the language just chosen, instead of being skipped as already seen.
+const LANG_FLAG={en:'🇬🇧',uk:'🇺🇦',fr:'🇫🇷'}, LANG_CODE={en:'EN',uk:'UA',fr:'FR'};
+function pickLang(l,again){ if(!LANGS[l]||l===LANG) return; try{localStorage.setItem('lang',l); if(again) sessionStorage.removeItem('disc_seen');}catch(e){} location.reload(); }
+function langSelect(sel,again,short){ if(!sel) return;   // short: flag and code only, for a narrow header
+  sel.innerHTML=Object.entries(LANGS).map(([k,v])=>`<option value="${k}"${k===LANG?' selected':''}>${LANG_FLAG[k]} ${short?LANG_CODE[k]:v}</option>`).join('');
+  sel.onchange=()=>pickLang(sel.value,again); }

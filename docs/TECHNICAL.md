@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.18** · last updated 2026-09-25
+**Documented version: 1.19** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -119,11 +119,12 @@ clear-sky/
 │   ├── light-map.json      raions of the 8 oblasts + nearby oblast outlines, rivers, roads, towns (built)
 │   ├── kyiv-districts.json the 10 city districts of Kyiv (OSM)
 │   ├── ukraine-map.json    oblast outlines in an affine lon/lat projection (Light page fallback lookup)
-│   ├── admin.html          private dashboard (/admin, ADMIN_KEY)
+│   ├── admin.html          private dashboard: usage, source health, channels, lead time (/admin, ADMIN_KEY)
 │   ├── index.html, mobile.html   older desktop / mobile views (/desktop, /ua)
 │   ├── sw.js               service worker: push display and notification clicks
 │   ├── manifest.json, light.webmanifest   the two PWAs
-│   └── logo*.png, bf-logo*.png, ukraine-map.LICENSE.md
+│   ├── logo-cs*.png        the Clear Sky logo: app icons (any / maskable), favicon, badge, the notice
+│   └── logo*.png (NGO 07300), bf-logo*.png (Black Flame Studio), ukraine-map.LICENSE.md
 ├── data/
 │   ├── ua_regions.json     official region id → oblast / parent raion / map shape (built)
 │   └── corpus.jsonl        regression corpus of real posts and their expected readings
@@ -231,6 +232,10 @@ The mirror lights an oblast as soon as any raion in it is under alert. That is w
 painted the whole of Kyiv oblast red while Boryspil raion had been clear for ten minutes (24 Sep 2026). When it
 stands in, the Light page says "official data for the whole oblast only — your raion is unknown", and an alert
 with no known start shows no "since" (`since_known: false`).
+
+The ukrainealarm reader polls `/alerts/status` every 10 s and reads the full `/alerts` list when the change index
+moves — and **at least every 30 s** regardless, so a level change on an alert already on (yellow → red) is never
+more than half a minute behind (it was up to 2 min before 1.19).
 
 ### 6.2 The official levels
 
@@ -396,16 +401,26 @@ level-of-detail classes by zoom, OSM tiles under the vector layers below 150 km 
 - `tick()` — marks: silhouettes per weapon (`G`, `GLYPH_BY_TYPE` from `static/glyphs.js`), turned only to a stated course (`orientOf`),
   uncertainty ring up to 25 km, 5-minute tail, labels, off-screen edge indicators;
 - `threatStrip()` — the banner stack, coloured by `officialLevel()`; `idleLine()` when calm;
-- the four places (`SLOTS`: Home / Work / Kids / Pin — `localStorage` only; long-press drops the pin), zones
-  10 / 30 / 60 km, the conditional ETA band (`etaBand`);
+- the four places (`SLOTS`: Home / Work / Kids / Pin — `localStorage` only), zones 10 / 30 / 60 km (their
+  labels sized in screen pixels, `--k`), the conditional ETA band (`etaBand`);
+- **the 📍 pin**: press and hold on open map (a ring fills while the finger stays; a drag only starts past
+  `HOLD_SLOP_PX` = 10 screen px; the browser's long-press menu is suppressed), or tap the empty Pin chip to arm the
+  map (`armPin`, banner with Cancel) and tap where it goes (`dropPin`);
+- tabs: **Feed**; **Alerts** (the live tally of what is on the map, then the official alerts); **Stats** — the Air
+  Force's official figures only (`windows` 24 h / 7 d / 30 d and each summary with a link to its post,
+  `af_days`); **Map** (layers);
+- the OSM tile credit sits small in the bottom corner; the Crimea Cossack is drawn in `#obllbl`, above the raion
+  outlines, one path per colour;
 - display modes: normal, day (inverted, WCAG-checked), night (dim, arrows only), blackout (2G);
 - the **notice** (disclaimer, language, oblast): shown **once per opening** — `sessionStorage.disc_seen`, shared
   with the Light page, so switching Light ⇄ Tactical does not show it again; always reachable from the menu.
+  Changing the language inside it reloads the page **and shows it again** in the new language
+  (`pickLang(l, true)` clears `disc_seen`); "I understand" is a full-width button, centred (`.dok`).
 
 ### 10.2 Light (`/light`)
 
-One place, what concerns it, nothing else. Built to load and be read on 2G (page ≈ 16 KB gzipped, map data
-≈ 40 KB, fetched after the status is on screen).
+One place, what concerns it, nothing else. Built to load and be read on 2G (page ≈ 19 KB gzipped, map data
+≈ 41 KB, fetched after the status is on screen; `test_light` holds both under budget).
 
 - **Status = the place's raion**, from the official data only. The raion is found **on the phone**: point in
   polygon on `light-map.json`'s raion outlines. A place within **1.5 km of a border** belongs to both raions
@@ -425,6 +440,13 @@ One place, what concerns it, nothing else. Built to load and be read on 2G (page
   "↓ 2,2 км → 1,6 км → 600 м" via `altTrend()` in `i18n.js`), age, ETA band. The height is also written beside
   the mark on the radar. **Tap a row** for what the post said (original + translation), the track so far,
   altitude when stated, the source and time.
+- **The radar zooms by itself** (1× = the 30 km disc, up to 4×): pinch, double-tap, the + / − / ⟲ buttons,
+  ctrl + wheel. Only the map zooms — never the page; unzoomed, one finger still scrolls the page (`touch-action:
+  pan-y`), zoomed in, one finger moves the map. Symbols and names sit in groups scaled by `1/zoom` (`--iz`), so
+  they keep their size; names are placed again (more of them) once the fingers stop. Nothing on it can be
+  selected as text.
+- **Tap a mark on the radar**: the nearest mark within a finger's width (`tapAt`, `RT`) opens its row as a card
+  over the part of the map it is not on (`#rcard`), kept current on every repaint; a tap on open map closes it.
 - **Approaching (30–100 km)**: listed apart, only targets whose **stated** course points at the place.
 - Immediate types: a banner for the whole region, no distance, no countdown.
 
@@ -437,6 +459,8 @@ two-segment control on Light, each half captioned; a high-contrast pill in the T
 
 `static/i18n.js`: every string in EN / UK / FR (`t()`, `tn()` for plurals), place, raion, river and district
 names, `OBL_N` / `oblFull()`. A test fails when a key is missing in one language. See [I18N.md](I18N.md).
+The language is a **drop-down** on both pages (`langSelect()`: the Tactical menu and notice, the Light header —
+flag and code only — and notice); `pickLang()` stores it and reloads.
 
 ## 11. Privacy and security
 
@@ -474,12 +498,13 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `GET /api/history?hours=&oblast=` | past alerts |
 | `GET /api/events_log?limit=` | alert events |
 | `GET /api/impacts?hours=` | explosions and confirmed shoot-downs |
-| `GET /api/stats?days=` | statistics |
+| `GET /api/stats?days=` | statistics; the Stats tab reads only `windows` and `af_days` (the Air Force summaries, each with its `post`) |
 | `GET /api/places?oblast=` | gazetteer (names, coordinates, oblast) |
 | `POST /api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/test`; `GET /api/push/key` | Web Push |
 | `POST /api/flag` | "this reading is wrong" report |
-| 🔒 `GET /admin`, `/api/usage`, `/api/flags` | dashboard, usage, flags |
-| 🔒 `GET /api/corpus`; `POST /api/corpus/review`, `/api/corpus/translate` | corpus review |
+| 🔒 `GET /admin`, `/api/usage` | dashboard, usage counters |
+| 🔒 `GET /api/health` | official sources (ok, last check, detail), every channel read (posts / marks 24 h, share read 7 d, last post, reader state), translation backends, lead time over the official alert in Kyiv + oblast (30 days) |
+| 🔒 `GET /api/flags`, `/api/corpus`; `POST /api/corpus/review`, `/api/corpus/translate` | flags and corpus review — no longer in the dashboard (1.19); used by `scripts/corpus.py` |
 
 ## 13. Storage
 
@@ -505,7 +530,7 @@ Columns are added in place by `Store.__init__` (`ALTER TABLE … ADD COLUMN`), s
 
 ```bash
 pip install -r requirements-dev.txt
-python -m pytest              # ~370 tests
+python -m pytest              # ~410 tests
 python -m ruff check app tests scripts
 python app/server.py --demo --port 8099
 ```
@@ -519,6 +544,7 @@ python app/server.py --demo --port 8099
 | `test_translation`, `test_i18n`, `test_modes` | translation path, three languages, display-mode contrast |
 | `test_corpus`, `test_review_source`, `test_af_summary` | the regression corpus, review, launch totals |
 | `test_cadence`, `test_version`, `test_keys`, `test_docs` | refresh rates, build info, keys, this documentation |
+| `test_official_stats`, `test_ui_details` | Air Force-only stats, the dashboard's health view and lead time, pin, zoom, language, logo |
 
 **The corpus** (`data/corpus.jsonl`, [CORPUS.md](CORPUS.md)): real posts with their expected reading; a
 changed reading fails the suite until it is re-verified as the intended change.
@@ -566,6 +592,12 @@ the Light page's place list (`/api/places?oblast=…`).
 
 **Add a string**: all three blocks of `i18n.js`; `test_i18n` checks.
 
+**Regenerate the app icons** from the master logo `docs/brand/clear-sky-logo.png` (transparent PNG): the files
+are `static/logo-cs-512.png` / `-192` (logo on `#0b0d11`, 90 %), `logo-cs-maskable-512.png` (56 %, inside the
+maskable safe circle), `logo-cs-64.png` (the radar emblem alone, transparent — favicon), `logo-cs-badge.png`
+(white on transparent, for Android's notification badge) and `logo-cs.png` (280 px, the notice). The 07300 and
+Black Flame logos (`logo*.png`, `bf-logo*.png`) stay as they are.
+
 **Official data by key instead of the proxy**: request a key at <https://api.ukrainealarm.com/>, then
 `fly secrets set UKRAINEALARM_KEY=…` — the same code reads the API directly.
 
@@ -577,8 +609,9 @@ the Light page's place list (`/api/places?oblast=…`).
 - siren.pp.ua is a volunteer proxy of the official API; an official key is more robust (§16).
 - Without a DeepL / Google key, English is the offline glossary and French shows English.
 - Ukrainian declension of place names after a preposition ("біля …") is not implemented; labels avoid it.
-- `marker_log`, `outcomes` and `channel_stats` are written but nothing reads them yet.
-- About 265 corpus cases are still pending review.
+- `outcomes` is written but nothing reads it yet (`marker_log` and `channel_stats` feed the dashboard's health view).
+- About 265 corpus cases are still pending review; the review left the dashboard in 1.19 and is done from the
+  terminal (`scripts/corpus.py`, [CORPUS.md](CORPUS.md)) when needed.
 - Hromada alerts have no shapes of their own: on the Tactical map they colour their parent raion; on Light they
   are named ("alert in part of your raion").
 

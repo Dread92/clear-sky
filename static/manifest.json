@@ -16,19 +16,19 @@
   ],
   "icons": [
     {
-      "src": "/static/logo-192.png",
+      "src": "/static/logo-cs-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/logo-512.png",
+      "src": "/static/logo-cs-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/logo-512.png",
+      "src": "/static/logo-cs-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
