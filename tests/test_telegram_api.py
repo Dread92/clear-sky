@@ -76,3 +76,12 @@ def test_the_session_is_never_printed_logged_or_written():
     body = SRC[i:SRC.index("\nclass ", i + 10)]
     assert not re.search(r"log\([^)]*tg_session", body)
     assert "tg_session" not in SRC[SRC.index('"config": {'):SRC.index('"config": {') + 300] if '"config": {' in SRC else True
+
+
+def test_it_reads_the_channel_and_never_the_accounts_update_stream():
+    """25 Sep 2026: with updates on, a personal account's whole update stream took the server down within minutes
+    of the first sign-in. The reader polls the channel it needs, nothing else."""
+    body = SRC[SRC.index("class TelegramAPI"):SRC.index("class Watchdog")]
+    assert "receive_updates=False" in body and "receive_updates=True" not in body
+    assert "events.NewMessage" not in body and "run_until_disconnected" not in body
+    assert "asyncio.to_thread(self.tg.ingest" in body       # parsing and the database off the event loop

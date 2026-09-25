@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.22** · last updated 2026-09-25
+**Documented version: 1.23** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -151,11 +151,12 @@ clear-sky/
 
 | Thread | What it does | Cadence |
 |---|---|---|
-| `UkraineAlarm` | official alerts by raion (keyless proxy or keyed API) | `/alerts/status` every 10 s, full list on change or every 2 min |
+| `UkraineAlarm` | official alerts by raion (keyless proxy or keyed API) | `/alerts/status` every 10 s, full list on change or every 30 s |
 | `AlertsInUa` | official alerts from alerts.in.ua, when a token is set | 15 s |
 | `Ubilling` | oblast-level mirror; applies only while the raion source is down | 30 s |
 | `Telegram` | reads the channels' `t.me/s/` previews (all but those the API reads) | 30 s; 10 s while a missile threat is open |
-| `TelegramAPI` | reads `telegram_api_channels` (chyste_nebo) through the Telegram client API | updates as published + catch-up every 30 s (10 s in a missile threat) |
+| `TelegramAPI` | reads `telegram_api_channels` (chyste_nebo) through the Telegram client API — polls the channel, **never subscribes to updates** | last 20 posts every 15 s (8 s in a missile threat) |
+| `Watchdog` | the database and alert-state locks must be free within 15 s and the process not starved; a miss logs every thread's stack; three in a row (~1 min) → exit, Fly restarts it | 20 s |
 | `Translations` | machine-translates feed posts into a language somebody reads | on demand, ~3 calls/s max |
 | `Pusher` | sends Web Push | queue |
 | `proximity` | per-subscriber distance checks → push | continuous |
@@ -315,8 +316,10 @@ drones reported" and "cannot read this channel" never look the same.
 
 ### 7.2 From page to stored post
 
-Two readers, one path. `Telegram.poll()` parses a channel's preview HTML; `TelegramAPI` receives a channel's
-posts as Telegram updates (and re-reads the last 20 every 30 s). Both hand `(post_id, time, text)` to
+Two readers, one path. `Telegram.poll()` parses a channel's preview HTML; `TelegramAPI` re-reads a channel's
+last 20 posts every 15 s (8 s in a missile threat), with `receive_updates=False`: a personal account's update
+stream (every chat it is in) took the 256 MB server down within minutes on 25 Sep 2026. `ingest()` runs in a
+worker thread (`asyncio.to_thread`), off the client's event loop. Both hand `(post_id, time, text)` to
 `Telegram.ingest()`, so a post read through the API is stored, tagged, parsed and shown exactly like one read
 from a preview. The preview reader skips a channel the API is reading (`api_channels`).
 
@@ -507,7 +510,7 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `GET /desktop`, `/index.html`, `/dash` | older desktop view |
 | `GET /ua`, `/mobile`, `/mobile.html` | older mobile view |
 | `GET /manifest.json`, `/light.webmanifest`, `/sw.js`, `/favicon.ico`, `/static/*` | PWA files, assets (gzip + ETag) |
-| `GET /healthz` | liveness |
+| `GET /healthz` | liveness: `{"ok": true}`, or **503** when the database cannot be had within 3 s |
 | `GET /api/version` | `{v, now, missile, msl, build, app}` — the cheap ping pages poll |
 | `GET /api/state` | active alerts, per-oblast status, sources' health, єРадар counts, config summary |
 | `GET /api/markers` | live marks with evidence, history, staleness |

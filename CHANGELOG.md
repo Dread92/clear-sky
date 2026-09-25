@@ -2,6 +2,21 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.23.0 — 2026-09-25
+
+### Fixed
+- **The server stopped answering** (25 Sep, ~22:10 Kyiv time): pages, the version ping and the official alert
+  reader froze minutes after the chyste_nebo reader signed in for the first time — the Telegram reader was
+  subscribed to the update stream of the whole account (every chat and channel it is in), which the 256 MB server
+  could not carry. It now only reads the channel it needs: its last 20 posts every 15 s (8 s while a missile is in
+  the air), with the parsing off its event loop.
+
+### Added
+- **A watchdog**: every 20 s the database and the alert state must be free within 15 s and the process must not be
+  starved. A miss writes every thread's stack to the log (`fly logs` then says exactly where it is stuck); three
+  misses in a row, about a minute, and the process exits so that Fly restarts it. A freeze can no longer last.
+- `/healthz` answers 503 when the database cannot be had, instead of "ok" through a freeze.
+
 ## 1.22.0 — 2026-09-25
 
 ### Fixed

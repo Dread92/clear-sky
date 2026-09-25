@@ -321,7 +321,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.22"
+APP_VERSION = "1.23"
 BUILD = None    # filled at startup
 
 
@@ -2119,9 +2119,12 @@ class TelegramAPI(threading.Thread):
     with scripts/telegram-login.bat) reads it the way the Telegram app does. That session is a key to a whole
     Telegram account: it lives only in Fly secrets (TG_SESSION) — never in config.json, the logs or the repository.
 
-    New posts arrive as updates the moment they are published (the sign-in joins the channel); a catch-up read
-    every 30 s — 10 s while a missile is in the air — covers a reconnect. Every post goes through the same
-    Telegram.ingest() as the preview reader, so nothing downstream knows or cares how it was read."""
+    It READS the channel — the last 20 posts every 15 s, every 8 s while a missile is in the air — and does not
+    subscribe to updates. 25 Sep 2026: with updates on, the session (a personal account) received the update stream
+    of every chat and channel it is in; on the 256 MB server that took the whole process down within minutes of
+    the first sign-in — pages, the official alert reader, everything stopped answering. Every post goes through
+    the same Telegram.ingest() as the preview reader, so nothing downstream knows or cares how it was read."""
+    POLL_S, POLL_MISSILE_S = 15, 8
     NAME = "tgapi"
 
     def __init__(self, state, cfg, tg):
@@ -2146,7 +2149,7 @@ class TelegramAPI(threading.Thread):
         try:
             import asyncio
 
-            from telethon import TelegramClient, events
+            from telethon import TelegramClient
             from telethon.sessions import StringSession
         except Exception as e:
             self._status(False, error="telethon is not installed")
@@ -2154,7 +2157,7 @@ class TelegramAPI(threading.Thread):
             return
         while True:
             try:
-                asyncio.run(self._session(TelegramClient, events, StringSession))
+                asyncio.run(self._session(TelegramClient, StringSession))
                 return            # stopped for good (session revoked)
             except Exception as e:
                 self.tg.api_channels -= set(self.channels)     # let the preview reader report the channel again
@@ -2162,7 +2165,7 @@ class TelegramAPI(threading.Thread):
                 log("telegram api error:", e)
                 time.sleep(30)
 
-    async def _session(self, TelegramClient, events, StringSession):
+    async def _session(self, TelegramClient, StringSession):
         import asyncio
         try:
             sess = StringSession(self.cfg["tg_session"])
@@ -2171,49 +2174,83 @@ class TelegramAPI(threading.Thread):
             log("telegram api: TG_SESSION is not a valid session string")
             return
         client = TelegramClient(sess, int(self.cfg["tg_api_id"]), self.cfg["tg_api_hash"],
-                                device_model="Clear Sky server", app_version=APP_VERSION, receive_updates=True)
+                                device_model="Clear Sky server", app_version=APP_VERSION, receive_updates=False)
         await client.connect()
         if not await client.is_user_authorized():
             self._status(False, error="Telegram session no longer valid — run scripts\\telegram-login.bat again")
             log("telegram api: session not authorised — run scripts/telegram-login.bat")
             await client.disconnect()
             return
-        ents, names = {}, {}
+        ents = {}
         for ch in self.channels:
-            e = await client.get_entity(ch)
-            ents[ch], names[e.id] = e, ch
+            ents[ch] = await client.get_entity(ch)
         self.tg.api_channels |= set(self.channels)
         with self.state.lock:
             for ch in self.channels:
                 self.state.sources.pop(f"tg:{ch}", None)       # no longer a failed preview source
         log("telegram api: reading " + ", ".join("@" + c for c in self.channels))
 
-        @client.on(events.NewMessage(chats=list(ents.values())))
-        async def _new(ev):
-            ch = names.get(getattr(ev.message.peer_id, "channel_id", None))
-            if ch:
-                self.tg.ingest(ch, [self.raw_of(ch, ev.message)], f"tga:{ch}")
-
-        async def catch_up():
+        try:
             while client.is_connected():
                 for ch, e in ents.items():
                     try:
                         msgs = await client.get_messages(e, limit=20)
-                        self.tg.ingest(ch, [self.raw_of(ch, m) for m in reversed(msgs) if m.message], f"tga:{ch}")
+                        # the parsing and the database work run off this thread's event loop
+                        await asyncio.to_thread(self.tg.ingest, ch, [self.raw_of(ch, m) for m in reversed(msgs) if m.message], f"tga:{ch}")
                     except Exception as ex:
                         wait = getattr(ex, "seconds", None)       # FloodWaitError: Telegram says how long to wait
                         self.state.set_source(f"tga:{ch}", False, via="Telegram API", error=str(ex)[:160])
                         if wait:
                             await asyncio.sleep(min(int(wait), 600))
-                await asyncio.sleep(10 if self.state.missile_active() else 30)
-
-        task = asyncio.ensure_future(catch_up())
-        try:
-            await client.run_until_disconnected()
+                await asyncio.sleep(self.POLL_MISSILE_S if self.state.missile_active() else self.POLL_S)
         finally:
-            task.cancel()
             self.tg.api_channels -= set(self.channels)
+            await client.disconnect()
         raise ConnectionError("disconnected from Telegram")
+
+
+class Watchdog(threading.Thread):
+    """A service people take shelter by must never hang in silence.
+
+    25 Sep 2026: the process stopped answering — pages, the version ping, the official alert reader — while
+    /healthz still said "ok", and nothing restarted it. Every 20 s this checks that the database and the alert
+    state can be had within 15 s, and that the process itself is not starved (its own 20 s sleep did not take a
+    minute). A miss writes every thread's stack to the log, which says exactly where it is stuck. Three misses in
+    a row (about a minute) and the process exits: Fly starts it again in seconds."""
+    INTERVAL, WAIT, MISSES = 20, 15, 3
+
+    def __init__(self, state):
+        super().__init__(daemon=True, name="watchdog")
+        self.state, self.misses, self.last = state, 0, None
+
+    def check(self):
+        why = []
+        for name, lk in (("database", self.state.store.lock), ("alert state", self.state.lock)):
+            if lk.acquire(timeout=self.WAIT):
+                lk.release()
+            else:
+                why.append(f"{name} lock held for more than {self.WAIT} s")
+        now = time.monotonic()
+        if self.last is not None and now - self.last > self.INTERVAL * 3 + self.WAIT * 2:
+            why.append(f"the process was starved: a {self.INTERVAL} s sleep took {round(now - self.last)} s")
+        self.last = now
+        return why
+
+    def run(self):
+        while True:
+            time.sleep(self.INTERVAL)
+            why = self.check()
+            if not why:
+                self.misses = 0
+                continue
+            self.misses += 1
+            log(f"WATCHDOG ({self.misses}/{self.MISSES}): " + "; ".join(why))
+            names = {t.ident: t.name for t in threading.enumerate()}
+            for ident, frame in sys._current_frames().items():
+                log(f"--- thread {names.get(ident, ident)}\n" + "".join(traceback.format_stack(frame)[-8:]))
+            if self.misses >= self.MISSES:
+                log("WATCHDOG: the server is not answering — exiting so that Fly restarts it")
+                os._exit(3)
 
 
 class OfficialAlerts:
@@ -2730,6 +2767,10 @@ class Handler(BaseHTTPRequestHandler):
         q = parse_qs(u.query)
         st = self.state
         if u.path == "/healthz":
+            # "ok" only when the database can actually be had: it said "ok" all through the 25 Sep freeze
+            if not st.store.lock.acquire(timeout=3):
+                return self._json({"ok": False, "stuck": "database"}, 503)
+            st.store.lock.release()
             return self._json({"ok": True})
         if u.path.startswith("/static/logo") or u.path == "/favicon.ico":
             return self._file(u.path.split("/")[-1] if u.path != "/favicon.ico" else "logo-cs-64.png", "image/png")
@@ -3098,6 +3139,7 @@ def main():
         log("translation: " + (", ".join(n for n, _ in _tr.backends()) or "offline glossary only") + " — machine translation on demand")
     state.tr = Translations(state)
     state.tr.start()
+    Watchdog(state).start()
 
     srv = ThreadingHTTPServer((bind, int(cfg["port"])), Handler)
     srv.daemon_threads = True
