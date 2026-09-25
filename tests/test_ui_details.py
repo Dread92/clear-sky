@@ -92,3 +92,20 @@ def test_the_new_logo_is_the_app_icon_and_the_partner_logos_stay():
     assert 'src="/static/logo-64.png" alt="07300"' in PAGE          # NGO 07300 stays in the header
     assert "/static/bf-logo.png" in PAGE                             # Black Flame stays in the credits
     assert '"logo-cs-64.png"' in SRC                                 # the favicon
+
+
+def test_mark_labels_are_spaced_from_what_is_drawn_not_from_a_copy_of_the_css():
+    """25 Sep 2026: "⚠ likely a drone" and "↓ DESCENDING · updated 21:46" written over each other. The spacing
+    code had its own copy of the rules saying which label lines show, and that copy did not know "descending"."""
+    i = PAGE.index("  // Label de-collision (screen px).")
+    body = PAGE[i:PAGE.index("  // edge indicators", i)]
+    assert "getComputedStyle(el).display" in body
+    assert "classList.contains('inbound')?true" not in body          # the hand-kept copy is gone
+    assert "glyphs.filter(" in body and "out(r)" in body             # clear of other marks and of the map's edge
+    assert "'nolbl2'" in body and "'nolbl'" in body                  # a label that fits nowhere is shortened, then left out
+    assert ".mk.nolbl .lbl,.mk.nolbl .lbl2,.mk.nolbl2 .lbl2{display:none!important}" in PAGE
+
+
+def test_a_town_name_under_a_threat_label_is_hidden():
+    i = PAGE.index("function layoutTownLabels(){")
+    assert "const placed=[...LBLBOX.boxes]" in PAGE[i:i + 1500]

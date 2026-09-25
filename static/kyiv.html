@@ -341,6 +341,7 @@ svg:not(.close) .district{display:none}
 /* raid declutter: outcome markers keep only their glyph until you zoom in; closed tracks keep no label at all */
 svg:not(.close) .mk.st .lbl2{display:none}svg.far .mk.st .lbl{display:none}
 .mk.ended .lbl,.mk.ended .lbl2{display:none}
+.mk.nolbl .lbl,.mk.nolbl .lbl2,.mk.nolbl2 .lbl2{display:none!important}
 @media (max-width:999px){svg:not(.close) .mk.st .lbl{display:none}}
 svg.veryfar .town:not(.big):not(.rg):not(.uac){display:none}svg.veryfar .rnlbl{display:none}svg.veryfar .towndot:not(.rg):not(.uac){display:none}
 .road{fill:none;stroke:#3b4757;stroke-width:1.2px;vector-effect:non-scaling-stroke;stroke-linejoin:round;stroke-linecap:round}
@@ -677,7 +678,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.19</div>
+    <div class="mi bt" id="buildtag">v1.20</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -1384,6 +1385,7 @@ const upright=()=>0;   // kept for outcome marks, which have no course at all
 //   fire, damage — what a strike left on the ground. Real, but not what this map is for, and the reports
 //            arrive late, are rarely placed precisely, and crowded out the targets still in the air.
 const HIDDEN_STATUS=new Set(['clear','fire','damage']);
+let LBLBOX={sig:'',boxes:[]};   // threat labels on screen (px from the map's corner), set by tick(), read by layoutTownLabels()
 function tick(){
   if(!MAP){setTimeout(tick,300);return;}
   // An explosion is a moment, not a state. Left on the map for 25 minutes it read as "it is still going on
@@ -1508,21 +1510,48 @@ function tick(){
     if(!m.status&&!m.endedBy&&(x<VB.x||x>VB.x+VB.w||y<VB.y||y>VB.y+VB.h)) edges.push({m,x,y,info,name});
     lblPos.push({b,m,sx:x/KPX,sy:y/KPX});
   }
-  // label de-collision (screen px): each marker's visible label block is a box right of the glyph; a box that
-  // would overlap an already placed one is pushed down (or, if that fails, flipped to the left side)
-  {const far=svg.classList.contains('far'),vfar=svg.classList.contains('veryfar'),close=svg.classList.contains('close'),mob=window.innerWidth<1000;
-   for(const p of lblPos){const m=p.m,g=p.b.g; const inb=g.classList.contains('inbound')||g.classList.contains('tohome');
-     p.v1=!vfar&&!m.endedBy&&!(m.status&&(far||(mob&&!close))); p.v2=m.endedBy?false:inb?true:m.status?close:m.stale?!far:false; if(far&&!inb)p.v2=false;
-     const t1=p.v1?g.querySelector('.lbl').textContent:'',t2=p.v2?g.querySelector('.lbl2').textContent:'';
-     p.w=Math.max(t1.length*6.6,t2.length*5.8); p.h=(p.v1&&p.v2)?26:(p.v1||p.v2)?14:0;}
-   lblPos.sort((a,c)=>a.sy-c.sy||a.sx-c.sx); const placed=[]; const hit=(x,y,w,h)=>placed.some(q=>x<q.x+q.w&&q.x<x+w&&y<q.y+q.h&&q.y<y+h);
-   for(const p of lblPos){ const g=p.b.g,l1=g.querySelector('.lbl'),l2=g.querySelector('.lbl2'); if(!p.h){continue;}
-     let dy=0,side=1; const y0=p.sy-12;
-     for(let tries=0;tries<8;tries++){ if(!hit(p.sx+14,y0+dy,p.w,p.h)) break; dy+=14; }
-     if(dy>=14*4&&!hit(p.sx-14-p.w,y0,p.w,p.h)){side=-1;dy=0;}   // too far down → put it on the left instead
-     placed.push({x:side>0?p.sx+14:p.sx-14-p.w,y:y0+dy,w:p.w,h:p.h});
-     const x=(side*14*KPX).toFixed(2); l1.setAttribute('x',x);l2.setAttribute('x',x); l1.setAttribute('text-anchor',side>0?'start':'end');l2.setAttribute('text-anchor',side>0?'start':'end');
-     const y1=p.v2?-6:4; l1.setAttribute('y',((y1+dy)*KPX).toFixed(2)); l2.setAttribute('y',((6+dy)*KPX).toFixed(2)); }}
+  // Label de-collision (screen px). No text is written over other text. Each mark's label block (one or two
+  // lines) is tried right of its glyph, then left, then a line lower or higher; it must not touch another label
+  // or another mark's glyph. Marks coming at a watched place, then descending ones, are placed first. An ordinary
+  // label that fits nowhere first loses its second line, then is left out — its mark stays, with its detail one
+  // tap away. Town names under a threat label are hidden (layoutTownLabels, from LBLBOX).
+  {
+   // Which lines are drawn is read back from the page, not worked out again here: the CSS decides by zoom,
+   // state, course, descending, missile… and a second copy of those rules forgot "descending" — the two lines of
+   // a descending drone were then written on top of each other.
+   const drawn=el=>!!el&&!!el.textContent&&getComputedStyle(el).display!=='none';
+   for(const p of lblPos) p.b.g.classList.remove('nolbl','nolbl2');
+   const pri=g=>g.classList.contains('tohome')?0:g.classList.contains('inbound')?1:g.classList.contains('desc')?2:g.classList.contains('st')?4:3;
+   const glyphs=[];
+   for(const p of lblPos){const g=p.b.g; p.on=getComputedStyle(g).display!=='none';
+     p.v1=p.on&&drawn(g.querySelector('.lbl')); p.v2=p.on&&drawn(g.querySelector('.lbl2')); p.pri=pri(g);
+     if(p.on) glyphs.push({x:p.sx-12,y:p.sy-12,w:24,h:28,p});}
+   const size=p=>{ const t1=p.v1?p.b.g.querySelector('.lbl').textContent:'',t2=p.v2?p.b.g.querySelector('.lbl2').textContent:'';
+     p.w=Math.max(t1.length*6.6,t2.length*6.2); p.h=(p.v1&&p.v2)?25:(p.v1||p.v2)?14:0; };
+   lblPos.forEach(size);
+   lblPos.sort((a,c)=>a.pri-c.pri||a.sy-c.sy||a.sx-c.sx);
+   const placed=[];
+   const touch=(r,q)=>r.x<q.x+q.w&&q.x<r.x+r.w&&r.y<q.y+q.h&&q.y<r.y+r.h;
+   // a label cut by the edge of the map counts as a collision too
+   const vx0=VB.x/KPX, vy0=VB.y/KPX, vx1=vx0+VB.w/KPX, vy1=vy0+VB.h/KPX;
+   const out=r=>(r.x<vx0+2||r.x+r.w>vx1-2||r.y<vy0+2||r.y+r.h>vy1-2)?1:0;
+   const hits=(r,p)=>placed.filter(q=>touch(r,q)).length+glyphs.filter(q=>q.p!==p&&touch(r,q)).length+out(r);
+   const CAND=[[1,0],[-1,0],[1,14],[1,-14],[-1,14],[-1,-14],[1,28],[-1,28],[1,-28],[-1,-28]];
+   const boxAt=(p,side,dy)=>({x:side>0?p.sx+14:p.sx-14-p.w,y:p.sy+((p.v1&&p.v2)?-15:-7)+dy,w:p.w,h:p.h});
+   const fit=p=>{ for(const [side,dy] of CAND){ const r=boxAt(p,side,dy); if(!hits(r,p)) return {side,dy,r}; } return null; };
+   for(const p of lblPos){ const g=p.b.g,l1=g.querySelector('.lbl'),l2=g.querySelector('.lbl2'); if(!p.h) continue;
+     let f=fit(p);
+     if(!f&&p.v1&&p.v2&&p.pri>=2){ p.v2=false; size(p); f=fit(p); if(f) g.classList.add('nolbl2'); else { p.v2=true; size(p); } }
+     if(!f&&p.pri>=3){ g.classList.add('nolbl'); continue; }
+     if(!f){ let best=null; for(const [side,dy] of CAND){ const r=boxAt(p,side,dy), n=hits(r,p); if(!best||n<best.n) best={side,dy,r,n}; } f=best; }
+     placed.push(f.r);
+     const {side,dy}=f, x=(side*14*KPX).toFixed(2), an=side>0?'start':'end';
+     l1.setAttribute('x',x); l2.setAttribute('x',x); l1.setAttribute('text-anchor',an); l2.setAttribute('text-anchor',an);
+     l1.setAttribute('y',(((p.v2?-6:4)+dy)*KPX).toFixed(2)); l2.setAttribute('y',(((p.v1?6:4)+dy)*KPX).toFixed(2)); }
+   // the boxes, relative to the map's top-left corner, for the town names
+   const ox=VB.x/KPX, oy=VB.y/KPX, bx=placed.map(q=>({x:q.x-ox,y:q.y-oy,w:q.w,h:q.h}));
+   const sig=bx.map(q=>[q.x,q.y,q.w].map(Math.round).join(',')).join(';');
+   if(sig!==LBLBOX.sig){ clearTimeout(LBLBOX.t); LBLBOX={sig,boxes:bx,t:setTimeout(()=>{ if(typeof layoutTownLabels==='function') layoutTownLabels(); },250)}; } }
   // edge indicators — prioritised (inbound first, then nearest), max 6, spread along each edge
   const cx=VB.x+VB.w/2, cy=VB.y+VB.h/2, pad=14*KPX;
   edges.sort((a,b)=>(b.info.inbound-a.info.inbound)||(a.info.dist-b.info.dist));
@@ -1778,7 +1807,8 @@ function layoutTownLabels(){
   const items=[]; for(const e of els){ if(getComputedStyle(e).display==='none') continue; const pr=e.classList.contains('big')?0:e.classList.contains('rg')?2:e.classList.contains('district')?4:e.classList.contains('minor')?3:1;
     const fs=pr===0?14:pr===3||pr===4?10:11; const x=(+e.getAttribute('x')-VB.x)/k,y=(+e.getAttribute('y')-VB.y)/k; if(x<-200||y<-50||x>r.width+50||y>r.height+50) continue;
     items.push({e,pr,x,y:y-fs,w:e.textContent.length*fs*0.58+4,h:fs+2}); }
-  items.sort((a,b)=>a.pr-b.pr); const placed=[];
+  // a threat label wins over a town name: the town under it is hidden, never written over
+  items.sort((a,b)=>a.pr-b.pr); const placed=[...LBLBOX.boxes];
   for(const it of items){ if(placed.some(q=>it.x<q.x+q.w&&q.x<it.x+it.w&&it.y<q.y+q.h&&q.y<it.y+it.h)){it.e.setAttribute('data-hid','1');continue;} placed.push(it); }
 }
 // ---- impact history layer (off / 24 h / 48 h / 72 h) — past "impact / explosion" reports only ----
@@ -2181,7 +2211,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.19';
+const APP_VERSION='1.20';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

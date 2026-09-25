@@ -2,6 +2,25 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.20.0 — 2026-09-25
+
+### Fixed
+- **Labels written over each other on the map.** A descending drone's two lines ("⚠ likely a drone" and
+  "↓ DESCENDING · updated 21:46") were drawn on top of each other: the code that spaces labels kept its own copy
+  of the rules saying which lines are shown, and that copy did not know "descending". It now reads what is
+  actually drawn. Labels are also kept off other marks and off the edge of the map, tried on the right, the
+  left, a line lower or higher; the marks coming at a watched place are placed first; an ordinary label that
+  fits nowhere drops its second line, then is left out (the mark stays, its detail one tap away). A town name
+  under a threat label is hidden instead of being written over.
+- **`telegram-login.bat` stopped with "No module named 'telethon'"** right after installing it, on a PC where it
+  was the first package installed for the user: Python only looks in that folder when it starts. It now adds
+  the folder itself and carries on. The api_hash is now typed visibly and checked (32 characters, 0-9 a-f)
+  before Telegram sees it — a hidden prompt could swallow a Ctrl+V paste — and a pair Telegram refuses is asked
+  again instead of ending the script.
+- **The two-step password** can be shown while it is typed (a keyboard left on УКР/РУС or an AltGr character
+  turned the right password into "Invalid password" three times, invisibly), and the script says which password
+  it is: the one set in Telegram's Two-Step Verification.
+
 ## 1.19.0 — 2026-09-25
 
 ### Added
@@ -39,11 +58,6 @@ Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md
   than a pixel at oblast zoom) counted as a drag. A drag now starts past 10 screen pixels, a ring fills while you
   hold, and the phone's long-press menu no longer interrupts it.
 - **The OpenStreetMap credit sat on the place chips**; it is small, in the bottom corner.
-- **`telegram-login.bat` stopped with "No module named 'telethon'"** right after installing it, on a PC where it
-  was the first package installed for the user: Python only looks in that folder when it starts. It now adds
-  the folder itself and carries on. The api_hash is now typed visibly and checked (32 characters, 0-9 a-f)
-  before Telegram sees it — a hidden prompt could swallow a Ctrl+V paste — and a pair Telegram refuses is asked
-  again instead of ending the script.
 
 ## 1.18.0 — 2026-09-25
 

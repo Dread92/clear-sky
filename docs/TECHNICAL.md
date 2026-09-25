@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.19** · last updated 2026-09-25
+**Documented version: 1.20** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -409,6 +409,11 @@ level-of-detail classes by zoom, OSM tiles under the vector layers below 150 km 
 - tabs: **Feed**; **Alerts** (the live tally of what is on the map, then the official alerts); **Stats** — the Air
   Force's official figures only (`windows` 24 h / 7 d / 30 d and each summary with a link to its post,
   `af_days`); **Map** (layers);
+- **mark labels never overlap**: after each tick the label blocks are placed in screen pixels — which lines are
+  drawn is read back from the CSS (`getComputedStyle`), candidates right / left / a line lower or higher, clear of
+  other labels, other marks' glyphs and the map's edge; placed by priority (to a watched place, inbound,
+  descending, others, outcomes); an ordinary label that fits nowhere loses its second line (`nolbl2`), then is
+  left out (`nolbl`). The boxes (`LBLBOX`) hide the town names under them (`layoutTownLabels`);
 - the OSM tile credit sits small in the bottom corner; the Crimea Cossack is drawn in `#obllbl`, above the raion
   outlines, one path per colour;
 - display modes: normal, day (inverted, WCAG-checked), night (dim, arrows only), blackout (2G);
