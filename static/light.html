@@ -78,6 +78,9 @@ header .up{margin-left:auto;font:11px var(--mono);color:var(--ink3)}
 .row{cursor:pointer}
 .row .no{display:inline-block;min-width:16px;padding:0 3px;margin-right:6px;border-radius:3px;background:#2a303b;color:#fff;font:800 11px/16px var(--mono);text-align:center;vertical-align:2px}
 .row .l2 .wh{color:var(--ink)}
+.row .l2 b.alt{color:#cfe0ff;font-weight:700}.row .l2 b.dsc{color:#ff4d6d;font-weight:800}
+#radar .altl{font:700 3.1px var(--mono);fill:#cfe0ff;paint-order:stroke;stroke:#0b0d11;stroke-width:.8px}
+#radar .altl.dsc{fill:#ff4d6d}
 .row .more{display:none;margin-top:8px;padding:8px 10px;background:var(--panel);border-left:3px solid var(--line);border-radius:2px;font-size:12.5px;color:var(--ink2)}
 .row.open .more{display:block}
 .row .more q{display:block;color:var(--ink);quotes:none;white-space:pre-line;margin-bottom:6px}
@@ -436,6 +439,7 @@ function paint(){
     $('imm').innerHTML=`<b>🚨 ${esc(t('n_imm',label(m)))}</b><small>${esc(t('n_imm_b'))}</small>`; }
   else $('imm').hidden=true;
 
+  const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
   // the radar: the place in the middle, north up, over a small map of the 30 km around it
   const kx=111*Math.cos(rad(p.lat)), loc=(lon,lat)=>[(lon-p.lon)*kx*S,-(lat-p.lat)*111*S];
   let g=`<defs><clipPath id="disc"><circle r="60"/></clipPath></defs><circle class="bg" r="60"/>`
@@ -458,21 +462,31 @@ function paint(){
     } else if(!statedCourse(m)) g+=`<text class="qm" x="${x.toFixed(1)}" y="${(y-4.4).toFixed(1)}">?</text>`;   // upright because no course was reported
     // its number in the list below, and how many
     g+=`<text class="no" x="${(x+3.2).toFixed(1)}" y="${(y-2.2).toFixed(1)}">${r.no}${m.count&&m.count>1?`<tspan fill="${c}"> ×${m.count}</tspan>`:''}</text>`;
+    // the stated height under it; ↓ in crimson when a post said it is descending or reported it lower
+    { const tr=altTrend(m), dsc=(m.alt&&m.alt.state==='descending')||(tr&&tr.dir==='down');
+      const v=m.alt&&m.alt.m!=null?fmtAlt(m.alt.m):'', txt=(dsc?'↓':'')+(v||((m.alt&&m.alt.state&&!dsc)?(ALTL[m.alt.state]||''):''));
+      if(txt) g+=`<text class="altl${dsc?' dsc':''}" x="${(x+3.2).toFixed(1)}" y="${(y+2.6).toFixed(1)}">${esc(txt)}</text>`; }
   }
   $('radar').innerHTML=g;
   $('lg').hidden=!LM; $('lg').textContent=t('lt_legend');
 
   // the list — each row opens on a tap: what the post said, the track so far, the source
-  const ALTL={descending:t('alt_desc_l'),climbing:t('alt_climb'),low:t('alt_low'),high:t('alt_high')};
   const row=({m,d,zone,toHere,eta,no})=>{
     const n=(m.count&&m.count>1)?' ×'+m.count:'';
     const bits=[zone?t('lt_z_'+zone):t('lt_far')]; if(toHere) bits.push(`<b class="hr">${esc(t('lt_here'))}</b>`);
     if(m.place) bits.push(`<span class="wh">${esc(t('lt_at',pn(m.place)))}</span>`);
     if(statedCourse(m)) bits.push(esc(t('lt_course',DIRS[Math.round(m.heading/45)%8])));
+    // Height, only when a post stated it — a low or falling drone can be diving. Shown on the row itself,
+    // not behind a tap: descending in crimson; a run of stated heights as "↓ 2,2 км → 800 м".
+    const tr=altTrend(m);
+    if(m.alt&&m.alt.state==='descending') bits.push(`<b class="dsc">↓ ${esc(t('alt_desc_l'))}${m.alt.m!=null?' · '+esc(fmtAlt(m.alt.m)):''}</b>`);
+    else if(tr) bits.push(`<b class="${tr.dir==='down'?'dsc':'alt'}">${esc(tr.text)}</b>`);
+    else if(m.alt&&m.alt.m!=null) bits.push(`<b class="alt">${esc(t('lt_alt_at',fmtAlt(m.alt.m)))}</b>`);
+    else if(m.alt&&m.alt.state) bits.push(`<b class="alt">${esc(ALTL[m.alt.state]||m.alt.state)}</b>`);
     bits.push(m.stale?`${esc(t('lt_lost'))} · ${esc(t('tp_ago',m.stale))}`:esc(t('tp_ago',agoMin(m.ts))));
     const said=LANG==='uk'?m.text:((LANG==='fr'&&m.text_fr)||m.text_en||m.text);
     const track=(m.history||[]).filter(h=>h.place).slice(-4).map(h=>`${esc(pn(h.place))} ${fmtT(h.ts)}`);
-    const alt=m.alt&&m.alt.state?(m.alt.m?`~${m.alt.m} ${t('m_unit')}`:(ALTL[m.alt.state]||m.alt.state)):'';
+    const alt=m.alt?[m.alt.state?(ALTL[m.alt.state]||m.alt.state):'',m.alt.m!=null?fmtAlt(m.alt.m):''].filter(Boolean).join(' · '):'';
     const open=OPEN.has(m.id);
     return `<div class="row${toHere?' here':''}${m.stale?' gone':''}${open?' open':''}" data-id="${esc(m.id)}"><div class="ic">${icoSvg(m,toHere?getComputedStyle(document.documentElement).getPropertyValue('--cri').trim():colOf(m))}</div><div class="bd">`
       +`<div class="l1"><b>${no?`<span class="no">${no}</span>`:''}${esc(label(m))}${n}</b><span class="d">${Math.round(d)} ${esc(t('lt_km'))}</span></div>`
@@ -480,7 +494,7 @@ function paint(){
       +(eta?`<div class="l3"><b>${esc(t('eta_band',eta[0],eta[1]))}</b> <span>${esc(t('eta_if'))}</span></div>`:'')
       +`<div class="more">${said?`<q>«${esc(said)}»</q>`:''}${LANG!=='uk'&&m.text&&said!==m.text?`<span class="orig">${esc(m.text)}</span>`:''}`
       +(track.length?`<div>${esc(t('lt_track'))}: ${track.join(' → ')} → <b>${esc(pn(m.place||'?'))} ${fmtT(m.ts)}</b></div>`:'')
-      +(alt?`<div>${esc(t('lt_alt'))}: ${esc(alt)} <span>(${esc(t('alt_src'))})</span></div>`:'')
+      +(alt||tr?`<div>${esc(t('lt_alt'))}: ${esc(tr?tr.text:alt)}${tr&&alt?' · '+esc(alt):''} <span>(${esc(t('alt_src'))})</span></div>`:'')
       +`<div>${esc(t('lt_src2'))}: @${esc(m.channel||'?')} · ${fmtT(m.ts)}</div></div>`
       +(open?'':`<div class="tap">${esc(t('lt_tap'))}</div>`)
       +`</div></div>`; };

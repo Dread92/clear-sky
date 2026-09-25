@@ -319,7 +319,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.16"
+APP_VERSION = "1.17"
 BUILD = None    # filled at startup
 
 
@@ -1433,7 +1433,11 @@ class State:
             if best:
                 pm = best[1]
                 pm["superseded_by"] = m["id"]
-                m["history"] = pm["history"] + [{"id": pm["id"], "lon": pm["lon"], "lat": pm["lat"], "ts": pm["ts"], "channel": pm["channel"], "place": pm.get("place")}]
+                # each earlier report keeps the height ITS post stated (if any): two stated heights in a row are a
+                # descent the posts reported, not one this app worked out — 2200 m, then 1600 m, then 800 m
+                m["history"] = pm["history"] + [{"id": pm["id"], "lon": pm["lon"], "lat": pm["lat"], "ts": pm["ts"], "channel": pm["channel"],
+                                                 "place": pm.get("place"), "alt_m": (pm.get("alt") or {}).get("m"),
+                                                 "alt_state": (pm.get("alt") or {}).get("state")}]
         keep = []
         for m in ms:
             if m.get("superseded_by"):

@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.16** · last updated 2026-09-25
+**Documented version: 1.17** · last updated 2026-09-25
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -322,7 +322,8 @@ block for every value:
   `Михайло-Коцюбинське`); aliases like "Велика Димерка" ← "димерк"; a stated part of an oblast is not its centre.
 - **Heading** — "курсом на", compass words, "→", "A - B" routes (`bearing()`); a heading is marked *stated*
   only when the post stated it.
-- **Count**, **altitude** (only when written: "знижується", "низько", metres), **phase** (`PHASE_LADDER`:
+- **Count**, **altitude** (only when written: "знижується", "низько", metres "висота 2200", a bare "1600, Вороньків"
+  in a short live post, kilometres "висота 4,4км"), **phase** (`PHASE_LADDER`:
   prep → launch → entering…, with a per-sentence hedge guard: "може відбутись" is preparation, not a launch).
 - **Immediate types** — `IMMEDIATE_TYPES = {ballistic, supersonic, mig31k}`, `REGION_ALERT_KM = 150`.
 
@@ -334,7 +335,8 @@ block for every value:
 2. drops what is outside the scope: `in_scope()` = oblast uid in `REGION_UIDS` or within `SCOPE_KM = 330` km
    of Kyiv;
 3. `_chain_and_prune()` links consecutive reports of the same target (same family, time and distance windows,
-   roughly ahead of the earlier heading) into a track with `history`; marks `stale` after
+   roughly ahead of the earlier heading) into a track with `history` — each entry keeps its own report's stated
+   height (`alt_m`, `alt_state`), so the pages can show the heights the posts gave in sequence; marks `stale` after
    `track_stale_minutes`; drops an unknown after 5 min, others after `max(stale × 3, 15)` min; drops
    everything in an oblast with **no active alert of any kind** once 3 min old; missiles age on their own
    `MISSILE_TTL_MIN`;
@@ -407,7 +409,9 @@ One place, what concerns it, nothing else. Built to load and be read on 2G (page
   types stays upright with a small orange course arrow; a dotted tail joins earlier reports; each mark
   carries its list number. The list shows the same silhouette beside each row.
 - **List**: number, type, count, distance, zone, "→ here" (stated course within 28° of the place), place,
-  course, age, ETA band. **Tap a row** for what the post said (original + translation), the track so far,
+  course, **height** when a post stated one (descending in crimson; a run of stated heights as
+  "↓ 2,2 км → 1,6 км → 600 м" via `altTrend()` in `i18n.js`), age, ETA band. The height is also written beside
+  the mark on the radar. **Tap a row** for what the post said (original + translation), the track so far,
   altitude when stated, the source and time.
 - **Approaching (30–100 km)**: listed apart, only targets whose **stated** course points at the place.
 - Immediate types: a banner for the whole region, no distance, no countdown.
@@ -545,8 +549,9 @@ the Light page's place list (`/api/places?oblast=…`).
 
 ## 17. Known limitations and open items
 
-- `chyste_nebo` cannot be read through the web preview; reading it would need the Telegram API with the
-  owner's own credentials.
+- `chyste_nebo` cannot be read through the web preview — and it is the channel that gives drone heights most
+  often. Reading it needs the Telegram API (a user session: `api_id`/`api_hash` and a one-time login), ideally
+  on a dedicated Telegram account; not built yet.
 - siren.pp.ua is a volunteer proxy of the official API; an official key is more robust (§16).
 - Without a DeepL / Google key, English is the offline glossary and French shows English.
 - Ukrainian declension of place names after a preposition ("біля …") is not implemented; labels avoid it.

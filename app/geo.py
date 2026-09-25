@@ -696,6 +696,10 @@ ALT_RX = [
 # they drop the word entirely: "1600, Вороньків". All three are read; nothing is guessed when none appear.
 ALT_M_RX = re.compile(r"висот\w*\s*(?:бл\.|близько|~|приблизно)?\s*(\d{2,5})\s*(м|метр\w*|км)?"
                       r"|(\d{3,5})\s*(?:м|метр\w*)?\s*висот\w*", re.I)
+# ...and in kilometres, often with a decimal comma: "висота 4,4км", "висота 5км" (war_monitor on jet drones).
+# Read before the metre pattern, which cannot see a single digit and read "4,4км" as nothing at all.
+ALT_KM_RX = re.compile(r"висот\w*\s*(?:бл\.|близько|~|приблизно)?\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*км\b"
+                       r"|(\d{1,2}(?:[.,]\d{1,2})?)\s*км\s*висот\w*", re.I)
 # a lone 300–9000 in a short live post is a height, not a count: counts are written "3х" or "3 шахеди"
 ALT_BARE_RX = re.compile(r"(?<![\d.,\-хx×])(\d{3,4})(?!\d|[.,]\d)", re.I)
 
@@ -712,15 +716,21 @@ def parse_altitude(seg):
         if m:
             out = {"state": state, "m": None, "matched": m.group(0)}
             break
-    mm = ALT_M_RX.search(seg)
-    if mm:
+    mk = ALT_KM_RX.search(seg)
+    mm = None if mk else ALT_M_RX.search(seg)
+    v = None
+    if mk:
+        v = int(round(float((mk.group(1) or mk.group(2)).replace(",", ".")) * 1000))
+        hit = mk
+    elif mm:
         v = int(mm.group(1) or mm.group(3))
         if (mm.group(2) or "").lower().startswith("км"):
             v *= 1000
-        if 10 <= v <= 20000:
-            out = out or {"state": None, "matched": mm.group(0)}
-            out["m"] = v
-            out["matched"] = mm.group(0).strip()
+        hit = mm
+    if v is not None and 10 <= v <= 20000:
+        out = out or {"state": None, "matched": hit.group(0)}
+        out["m"] = v
+        out["matched"] = hit.group(0).strip()
     return out
 
 

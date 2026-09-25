@@ -2,6 +2,21 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.17.0 — 2026-09-25
+
+### Fixed
+- **Heights in kilometres are read.** war_monitor writes a jet drone's height as "висота 4,4км" or "висота 5км";
+  the parser only knew metres and read those as nothing at all.
+- **Light showed a height only behind a tap**, and dropped it altogether when the post gave a number without a
+  word like "низько".
+
+### Added
+- **Height on the Light page, where it is seen first**: on the row ("висота 4,4 км", "↓ знижується" in crimson)
+  and beside the mark on the radar. A low or falling drone may be diving.
+- **The stated heights of a track**: each report keeps the height its post gave, so a run like
+  "↓ 2,2 км → 1,6 км → 600 м" is shown — in crimson when the posts report it lower and lower. Only numbers the
+  posts wrote; nothing is interpolated. The Tactical detail panel lists the heights along the track too.
+
 ## 1.16.0 — 2026-09-25
 
 ### Changed
