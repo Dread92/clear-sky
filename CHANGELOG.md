@@ -2,6 +2,14 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.25.0 — 2026-09-27
+
+### Fixed
+- **White clouds over the map in daylight mode.** The white halo around town, road and river names was 2.4 px
+  in the map's own units — 2.4 km — so zoomed in on Kyiv every name became a white cloud covering the streets and
+  the marks. It is 3 screen pixels now, like every other label; a test checks that no text on the map has a halo
+  measured in kilometres.
+
 ## 1.24.0 — 2026-09-25
 
 ### Fixed

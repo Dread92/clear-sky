@@ -544,7 +544,9 @@ body.m-day .zone{stroke:#14459c;stroke-opacity:.75;stroke-width:1.4px}
 body.m-day .zlbl{fill:#14459c;stroke:#fff;stroke-width:calc(var(--k,1)*3px)}
 body.m-day .trail.hist line{stroke:#7a2f00;stroke-width:2px}
 body.m-day .ob{stroke:#4a515c}body.m-day .oblbl,body.m-day .nblbl,body.m-day .rnlbl{fill:#3a404a}
-body.m-day .town,body.m-day .roadlbl,body.m-day .rvlbl{fill:#12161c;paint-order:stroke;stroke:#fff;stroke-width:2.4px}
+/* the white halo in screen pixels (--k): at 2.4px it was 2.4 km wide, and zoomed in on Kyiv every town name became
+   a white cloud over the map (27 Sep 2026) */
+body.m-day .town,body.m-day .roadlbl,body.m-day .rvlbl{fill:#12161c;paint-order:stroke;stroke:#fff;stroke-width:calc(var(--k,1)*3px)}
 body.m-day .nb.R,body.m-day .nb.oR,body.m-day .rn.R{fill:#b3140d;fill-opacity:.30}
 body.m-day .nb.Y,body.m-day .nb.oY,body.m-day .rn.Y{fill:#c99700;fill-opacity:.32}
 body.m-day .livebar .chip,body.m-day .slotrow button{background:#fff;color:#12161c;border-color:#6d7581}
@@ -680,7 +682,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.24</div>
+    <div class="mi bt" id="buildtag">v1.25</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -2218,7 +2220,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.24';
+const APP_VERSION='1.25';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

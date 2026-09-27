@@ -109,3 +109,18 @@ def test_mark_labels_are_spaced_from_what_is_drawn_not_from_a_copy_of_the_css():
 def test_a_town_name_under_a_threat_label_is_hidden():
     i = PAGE.index("function layoutTownLabels(){")
     assert "const placed=[...LBLBOX.boxes]" in PAGE[i:i + 1500]
+
+
+def test_no_map_text_has_a_halo_measured_in_kilometres():
+    """27 Sep 2026: in daylight mode the white halo of the town names was 2.4px — 2.4 km in the map's units —
+    and zoomed in on Kyiv every name became a white cloud over the map. Every stroke on map text is in screen
+    pixels (--k)."""
+    text = ("town", "roadlbl", "rvlbl", "zlbl", "kdist", "rnlbl", "oblbl", "nblbl", "ringlbl", "poilbl", "lbl", "lbl2",
+            "etxt", "obtxt", "hl", "qm", "dn", "it", "kozak")
+    bad = []
+    for sel, body in re.findall(r"([^{}]+)\{([^{}]*)\}", PAGE[:PAGE.index("</style>")]):
+        classes = set(re.findall(r"\.([a-z0-9]+)\b", sel))
+        m = re.search(r"stroke-width:\s*([^;}]+)", body)
+        if m and classes & set(text) and "var(--k" not in m.group(1) and m.group(1).strip() not in ("0", "0px"):
+            bad.append(f"{sel.strip()[:80]} -> {m.group(1)}")
+    assert not bad, bad
