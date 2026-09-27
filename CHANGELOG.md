@@ -2,6 +2,18 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.26.0 — 2026-09-27
+
+### Added
+- **Nights and weeks, recorded and written up** (dashboard only). After each night (18:00–08:00 Kyiv time, written
+  up after 09:00 so the Air Force morning summary is in it) and each Monday for the week before, the app computes
+  from what it recorded over Kyiv and Kyiv oblast: minutes under official alert, alert waves and levels, raions,
+  the channels' reports by type, place, course and hour, shoot-downs and explosions reported, how far ahead of the
+  alert the map was, and the Air Force's own figures. With an `ANTHROPIC_API_KEY` secret an AI model writes them up
+  in English and Ukrainian — told to describe the figures and nothing else: no forecasts, no guessed targets. The
+  figures are kept with the text and shown under it. Buttons write last night or last week up on demand.
+- The record builds up from today (nothing older is imported). Without a key the figures are still kept.
+
 ## 1.25.0 — 2026-09-27
 
 ### Fixed

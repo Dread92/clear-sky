@@ -4,3 +4,5 @@ cryptography>=42.0
 # telethon reads the channels whose web preview is switched off (chyste_nebo) through the Telegram API,
 # once scripts/telegram-login.bat has set TG_API_ID / TG_API_HASH / TG_SESSION. Without it they are not read.
 telethon>=1.36
+# tzdata: Kyiv's summer and winter time for the nightly summaries, where the system has no time-zone data.
+tzdata>=2024.1

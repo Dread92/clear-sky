@@ -42,6 +42,12 @@ a{color:#8fb4ff}
 .hdr{position:relative}
 tr.bad td{color:#ffd6d6;background:rgba(224,52,44,.08)}tr.warn td{color:#ffe0b8}
 .st{font:600 11px var(--mono);letter-spacing:.06em}.st.ok{color:var(--green)}.st.bad{color:var(--red)}
+.dg{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--blue);padding:12px 14px;margin-bottom:10px}
+.dgh{display:flex;justify-content:space-between;gap:10px;font:700 12px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin-bottom:8px}.dgh span{color:var(--ink3);font-weight:400;text-transform:none}
+.dgt{font:14px/1.55 var(--sans);white-space:pre-wrap}.dgt.muted{color:var(--ink3)}
+.dgai{color:var(--ink3);font:11.5px var(--sans);margin:6px 0 8px}
+table.dgf td{padding:3px 4px;font-size:12.5px}.dg details{margin-top:6px}.dg pre{white-space:pre-wrap;font:11px/1.4 var(--mono);color:var(--ink2);max-height:320px;overflow:auto}
+button.dgb{border:1px solid var(--line);background:transparent;color:var(--ink);padding:8px 12px;font:600 12.5px var(--sans);cursor:pointer;border-radius:2px}button.dgb:disabled{opacity:.5}
 .lead{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--green);padding:12px 14px;font:14px/1.5 var(--sans)}
 .tscroll{overflow-x:auto}
 </style>
@@ -70,6 +76,13 @@ const T={
   t_day:'Day',t_dev:'Devices',t_opens:'Opens',t_pings:'Pings',t_app:'As app',t_black:'Light',
   foot:'<b>What is counted, and what is not.</b><br>A device is counted once a day through a one-way hash of its address and browser, salted with a random value that is thrown away and regenerated every midnight — so the same person cannot be followed from one day to the next, and no hash can be turned back into an address. No IP is stored. No location, no path through the app, no per-person history, nothing that identifies anybody. Only the daily totals on this page are kept.<br><br>This page needs <code>ADMIN_KEY</code> and is not served at all unless it is set. <code>ADMIN_KEY</code> protects this dashboard only — the map stays public. (<code>ACCESS_KEY</code> is the other one: it puts a password box in front of the whole map, for a private deployment.)',
   c_light:'Light opens · 30 d',
+  h_dg:'Nights and weeks — written summaries',dg_night:'Night',dg_week:'Week',
+  dg_run_n:'Write up last night now',dg_run_w:'Write up last week now',dg_asked:'asked — it appears here within a minute',
+  dg_noai:'Written summaries are off: set the ANTHROPIC_API_KEY secret (fly secrets set ANTHROPIC_API_KEY=…). The figures are kept either way.',
+  dg_ai_note:'Written by an AI model from the figures below (counts and place names only are sent to it) — check them before quoting.',
+  dg_figs_only:'Figures only',dg_raw:'All the figures (JSON)',dg_none:'Nothing yet: last night is written up after 09:00 Kyiv time.',
+  dg_city:'Kyiv city: minutes under alert',dg_waves:'Alert waves (Kyiv + oblast)',dg_reports:'Channel reports',
+  dg_down:'Shoot-downs reported',dg_impact:'Explosions reported',dg_af:'Air Force, all Ukraine (drones / missiles / shot down)',
   h_lead:'Early warning — Kyiv and Kyiv oblast, 30 days',
   ld_txt:'{0} alert waves. The map already showed a threat in the hour before {1} of them — median <b>{2} min</b> ahead of the official alert (half of them between {3} and {4} min).',
   ld_none:'No alert wave in this period had a mark on the map in the hour before it.',ld_empty:'No official alert over Kyiv or the oblast in this period.',
@@ -89,6 +102,13 @@ const T={
   t_day:'День',t_dev:'Пристроїв',t_opens:'Відкриттів',t_pings:'Пінгів',t_app:'Як застосунок',t_black:'Light',
   foot:'<b>Що рахується, а що ні.</b><br>Пристрій рахується раз на день через односторонній хеш адреси та браузера, посолений випадковим значенням, яке щопівночі відкидається й генерується заново — тож ту саму людину не можна відстежити з дня на день, і жоден хеш не можна перетворити назад на адресу. IP не зберігається. Ні місця, ні шляху застосунком, ні історії по людині, нічого, що когось ідентифікує. Зберігаються лише денні підсумки на цій сторінці.<br><br>Ця сторінка потребує <code>ADMIN_KEY</code> і взагалі не віддається, якщо його не задано. <code>ADMIN_KEY</code> захищає лише цю панель — карта лишається публічною. (<code>ACCESS_KEY</code> — це інше: він ставить форму пароля перед усією картою, для приватного розгортання.)',
   c_light:'відкриттів Light · 30 д',
+  h_dg:'Ночі й тижні — підсумки',dg_night:'Ніч',dg_week:'Тиждень',
+  dg_run_n:'Підсумувати минулу ніч зараз',dg_run_w:'Підсумувати минулий тиждень зараз',dg_asked:'запит надіслано — з’явиться тут за хвилину',
+  dg_noai:'Текстові підсумки вимкнено: задайте секрет ANTHROPIC_API_KEY (fly secrets set ANTHROPIC_API_KEY=…). Цифри зберігаються в будь-якому разі.',
+  dg_ai_note:'Написано моделлю ШІ за цифрами нижче (їй передаються лише числа й назви місць) — перевіряйте, перш ніж цитувати.',
+  dg_figs_only:'Лише цифри',dg_raw:'Усі цифри (JSON)',dg_none:'Поки нічого: минулу ніч підсумовують після 09:00 за Києвом.',
+  dg_city:'Київ: хвилин під тривогою',dg_waves:'Хвиль тривог (Київ + область)',dg_reports:'Повідомлень каналів',
+  dg_down:'Повідомлень про збиття',dg_impact:'Повідомлень про вибухи',dg_af:'Повітряні сили, вся Україна (БпЛА / ракети / збито)',
   h_lead:'Раннє попередження — Київ і Київська область, 30 днів',
   ld_txt:'Хвиль тривог: {0}. Перед {1} з них мапа вже показувала загрозу впродовж години — медіана <b>{2} хв</b> до офіційної тривоги (половина — від {3} до {4} хв).',
   ld_none:'Перед жодною хвилею тривог за цей період на мапі не було позначки впродовж години.',ld_empty:'За цей період не було офіційних тривог у Києві чи області.',
@@ -137,6 +157,8 @@ function drawAll(){
 
     <div class="note">${tr('note')}</div>
 
+    <div id="digests"></div>
+
     <h2>${tr('h_devices')}</h2>
     <div class="bars">${days.map(x=>`<div class="b" style="height:${Math.max(2,(x.devices||0)/peak*100)}%" title="${x.day}: ${x.devices} / ${x.loads}"></div>`).join('')}</div>
     <div class="days"><span>${days[0]?days[0].day:''}</span><span>${days.length?days[days.length-1].day:''}</span></div>
@@ -151,6 +173,39 @@ function drawAll(){
       ${days.slice().reverse().map(x=>`<tr><td>${x.day}</td><td class="n">${fmt(x.devices)}</td><td class="n">${fmt(x.loads)}</td><td class="n">${fmt(x.pings)}</td><td class="n">${fmt(x.pwa)}</td><td class="n">${fmt(x.lite)}</td></tr>`).join('')}
     </table>`;
   drawHealth();
+  drawDigests();
+}
+
+// Each night and each week: the figures the app recorded, and — with an AI key — the same in words.
+let DG=null, DG_ERR='';
+function drawDigests(){
+  const box=$('digests'); if(!box) return;
+  if(DG_ERR){ box.innerHTML=`<h2>${tr('h_dg')}</h2><div class="err">${esc(DG_ERR)}</div>`; return; }
+  if(!DG){ box.innerHTML=''; return; }
+  const title=d=>{ const f=(d.facts||{}).period||{}; return (d.kind==='week'?tr('dg_week'):tr('dg_night'))+' · '+esc(f.from||'')+' → '+esc(f.to||''); };
+  const fig=d=>{ const f=d.facts||{}, oa=f.official_alerts||{}, cr=f.channel_reports||{}, oc=(f.outcomes_reported||{}).by_kind||{}, af=f.air_force_all_ukraine;
+    const rows=[[tr('dg_city'),oa.kyiv_city_minutes_under_alert],[tr('dg_waves'),oa.alert_waves_kyiv_and_oblast],[tr('dg_reports'),cr.reports],
+      [tr('dg_down'),oc.down||0],[tr('dg_impact'),oc.impact||0],[tr('dg_af'),af?Object.entries(af).map(([k,v])=>`${k}: ${v.drones} / ${v.missiles} / ${v.down}`).join('; '):'—']];
+    return rows.map(([k,v])=>`<tr><td>${k}</td><td class="n">${esc(v==null?'—':v)}</td></tr>`).join(''); };
+  const text=d=>L==='uk'?(d.summary_uk||d.summary_en):(d.summary_en||d.summary_uk);
+  const list=DG.digests||[];
+  box.innerHTML=`<h2>${tr('h_dg')}</h2>
+    ${DG.ai?'':`<div class="note" style="margin:0 0 10px">${tr('dg_noai')}</div>`}
+    <div style="display:flex;gap:8px;margin:0 0 12px;flex-wrap:wrap"><button class="dgb" data-k="night">${tr('dg_run_n')}</button><button class="dgb" data-k="week">${tr('dg_run_w')}</button><span id="dgmsg" style="color:var(--ink3);font:12px var(--mono);align-self:center"></span></div>
+    ${list.length?list.map(d=>`<div class="dg"><div class="dgh">${title(d)}<span>${esc(d.model||'')}</span></div>
+      ${text(d)?`<div class="dgt">${esc(text(d))}</div><div class="dgai">${tr('dg_ai_note')}</div>`:`<div class="dgt muted">${tr('dg_figs_only')}${d.error?' — '+esc(d.error):''}</div>`}
+      <table class="dgf">${fig(d)}</table>
+      <details><summary>${tr('dg_raw')}</summary><pre>${esc(JSON.stringify(d.facts,null,1))}</pre></details></div>`).join('')
+    :`<div style="color:var(--ink3)">${tr('dg_none')}</div>`}`;
+  box.querySelectorAll('.dgb').forEach(b=>b.onclick=async()=>{ b.disabled=true; $('dgmsg').textContent=tr('dg_asked');
+    try{ await fetch('/api/digest/run'+(KEYQ?'?'+KEYQ.slice(1):''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:b.dataset.k})}); }catch(e){}
+    setTimeout(loadDigests,20000); setTimeout(loadDigests,60000); });
+}
+async function loadDigests(){
+  try{ const r=await fetch('/api/digests'+(KEYQ?'?'+KEYQ.slice(1):'')); const d=await r.json();
+       if(d.error) throw new Error(d.error); DG=d; DG_ERR=''; }
+  catch(e){ DG_ERR=String(e.message||e); }
+  drawDigests();
 }
 
 const ago=ts=>{ const t=Date.parse(ts||''); if(!t) return tr('never'); const m=Math.max(0,Math.round((Date.now()-t)/60000));
@@ -210,6 +265,7 @@ $('langsw').addEventListener('click',e=>{
   catch(e){ $('out').innerHTML='<div class="err">'+esc(e.message||e)+'</div>'; $('gen').textContent=''; D=null; return; }
   drawAll();
   loadHealth();
+  loadDigests();
   setInterval(loadHealth,60000);   // the health view is worth leaving open on a live night
 })();
 </script>

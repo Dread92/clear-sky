@@ -76,7 +76,10 @@ DEFAULT_CONFIG = {
     "use_siren_proxy": True,
     "telegram_api_channels": ["chyste_nebo"],   # read through the Telegram API (web preview off); needs TG_* secrets
     "deepl_key": "",                  # machine translation of the feed (EN/FR); or env DEEPL_KEY
-    "google_translate_key": "",       # alternative: Google Cloud Translation; or env GOOGLE_TRANSLATE_KEY          # keyless proxy of the official API (siren.pp.ua) — raion-level alerts without a key
+    "google_translate_key": "",       # alternative: Google Cloud Translation; or env GOOGLE_TRANSLATE_KEY
+    "ai_key": "",                     # written summaries of each night / week on the dashboard; or env ANTHROPIC_API_KEY
+    "ai_model": "claude-sonnet-5",    # the model that writes them; or env AI_MODEL
+    "digest_hour": 9,                 # Kyiv hour after which last night is written up (the Air Force summary is out by then)          # keyless proxy of the official API (siren.pp.ua) — raion-level alerts without a key
     "poll_ukrainealarm_seconds": 10,
     "telegram_channels": ["kyiv_airdef", "chyste_nebo", "kievinfo_kyiv", "war_monitor", "eRadarrua", "kpszsu"],   # informational: AUTHORITATIVE_CHANNELS is what is read
     "favourites": ["31", "14"],
@@ -321,7 +324,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.25"
+APP_VERSION = "1.26"
 BUILD = None    # filled at startup
 
 
@@ -515,6 +518,80 @@ def parse_af_summary(text):
     return {"drones": drones, "missiles": min(missiles, 400), "down": int(dm.group(1)) if dm else 0}
 
 
+def kyiv_tz():
+    """Kyiv's own time, summer and winter. Without the zone data (a bare container) the summer offset stands in."""
+    try:
+        from zoneinfo import ZoneInfo
+        return ZoneInfo("Europe/Kyiv")
+    except Exception:
+        return timezone(timedelta(hours=3))
+
+
+def _union_minutes(spans):
+    """Minutes covered by a set of (start, end) intervals, overlaps counted once."""
+    tot, cur_s, cur_e = 0.0, None, None
+    for s, e in sorted(spans):
+        if cur_e is None or s > cur_e:
+            if cur_e is not None:
+                tot += (cur_e - cur_s).total_seconds() / 60
+            cur_s, cur_e = s, e
+        elif e > cur_e:
+            cur_e = e
+    if cur_e is not None:
+        tot += (cur_e - cur_s).total_seconds() / 60
+    return round(tot)
+
+
+COMPASS8 = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
+
+# The written summary. Its one job is to put into words numbers this app already has — nothing else. A model that
+# "explains" an attack invents intentions, targets and forecasts; a model asked to describe a table does not.
+AI_SYSTEM = """You write the summary of one period of air-raid activity over Kyiv city and Kyiv oblast for the operator \
+of Clear Sky, a volunteer warning app. You are given the facts as JSON.
+
+Rules — follow all of them:
+- Use ONLY the facts in the JSON. Every number and every place you write must be in it.
+- Never predict, forecast or estimate anything. Never guess intentions, targets, causes, weapons or damage that the
+  facts do not state. No advice about safety.
+- "reports" are posts of monitoring channels read by the app, not a count of drones or missiles; say "reports".
+- The Air Force figures are official and cover all of Ukraine; say so when you use them.
+- If something is missing or zero, say plainly that nothing was recorded; do not fill the gap.
+- Calm, plain, short. No markdown headings, no emojis.
+
+Write it twice, in English and in Ukrainian (natural Ukrainian, not a word-for-word translation). Each version:
+4 to 7 sentences of prose, then a line "Key figures:" (Ukrainian: "Ключові цифри:") and 3 to 6 lines starting with "• ".
+
+Answer with a JSON object only: {"en": "...", "uk": "..."}"""
+
+
+def ai_summary(cfg, facts, kind):
+    """(text_en, text_uk, model, error) — the written summary of `facts`, or the error that prevented it."""
+    key, model = cfg.get("ai_key"), cfg.get("ai_model") or "claude-sonnet-5"
+    if not key:
+        return None, None, None, "no ANTHROPIC_API_KEY"
+    body = json.dumps({"model": model, "max_tokens": 1800, "system": AI_SYSTEM,
+                       "messages": [{"role": "user", "content": f"Period: {kind}\nFacts:\n" + json.dumps(facts, ensure_ascii=False, indent=1)}]}).encode("utf-8")
+    req = urllib.request.Request("https://api.anthropic.com/v1/messages", data=body, method="POST",
+                                 headers={"x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=120) as r:
+            out = json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        return None, None, model, f"HTTP {e.code}: {e.read()[:200].decode('utf-8', 'replace')}"
+    except Exception as e:
+        return None, None, model, str(e)[:200]
+    text = "".join(b.get("text", "") for b in out.get("content") or [] if b.get("type") == "text").strip()
+    m = re.search(r"\{.*\}", text, re.S)
+    try:
+        d = json.loads(m.group(0)) if m else {}
+        en, uk = (d.get("en") or "").strip(), (d.get("uk") or "").strip()
+        if en or uk:
+            return en or None, uk or None, out.get("model") or model, None
+    except Exception:
+        pass
+    return (text or None), None, out.get("model") or model, ("the answer was not the JSON asked for" if text else "empty answer")
+
+
 _GZ = {}
 
 
@@ -614,6 +691,10 @@ class Store:
         c.execute("""CREATE TABLE IF NOT EXISTS channel_stats(
             day TEXT, channel TEXT, posts INTEGER DEFAULT 0, with_marker INTEGER DEFAULT 0,
             outcomes INTEGER DEFAULT 0, flagged INTEGER DEFAULT 0, PRIMARY KEY(day, channel))""")
+        # Each night and each week: the numbers computed once, and the written summary of them (dashboard only).
+        c.execute("""CREATE TABLE IF NOT EXISTS digests(
+            id TEXT PRIMARY KEY, kind TEXT, period_start TEXT, period_end TEXT, facts TEXT,
+            summary_en TEXT, summary_uk TEXT, model TEXT, created TEXT, error TEXT)""")
         c.execute("CREATE INDEX IF NOT EXISTS ix_alerts_started ON alerts(started_at)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_feed_ts ON feed(ts)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_mlog_ts ON marker_log(ts)")
@@ -890,6 +971,29 @@ class Store:
             rows = self.conn.execute(q + " ORDER BY ts", a).fetchall()
         return [{"ts": r[0], "status": r[1], "type": r[2], "place": r[3], "oblast_uid": r[4], "count": r[5]}
                 for r in rows]
+
+    _DG = ("id", "kind", "period_start", "period_end", "facts", "summary_en", "summary_uk", "model", "created", "error")
+
+    def digest_save(self, d):
+        with self.lock:
+            self.conn.execute("INSERT OR REPLACE INTO digests(" + ",".join(self._DG) + ") VALUES(" + ",".join("?" * len(self._DG)) + ")",
+                              [json.dumps(d[k], ensure_ascii=False) if k == "facts" else d.get(k) for k in self._DG])
+            self.conn.commit()
+
+    def digest_get(self, did):
+        with self.lock:
+            r = self.conn.execute("SELECT " + ",".join(self._DG) + " FROM digests WHERE id=?", (did,)).fetchone()
+        return self._dg(r) if r else None
+
+    def digests(self, limit=30):
+        with self.lock:
+            rows = self.conn.execute("SELECT " + ",".join(self._DG) + " FROM digests ORDER BY period_end DESC, kind LIMIT ?", (limit,)).fetchall()
+        return [self._dg(r) for r in rows]
+
+    def _dg(self, r):
+        d = dict(zip(self._DG, r))
+        d["facts"] = json.loads(d["facts"] or "{}")
+        return d
 
     def prune_log(self, days=120):
         cut = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
@@ -1288,6 +1392,100 @@ class State:
         def q(f):
             return round(leads[min(len(leads) - 1, int(f * len(leads)))]) if leads else None
         return {"days": days, "waves": waves, "warned": len(leads), "median_min": q(.5), "p25_min": q(.25), "p75_min": q(.75)}
+
+    # -- nights and weeks, as numbers and in words ---------------------------------------------------------------
+    def digest_facts(self, start, end, kind="night"):
+        """Everything this app recorded over Kyiv and Kyiv oblast between two UTC datetimes: the official alerts,
+        what the channels reported (marks), the outcomes, and the Air Force's own figures. Counts only — no post
+        text, no reader, nobody."""
+        tz = kyiv_tz()
+        now = datetime.now(timezone.utc)
+
+        def loc(d):
+            return d.astimezone(tz).strftime("%d.%m %H:%M")
+        hours = int((now - start).total_seconds() / 3600) + 2
+        al = [a for a in self.store.history(hours, ["31", "14"]) if (a.get("alert_type") or "air_raid") == "air_raid"]
+        spans = []
+        for a in al:
+            s, e = parse_iso(a["started_at"]), parse_iso(a["finished_at"]) if a["finished_at"] else now
+            if not s or s >= end or (e and e <= start):
+                continue
+            spans.append((a, max(s, start), min(e or end, end)))
+        city = [(s, e) for a, s, e in spans if a["oblast_uid"] == "31"]
+        units = {}
+        for a, s, e in spans:
+            if a["oblast_uid"] == "14":
+                units.setdefault(a["location_title"], []).append((s, e))
+        longest = max(((e - s).total_seconds() / 60 for a, s, e in spans if a["oblast_uid"] == "31"), default=None)
+        starts = sorted(s for a, s, e in spans if parse_iso(a["started_at"]) >= start)
+        waves, prev = [], None
+        for s in starts:
+            if not prev or (s - prev).total_seconds() >= 1800:
+                waves.append(s)
+            prev = s
+        with self.store.lock:
+            mk = self.store.conn.execute(
+                "SELECT ts,type,place,heading,jet,count,channel FROM marker_log WHERE ts>=? AND ts<? AND status IS NULL "
+                "AND oblast_uid IN ('31','14')", (start.isoformat(), end.isoformat())).fetchall()
+            oc = self.store.conn.execute(
+                "SELECT ts,status,type,place FROM outcomes WHERE ts>=? AND ts<? AND oblast_uid IN ('31','14')",
+                (start.isoformat(), end.isoformat())).fetchall()
+        kinds = collections.Counter(("jet_drones" if r[4] else "drones") if r[1] == "drones" else r[1] for r in mk)
+        places = collections.Counter((r[2] or "").replace("→ ", "") for r in mk if r[2] and r[2] != "область")
+        course = collections.Counter(COMPASS8[int(((r[3] % 360) + 22.5) // 45) % 8] for r in mk if r[3] is not None)
+        hours_k = collections.Counter(parse_iso(r[0]).astimezone(tz).strftime("%H:00") for r in mk if parse_iso(r[0]))
+        marks_ts = sorted(t for t in (parse_iso(r[0]) for r in mk) if t)
+        lead = []
+        for w in waves:
+            before = [t for t in marks_ts if w - timedelta(hours=1) <= t <= w]
+            if before:
+                lead.append(round((w - before[0]).total_seconds() / 60))
+        outc = collections.Counter(r[1] for r in oc)
+        oplaces = collections.Counter((r[3] or "") for r in oc if r[1] in ("down", "impact") and r[3] and r[3] != "область")
+        # the Air Force's figures (all of Ukraine): the summaries posted over the period, or — for a night — the
+        # morning summary posted within a few hours after it
+        af_to = min(now, end + timedelta(hours=4)) if kind == "night" else end
+        af = {}
+        for p in self.store.feed_since(max(1, int((now - start).total_seconds() / 60) + 1), limit=5000, translate=False):
+            pt = parse_iso(p["ts"])
+            if p.get("channel") not in AF_SUMMARY_CHANNELS or not pt or pt < start or pt > af_to:
+                continue
+            sm = parse_af_summary(p["text"])
+            if sm:
+                d = pt.astimezone(tz).strftime("%d.%m")
+                cur = af.get(d, {"drones": 0, "missiles": 0, "down": 0})
+                af[d] = {k: max(cur[k], sm[k]) for k in cur}
+        facts = {
+            "period": {"kind": kind, "from": loc(start), "to": loc(end), "timezone": "Kyiv"},
+            "official_alerts": {
+                "kyiv_city_minutes_under_alert": _union_minutes(city),
+                "kyiv_city_alerts": len(city),
+                "kyiv_city_longest_alert_minutes": round(longest) if longest else 0,
+                "alert_waves_kyiv_and_oblast": len(waves),
+                "alerts_by_level": dict(collections.Counter((a.get("alert_level") or "not given") for a, s, e in spans)),
+                "kyiv_oblast_units_minutes_under_alert": dict(sorted(((k, _union_minutes(v)) for k, v in units.items()), key=lambda x: -x[1])[:10]),
+            },
+            "channel_reports": {
+                "reports": len(mk), "by_type": dict(kinds.most_common()), "most_named_places": dict(places.most_common(10)),
+                "reported_course": dict(course.most_common()), "busiest_hours": dict(hours_k.most_common(4)),
+                "first_report": loc(marks_ts[0]) if marks_ts else None, "last_report": loc(marks_ts[-1]) if marks_ts else None,
+                "note": "posts of monitoring channels read by the app — reports, not a count of drones or missiles",
+            },
+            "outcomes_reported": {"by_kind": dict(outc.most_common()), "places": dict(oplaces.most_common(8)),
+                                  "note": "shoot-downs ('down') and explosions ('impact') as reported by channels"},
+            "map_ahead_of_alert": {"waves_with_a_mark_before": len(lead), "median_minutes_ahead": sorted(lead)[len(lead) // 2] if lead else None},
+            "air_force_all_ukraine": af or None,
+        }
+        return facts
+
+    def digest_totals(self, start, end):
+        """The few numbers a week is compared on."""
+        f = self.digest_facts(start, end, "week")
+        return {"kyiv_city_minutes_under_alert": f["official_alerts"]["kyiv_city_minutes_under_alert"],
+                "alert_waves": f["official_alerts"]["alert_waves_kyiv_and_oblast"], "reports": f["channel_reports"]["reports"],
+                "shoot_downs_reported": f["outcomes_reported"]["by_kind"].get("down", 0),
+                "explosions_reported": f["outcomes_reported"]["by_kind"].get("impact", 0)}
+
 
     # -- statistics of past attacks (cached 5 min) ---------------------------
     _stats_res = {}
@@ -2255,6 +2453,74 @@ class TelegramAPI(threading.Thread):
         raise ConnectionError("disconnected from Telegram")
 
 
+class Digests(threading.Thread):
+    """The record of each night and each week (dashboard only).
+
+    Once the night is over — 18:00 to 08:00 Kyiv time, written up after `digest_hour` so the Air Force's morning
+    summary is in it — its numbers are computed (`State.digest_facts`) and stored, and, when ANTHROPIC_API_KEY is
+    set, put into words in English and Ukrainian. The same every Monday for the week before. The numbers are kept
+    with the text, so every sentence can be checked against them. The model gets counts and place names only — no
+    post, no reader, nobody — and is told to describe them and nothing else: no forecasts, no guessed targets.
+
+    Never in a request path: the dashboard's "now" button only asks this thread."""
+    NIGHT_H = (18, 8)
+
+    def __init__(self, state, cfg):
+        super().__init__(daemon=True, name="digests")
+        self.state, self.cfg = state, cfg
+        self.hour = int(cfg.get("digest_hour", 9))
+        self.cond = threading.Condition()
+        self.asked = []
+
+    def ask(self, kind):
+        with self.cond:
+            if kind not in self.asked:
+                self.asked.append(kind)
+            self.cond.notify()
+
+    def last_night(self, now=None):
+        tz = kyiv_tz()
+        local = (now or datetime.now(timezone.utc)).astimezone(tz)
+        d = local.date() if local.hour >= self.hour else local.date() - timedelta(days=1)
+        end = datetime(d.year, d.month, d.day, self.NIGHT_H[1], 0, tzinfo=tz)
+        return end - timedelta(hours=24 - self.NIGHT_H[0] + self.NIGHT_H[1]), end
+
+    def last_week(self, now=None):
+        s, e = self.last_night(now)
+        e = e - timedelta(days=e.weekday())               # the Monday 08:00 at or before the last night's end
+        return e - timedelta(days=7), e
+
+    def make(self, kind, force=False):
+        start, end = self.last_night() if kind == "night" else self.last_week()
+        did = f"{kind}:{end.date().isoformat()}"
+        if not force and self.state.store.digest_get(did):
+            return None
+        su, eu = start.astimezone(timezone.utc), end.astimezone(timezone.utc)
+        facts = self.state.digest_facts(su, eu, kind)
+        if kind == "week":
+            facts["previous_week"] = self.state.digest_totals(su - timedelta(days=7), su)
+        en, uk, model, err = ai_summary(self.cfg, facts, kind)
+        d = {"id": did, "kind": kind, "period_start": su.isoformat(), "period_end": eu.isoformat(), "facts": facts,
+             "summary_en": en, "summary_uk": uk, "model": model, "created": now_iso(), "error": err}
+        self.state.store.digest_save(d)
+        log(f"digest {did}: " + ("written" if en or uk else f"figures only ({err})"))
+        return d
+
+    def run(self):
+        time.sleep(20)
+        while True:
+            with self.cond:
+                asked, self.asked = self.asked, []
+            for kind in ("night", "week"):
+                try:
+                    self.make(kind, force=kind in asked)
+                except Exception as e:
+                    log(f"digest {kind} error:", e)
+            with self.cond:
+                if not self.asked:
+                    self.cond.wait(300)
+
+
 class Watchdog(threading.Thread):
     """A service people take shelter by must never hang in silence.
 
@@ -2935,6 +3201,12 @@ class Handler(BaseHTTPRequestHandler):
                 if not self._admin_ok(q):
                     return self._json({"error": "set ADMIN_KEY to review the corpus"}, 403)
                 return self._json(self._corpus_pending(int(q.get("limit", ["30"])[0])))
+            # The written summaries of each night and week — the dashboard's, and yours alone.
+            if u.path == "/api/digests":
+                if not self._admin_ok(q):
+                    return self._json({"error": "set ADMIN_KEY to read the summaries"}, 403)
+                return self._json({"ai": bool(st.cfg.get("ai_key")), "model": st.cfg.get("ai_model"),
+                                   "digests": st.store.digests(int(q.get("limit", ["30"])[0]))})
             # The dashboard's health view: sources, channels, how early the map was. Yours alone as well.
             if u.path == "/api/health":
                 if not self._admin_ok(q):
@@ -2975,6 +3247,16 @@ class Handler(BaseHTTPRequestHandler):
             data = json.loads(self.rfile.read(n).decode("utf-8") or "{}") if n else {}
             if u.path == "/api/flag":
                 return self._flag(data)
+            if u.path == "/api/digest/run":
+                # "write last night / last week up now": only asks the Digests thread — the model is never called here
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                kind = data.get("kind") if data.get("kind") in ("night", "week") else "night"
+                dg = getattr(st, "digests", None)
+                if not dg:
+                    return self._json({"error": "summaries are not running"}, 503)
+                dg.ask(kind)
+                return self._json({"ok": True, "asked": kind})
             if u.path == "/api/corpus/review":
                 if not self._admin_ok(q):
                     return self._json({"error": "unauthorized"}, 401)
@@ -3115,6 +3397,7 @@ def load_config(args):
     if os.environ.get("UKRAINEALARM_KEY"):
         cfg["ukrainealarm_key"] = os.environ["UKRAINEALARM_KEY"]
     for env, key in (("DEEPL_KEY", "deepl_key"), ("GOOGLE_TRANSLATE_KEY", "google_translate_key"),
+                     ("ANTHROPIC_API_KEY", "ai_key"), ("AI_MODEL", "ai_model"),
                      ("TG_API_ID", "tg_api_id"), ("TG_API_HASH", "tg_api_hash"), ("TG_SESSION", "tg_session")):
         if os.environ.get(env):
             cfg[key] = os.environ[env]
@@ -3210,6 +3493,8 @@ def main():
     state.tr = Translations(state)
     state.tr.start()
     Watchdog(state).start()
+    state.digests = Digests(state, cfg)
+    state.digests.start()
 
     # the listen backlog: Python's default of 5 left a burst of pages (a new post, a restart) waiting on SYN retries
     ThreadingHTTPServer.request_queue_size = 128

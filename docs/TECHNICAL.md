@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.25** · last updated 2026-09-27
+**Documented version: 1.26** · last updated 2026-09-27
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -157,6 +157,7 @@ clear-sky/
 | `Telegram` | reads the channels' `t.me/s/` previews (all but those the API reads) | 30 s; 10 s while a missile threat is open |
 | `TelegramAPI` | reads `telegram_api_channels` (chyste_nebo) through the Telegram client API — polls the channel, **never subscribes to updates** | last 20 posts every 15 s (8 s in a missile threat) |
 | `Watchdog` | the database and alert-state locks must be free within 15 s; a held lock logs every thread's stack, five in a row (~2 min) → exit, Fly restarts it; a starved process is only logged (load, not a deadlock) | 20 s |
+| `Digests` | each night (18:00–08:00 Kyiv) after `digest_hour`, and each Monday for the week: the figures (`State.digest_facts`), and with `ANTHROPIC_API_KEY` a written summary in EN + UK; stored in `digests` | 5 min check |
 | `Translations` | machine-translates feed posts into a language somebody reads | on demand, ~3 calls/s max |
 | `Pusher` | sends Web Push | queue |
 | `proximity` | per-subscriber distance checks → push | continuous |
@@ -199,6 +200,9 @@ the committed template.
 | `desktop_notifications` | `true` | Local desktop notifications (when running on a PC). |
 | `deepl_key` | `""` | DeepL API key for EN/FR translation of the feed. |
 | `google_translate_key` | `""` | Google Cloud Translation key (alternative). |
+| `ai_key` | `""` | Anthropic API key for the written summaries of each night / week (dashboard). |
+| `ai_model` | `"claude-sonnet-5"` | The model that writes them. |
+| `digest_hour` | `9` | Kyiv hour after which last night is written up (the Air Force morning summary is out by then). |
 | `access_key` | `""` | Locks the WHOLE app behind a key — private deployments only. |
 | `demo` | `false` | Fake alerts and posts. |
 
@@ -217,6 +221,8 @@ Environment variables win over `config.json`. On Fly they are set as **secrets**
 | `UKRAINEALARM_KEY` | Official ukrainealarm API key. |
 | `DEEPL_KEY` | DeepL key (`…:fx` = free plan → api-free.deepl.com). |
 | `GOOGLE_TRANSLATE_KEY` | Google Cloud Translation key. |
+| `ANTHROPIC_API_KEY` | Turns on the written summaries of each night / week on the dashboard (`ai_key`). |
+| `AI_MODEL` | Overrides `ai_model`. |
 | `TRANSLATOR` | `google` (default) allows the free Google endpoint as last resort; anything else disables it. |
 | `TG_API_ID` | Telegram API app id (my.telegram.org). |
 | `TG_API_HASH` | Telegram API app hash. |
@@ -398,6 +404,24 @@ The feed is Ukrainian; EN and FR readers get a translation.
 - **Circuit breaker**: a backend that refuses (401/403/429/456) rests 30 min, any other failure 5 min.
 - French has no offline stand-in: without a machine translator, FR shows the English.
 
+## 8b. Nights and weeks (the dashboard's record)
+
+A record that builds up from now on (no import of older data). After each night (18:00–08:00 Kyiv time; written up
+after `digest_hour`, 09:00, once the Air Force morning summary is out) and each Monday for the week before,
+`State.digest_facts()` computes, from what the app itself recorded, for **Kyiv city and Kyiv oblast**: minutes under
+official alert (overlaps counted once), number of alerts and the longest, alert waves (starts within 30 min are
+one wave), alert levels, minutes per oblast raion; the channels' **reports** (not a count of targets) by type, the
+most-named places, the reported courses (8 sectors), the busiest hours, first / last report; shoot-downs and
+explosions reported and where; how many waves had a mark on the map in the hour before them and the median lead;
+the Air Force's own figures (all of Ukraine). A week also gets the previous week's totals to compare with.
+
+With `ANTHROPIC_API_KEY` set, the figures are sent to the model (`ai_model`) — counts and place names only, never a
+post or anything about a reader — with a system prompt (`AI_SYSTEM`) that allows it to describe them and nothing
+else: no forecast, no guessed intention, target, weapon or damage, "reports" called reports. It answers in English
+and Ukrainian. The figures are stored with the text (`digests`), shown under it on the dashboard, so every sentence
+can be checked. Without a key the figures are still stored and shown. The model is only ever called from the
+`Digests` thread — never in a request path. Cost: a few thousand tokens a night, well under a dollar a month.
+
 ## 9. Notifications
 
 - **Web Push** (`push.py`; the VAPID key pair is generated on first run and kept in the `kv` table). A subscription
@@ -532,6 +556,8 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `POST /api/flag` | "this reading is wrong" report |
 | 🔒 `GET /admin`, `/api/usage` | dashboard, usage counters |
 | 🔒 `GET /api/health` | official sources (ok, last check, detail), every channel read (posts / marks 24 h, share read 7 d, last post, reader state), translation backends, lead time over the official alert in Kyiv + oblast (30 days) |
+| 🔒 `GET /api/digests` | the stored nights and weeks: figures, written summary (EN / UK), model |
+| 🔒 `POST /api/digest/run` | `{kind: night|week}` — asks the `Digests` thread to write the last one up now (never calls the model itself) |
 | 🔒 `GET /api/flags`, `/api/corpus`; `POST /api/corpus/review`, `/api/corpus/translate` | flags and corpus review — no longer in the dashboard (1.19); used by `scripts/corpus.py` |
 
 ## 13. Storage
@@ -548,6 +574,7 @@ SQLite in WAL mode (`DB_PATH`; on Fly, the volume). Tables:
 | `marker_log` | every mark as computed, with its evidence |
 | `outcomes` | shoot-downs, impacts, losses |
 | `channel_stats` | per channel per day: posts, posts with a reading, flagged readings |
+| `digests` | each night / week: the figures (JSON), the summary in EN and UK, the model, any error |
 | `flags` | readings people reported as wrong |
 | `corpus_reviews` | verdicts from `/admin` review, merged back with `scripts/corpus.py pull` |
 | `usage`, `usage_seen` | anonymous usage counters |
@@ -575,6 +602,7 @@ python app/server.py --demo --port 8099
 | `test_official_stats`, `test_ui_details` | Air Force-only stats, the dashboard's health view and lead time, pin, zoom, language, logo |
 | `test_destination`, `test_scripts_parse` | where it is vs where it is going; every page script parses (node) |
 | `test_load`, `test_watchdog` | no network in the marks' path, one computation for everybody; the watchdog |
+| `test_digests` | a night's figures, the model's rules and answer, windows, owner-only and never in a request |
 
 **The corpus** (`data/corpus.jsonl`, [CORPUS.md](CORPUS.md)): real posts with their expected reading; a
 changed reading fails the suite until it is re-verified as the intended change.
