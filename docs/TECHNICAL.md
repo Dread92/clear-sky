@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.26** · last updated 2026-09-27
+**Documented version: 1.27** · last updated 2026-09-27
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of

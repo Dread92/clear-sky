@@ -2,6 +2,16 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.27.0 — 2026-09-28
+
+### Fixed
+- **"I understand" out of reach on some iPhones** (seen on an iPhone 14 in Safari). The disclaimer box was sized
+  with `vh`, which Safari measures as if its address bar and bottom bar were hidden; with the bars showing, the
+  bottom of the box — and the button — sat under the bottom bar and sprang back when scrolled to. The overlay now
+  scrolls itself and is sized by what is really on screen: the box is centred when it fits, starts at the top when
+  it does not, and ends with room under the button. Same fix on the Light page; the menu and the bottom sheets use
+  `dvh` where the phone knows it.
+
 ## 1.26.0 — 2026-09-27
 
 ### Added

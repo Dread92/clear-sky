@@ -30,7 +30,7 @@ button{font:inherit;cursor:pointer}
    at the edge was missed, and the tap landed on something else */
 .dok{display:block;width:100%;max-width:340px;margin:18px auto 2px;padding:15px 18px;border:2px solid var(--ua-yellow);border-radius:6px;background:var(--ua-yellow);color:#111;font:800 17px/1.1 var(--sans);letter-spacing:.03em;text-transform:uppercase;cursor:pointer}
 #top .name{font:700 17px/1 var(--cond);letter-spacing:.06em;text-transform:uppercase;white-space:nowrap}
-.menu{position:absolute;right:8px;top:44px;background:#14171d;border:1px solid var(--line);display:flex;flex-direction:column;min-width:230px;max-width:min(320px,calc(100vw - 16px));max-height:calc(100vh - 56px);overflow-y:auto;overscroll-behavior:contain;z-index:25;box-shadow:0 8px 24px #0009}
+.menu{position:absolute;right:8px;top:44px;background:#14171d;border:1px solid var(--line);display:flex;flex-direction:column;min-width:230px;max-width:min(320px,calc(100vw - 16px));max-height:calc(100vh - 56px);max-height:calc(100dvh - 56px - var(--sat));overflow-y:auto;overscroll-behavior:contain;z-index:25;box-shadow:0 8px 24px #0009}
 .menu[hidden]{display:none}
 /* Was a 55-second marquee: you could not read it at your own pace, it clipped its own descenders at 18 px,
    and during an attack nobody follows a moving line. It is now one short sentence at a time, fading between
@@ -48,8 +48,12 @@ body.lite .ticker .tki{color:#fff}
 .upd .cd.live.bad{color:#ff8a3d;animation:none}
 @keyframes livepulse{0%,100%{opacity:1}50%{opacity:.35}}
 .upd .cd.bad{color:var(--red2)}
-.modal{position:fixed;inset:0;background:rgba(5,7,10,.78);z-index:60;display:flex;align-items:center;justify-content:center;padding:20px}.modal[hidden]{display:none}
-.mbox{background:#14171d;border:1px solid var(--line);border-top:3px solid var(--ua-yellow);max-width:480px;max-height:calc(100vh - 32px - var(--sat) - var(--sab));overflow:auto;padding:16px 18px;font:14px/1.45 var(--sans);color:var(--ink)}.mbox p{margin:8px 0}.mbox .type{font:700 20px var(--cond);text-transform:uppercase;letter-spacing:.03em}
+/* The overlay itself scrolls, and it is sized by inset:0 (the part of the screen really visible), never by vh:
+   on an iPhone with Safari's bars showing, 100vh is taller than what is visible, so a box sized with it
+   ran under the bottom bar and "I understand" sprang back out of reach. margin:auto centres the box when it
+   fits and starts it at the top when it does not; ::after keeps room under the button for the home bar. */
+.modal{position:fixed;inset:0;background:rgba(5,7,10,.78);z-index:60;display:flex;flex-direction:column;padding:calc(12px + var(--sat)) 16px 0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}.modal[hidden]{display:none}.modal::after{content:'';flex:none;height:calc(16px + var(--sab))}
+.mbox{background:#14171d;border:1px solid var(--line);border-top:3px solid var(--ua-yellow);max-width:480px;margin:auto;flex:none;padding:16px 18px;font:14px/1.45 var(--sans);color:var(--ink)}.mbox p{margin:8px 0}.mbox .type{font:700 20px var(--cond);text-transform:uppercase;letter-spacing:.03em}
 .sbars{display:flex;align-items:flex-end;gap:2px;height:46px;margin-top:4px}.sbars .sb{flex:1;min-width:2px;border-radius:1px 1px 0 0;opacity:.9}.sbars.h24 .sb{min-width:4px}
 .sdays{display:flex;justify-content:space-between;font:10px var(--mono);color:var(--muted);margin-top:2px}.sdays span{flex:1;text-align:center}.sdays span:first-child{text-align:left}.sdays span:last-child{text-align:right}
 .slbl{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-top:12px}
@@ -269,7 +273,7 @@ body.lite #drawer .dchev{background:#111;border-color:#fff;color:#fff}
 .layermenu{display:flex;flex-wrap:wrap;gap:4px 12px;padding:8px 12px;border-bottom:1px solid var(--line);font:500 11px var(--mono);color:var(--ink2)}
 .layermenu label{display:flex;gap:5px;align-items:center;white-space:nowrap}.layermenu .lbl{color:var(--ink3);letter-spacing:.1em;text-transform:uppercase}
 /* sheets & toast */
-.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#14171d;border-top:2px solid var(--ua-yellow);padding:12px 14px calc(14px + var(--sab));transform:translateY(105%);transition:transform .22s;max-height:82vh;overflow:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:30;background:#14171d;border-top:2px solid var(--ua-yellow);padding:12px 14px calc(14px + var(--sab));transform:translateY(105%);transition:transform .22s;max-height:82vh;max-height:82dvh;overflow:auto}
 .sheet.show{transform:none}
 .sheet .grab{display:none}
 .sheet .type{font:800 22px/1.05 var(--cond);letter-spacing:.03em;text-transform:uppercase;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -682,7 +686,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.26</div>
+    <div class="mi bt" id="buildtag">v1.27</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -2220,7 +2224,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.26';
+const APP_VERSION='1.27';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

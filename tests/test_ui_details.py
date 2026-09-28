@@ -124,3 +124,14 @@ def test_no_map_text_has_a_halo_measured_in_kilometres():
         if m and classes & set(text) and "var(--k" not in m.group(1) and m.group(1).strip() not in ("0", "0px"):
             bad.append(f"{sel.strip()[:80]} -> {m.group(1)}")
     assert not bad, bad
+
+
+def test_the_disclaimer_button_is_reachable_on_an_iphone():
+    """1.27: on an iPhone 14 in Safari "I understand" sprang back under the bottom bar. The box was sized with vh,
+    which Safari measures with its bars hidden; the overlay now scrolls and is sized by inset:0 only."""
+    for src, overlay, box in ((PAGE, ".modal", ".mbox"), (LIGHT, "#dm", "#dm .dbox")):
+        o, b = _rule(src, overlay), _rule(src, box)
+        assert "inset:0" in o and "overflow-y:auto" in o and "align-items:center" not in o, overlay
+        assert "vh" not in b and "margin:auto" in b, box
+        a = _rule(src, overlay + "::after")
+        assert "safe-area-inset-bottom" in a or "--sab" in a, overlay

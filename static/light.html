@@ -139,9 +139,11 @@ header .up{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;w
 footer{padding:14px 14px 24px;font-size:12px;color:var(--ink3);text-align:center}
 footer a{color:var(--blu)}
 /* the notice at opening — once per opening, shared with the Tactical page (sessionStorage 'disc_seen') */
-#dm{position:fixed;inset:0;z-index:10;background:rgba(5,6,9,.9);display:flex;align-items:center;justify-content:center;padding:16px}
+/* the overlay scrolls, sized by inset:0 and never by vh (on an iPhone with Safari's bars showing, vh is taller
+   than the screen and the button ended up out of reach under the bottom bar) */
+#dm{position:fixed;inset:0;z-index:10;background:rgba(5,6,9,.9);display:flex;flex-direction:column;padding:calc(12px + env(safe-area-inset-top,0px)) 16px 0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}#dm::after{content:'';flex:none;height:calc(16px + env(safe-area-inset-bottom,0px))}
 #dm[hidden]{display:none}
-#dm .dbox{max-width:440px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--yel);border-radius:4px;padding:16px 18px;max-height:90vh;overflow:auto}
+#dm .dbox{max-width:440px;background:var(--panel);border:1px solid var(--line);border-top:4px solid var(--yel);border-radius:4px;padding:16px 18px;margin:auto;flex:none}
 #dm b{display:block;font:800 17px/1.2 var(--sans);margin-bottom:8px}
 #dm p{font-size:14px;line-height:1.45;color:var(--ink2);margin:0 0 10px}#dm p b,#dm p strong{display:inline;font-size:inherit;color:var(--ink)}
 /* big, full width, centred: a small button at the edge was missed */
