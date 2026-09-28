@@ -1,4 +1,4 @@
-// Clear Sky — service worker: push notifications + app shell (no caching of live data)
+// Heimdall — service worker: push notifications + app shell (no caching of live data)
 self.addEventListener('install', e => { self.skipWaiting(); });
 // the page can ask the waiting worker to take over immediately (the "new version" bar does this)
 self.addEventListener('message', e => { if (e.data === 'skipWaiting') self.skipWaiting(); });
@@ -6,12 +6,12 @@ self.addEventListener('activate', e => { e.waitUntil(self.clients.claim()); });
 
 self.addEventListener('push', e => {
   let d = {};
-  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'Clear Sky', body: e.data && e.data.text() }; }
-  const title = d.title || 'Clear Sky';
+  try { d = e.data ? e.data.json() : {}; } catch (_) { d = { title: 'Heimdall', body: e.data && e.data.text() }; }
+  const title = d.title || 'Heimdall';
   const opts = {
     body: d.body || '',
-    icon: '/static/logo-cs-192.png',
-    badge: '/static/logo-cs-badge.png',   // white on transparent: Android draws a badge from its alpha alone
+    icon: '/static/logo-hd-192.png',
+    badge: '/static/logo-hd-badge.png',   // white on transparent: Android draws a badge from its alpha alone
     tag: d.tag || 'alert',
     renotify: true,
     requireInteraction: d.tag === 'threat' || /🔴|🚀|MiG/.test(title),

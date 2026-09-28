@@ -2,7 +2,7 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Clear Sky - run",
+      "name": "Heimdall - run",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/app/server.py",
@@ -11,7 +11,7 @@
       "justMyCode": false
     },
     {
-      "name": "Clear Sky - demo (no API keys needed)",
+      "name": "Heimdall - demo (no API keys needed)",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/app/server.py",
@@ -21,7 +21,7 @@
       "justMyCode": false
     },
     {
-      "name": "Clear Sky - demo on port 8099",
+      "name": "Heimdall - demo on port 8099",
       "type": "debugpy",
       "request": "launch",
       "program": "${workspaceFolder}/app/server.py",

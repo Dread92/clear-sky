@@ -23,6 +23,8 @@ import json
 import math
 import os
 import re
+import selectors
+import socket
 import sqlite3
 import sys
 import threading
@@ -300,7 +302,8 @@ def parse_iso(s):
         return None
 
 
-BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/light-map.json", "static/glyphs.js", "static/i18n.js", "static/sw.js", "app/server.py", "app/geo.py")
+BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/light-map.json", "static/glyphs.js", "static/i18n.js", "static/live.js",
+               "static/sw.js", "app/server.py", "app/geo.py", "app/push.py")
 
 
 def build_id():
@@ -324,7 +327,8 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.28"
+APP_VERSION = "1.29"
+APP_NAME = "Heimdall"
 BUILD = None    # filled at startup
 
 
@@ -547,7 +551,7 @@ COMPASS8 = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
 # The written summary. Its one job is to put into words numbers this app already has — nothing else. A model that
 # "explains" an attack invents intentions, targets and forecasts; a model asked to describe a table does not.
 AI_SYSTEM = """You write the summary of one period of air-raid activity over Kyiv city and Kyiv oblast for the operator \
-of Clear Sky, a volunteer warning app. You are given the facts as JSON.
+of Heimdall, a volunteer warning app. You are given the facts as JSON.
 
 Rules — follow all of them:
 - Use ONLY the facts in the JSON. Every number and every place you write must be in it.
@@ -1063,6 +1067,89 @@ class Store:
                 "started_at": r[9], "finished_at": r[10], "notes": r[11], "threats": json.loads(r[12] or "[]")}
 
 
+def canonical_host(cfg):
+    """The app's own address once it has one (e.g. heimdall.com.ua). Pages opened anywhere else show a banner that
+    sends the reader there, settings included (1.29). Unset: nothing is shown."""
+    h = (os.environ.get("CANONICAL_HOST") or cfg.get("canonical_host") or "").strip().lower()
+    return h if re.fullmatch(r"[a-z0-9.-]{3,253}", h) else None
+
+
+def _canon(o):
+    return json.dumps(o, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+
+
+def _hash(text):
+    return hashlib.blake2b(text.encode("utf-8"), digest_size=8).hexdigest()
+
+
+def _alert_id(a):
+    return f"{a.get('location_uid')}|{a.get('alert_type')}"
+
+
+def _keyed(items, idf):
+    """A list of dicts as the stream hub diffs it: ids in order, each entry's canonical JSON, and a hash of both."""
+    ids, strs = [], {}
+    for it in items:
+        i = idf(it)
+        ids.append(i)
+        strs[i] = _canon(it)
+    return {"h": _hash("\n".join(f"{i}\t{strs[i]}" for i in ids)), "ids": ids, "strs": strs, "items": items,
+            "dup": len(strs) != len(ids)}
+
+
+def _list_delta(prev, cur):
+    """What a page showing `prev` needs to show `cur`, as small as it can be said:
+      - the same ids in the same order: only the entries that changed (`set`);
+      - new entries at the head and the oldest dropped at the tail — a new post, a new alert: `pre` (the new
+        ones), `n` (the new length) and the kept entries that changed;
+      - otherwise the ids in order (`ids`) and the entries that changed.
+    `all` when there is nothing to diff against (or an id is duplicated): the page replaces the whole list."""
+    if not prev or prev["dup"] or cur["dup"]:
+        return {"b": prev["h"] if prev else None, "h": cur["h"], "all": cur["items"]}
+    pi, ci = prev["ids"], cur["ids"]
+    d = {"b": prev["h"], "h": cur["h"]}
+    if ci == pi:
+        d["set"] = [it for it, i in zip(cur["items"], ci) if prev["strs"].get(i) != cur["strs"][i]]
+        return d
+    known = prev["strs"]
+    k = 0
+    while k < len(ci) and ci[k] not in known:
+        k += 1
+    if k and ci[k:] == pi[:len(ci) - k]:
+        d["pre"] = cur["items"][:k]
+        d["n"] = len(ci)
+        d["set"] = [it for it, i in zip(cur["items"][k:], ci[k:]) if known.get(i) != cur["strs"][i]]
+        return d
+    d["ids"] = ci
+    d["set"] = [it for it, i in zip(cur["items"], ci) if known.get(i) != cur["strs"][i]]
+    return d
+
+
+def _state_delta(prev, cur):
+    """The alerts state: `active` as a list (see _list_delta), the dicts keyed by oblast (`oblasts`, `sources`)
+    by the keys that changed (`sub`, `unset`), anything else whole (`set`)."""
+    if not prev or prev["dup"] or cur["dup"]:
+        return {"b": prev["h"] if prev else None, "h": cur["h"], "all": {k: v for k, v in cur["obj"].items() if k != "h"}}
+    d = {"b": prev["h"], "h": cur["h"]}
+    for k, v in cur["rest"].items():
+        if prev["rest"].get(k) == v:
+            continue
+        pd, cd = prev["restd"].get(k), cur["restd"].get(k)
+        if pd is not None and cd is not None:
+            ch = {sk: cur["obj"][k][sk] for sk, sv in cd.items() if pd.get(sk) != sv}
+            gone = [sk for sk in pd if sk not in cd]
+            if ch:
+                d.setdefault("sub", {})[k] = ch
+            if gone:
+                d.setdefault("unset", {})[k] = gone
+        else:
+            d.setdefault("set", {})[k] = cur["obj"][k]
+    if prev["ids"] != cur["ids"] or any(prev["strs"].get(i) != cur["strs"][i] for i in cur["ids"]):
+        d["act"] = _list_delta(prev, cur)
+        d["act"].pop("b", None); d["act"].pop("h", None)
+    return d
+
+
 class State:
     """In-memory current picture + SSE fan-out."""
 
@@ -1076,6 +1163,27 @@ class State:
         self.cond = threading.Condition()
         self.seq = 0
         self.notifier = Notifier(cfg)
+        try:
+            self.notice = json.loads(store.kv_get("notice") or "null")
+        except Exception:
+            self.notice = None
+
+    # -- the admin's message to every reader (1.29) --------------------------------------------------------------
+    # One message at a time, in up to three languages, shown as a banner on both pages until it expires or is
+    # cleared. It is part of the alerts state (`notice`), so the live stream and /api/state both carry it.
+    def notice_now(self):
+        n = self.notice
+        if n and n.get("until"):
+            u = parse_iso(n["until"])
+            if u and u <= datetime.now(timezone.utc):
+                self.set_notice(None)
+                return None
+        return n
+
+    def set_notice(self, n):
+        self.notice = n
+        self.store.kv_set("notice", json.dumps(n, ensure_ascii=False) if n else "")
+        self.publish({"kind": "notice", "ts": now_iso(), "notice": n})
 
     # -- fan-out --------------------------------------------------------
     def publish(self, event):
@@ -1085,6 +1193,11 @@ class State:
             for q in self.subscribers:
                 q.append(event)
             self.cond.notify_all()
+        cb = self.on_publish
+        if cb:
+            cb()
+
+    on_publish = None       # the stream hub's wake-up (StreamHub.wake)
 
     def subscribe(self):
         q = []
@@ -1324,9 +1437,43 @@ class State:
 
     def markers_now(self):
         """The marks as the pages see them — the cached computation, never a private recomputation."""
-        return self.cached("markers", 10, lambda: {"now": now_iso(), "ttl_minutes": int(self.cfg.get("marker_ttl_minutes", 45)),
-                                                     "stale_minutes": int(self.cfg.get("track_stale_minutes", 5)),
-                                                     "markers": self.markers()}, ver=self.seq)[3]["markers"]
+        return self.cached("markers", 10, self._markers_obj, ver=self.seq)[3]["markers"]
+
+    # 1.29: every cached answer the live stream sends in pieces carries `h`, a hash of its content, and the
+    # build keeps each entry's serialisation (`_entries`) so the stream hub can say what changed since the
+    # last message without serialising anything twice. A page knows which version it shows by its `h`.
+    _entries = {}
+
+    def _markers_obj(self):
+        ms = self.markers()
+        e = _keyed(ms, lambda m: str(m.get("id")))
+        self._entries["markers"] = e
+        return {"now": now_iso(), "ttl_minutes": int(self.cfg.get("marker_ttl_minutes", 45)),
+                "stale_minutes": int(self.cfg.get("track_stale_minutes", 5)), "markers": ms, "h": e["h"]}
+
+    def _state_obj(self):
+        snap = self.snapshot()
+        e = _keyed(snap["active"], _alert_id)
+        e["rest"] = {k: _canon(v) for k, v in snap.items() if k not in ("now", "active")}
+        e["restd"] = {k: {sk: _canon(sv) for sk, sv in v.items()} for k, v in snap.items()
+                      if k not in ("now", "active") and isinstance(v, dict)}
+        e["h"] = _hash(e["h"] + "".join(f"\n{k}\t{e['rest'][k]}" for k in sorted(e["rest"])))
+        e["obj"] = snap
+        self._entries["state"] = e
+        snap["h"] = e["h"]
+        return snap
+
+    def state_now(self):
+        return self.cached("state", 5, self._state_obj, ver=self.seq)
+
+    def _feed_obj(self, limit):
+        f = self.store.feed(limit)
+        e = _keyed(f, lambda p: p["post_id"])
+        self._entries[f"feed:{limit}"] = e
+        return {"feed": f, "h": e["h"]}
+
+    def feed_now(self, limit):
+        return self.cached(f"feed:{limit}", 15, lambda: self._feed_obj(limit), ver=self.seq)
 
     # -- the dashboard: is every source alive, is every channel still posting, how early was the map ---------
     _health_res = None
@@ -1865,7 +2012,8 @@ class State:
                 if t not in o["threats"]:
                     o["threats"].append(t)
         return {"now": now_iso(), "active": active, "oblasts": by_oblast, "sources": sources, "eradar": self.eradar,
-                "favourites": self.cfg.get("favourites") or [], "config": {"demo": bool(self.cfg.get("demo")),
+                "notice": self.notice_now(),
+                "favourites": self.cfg.get("favourites") or [], "config": {"demo": bool(self.cfg.get("demo")), "canonical": canonical_host(self.cfg),
                 "has_token": bool(self.cfg.get("alerts_in_ua_token")), "channels": self.cfg.get("telegram_channels")}}
 
 
@@ -2730,7 +2878,8 @@ RAION_STEMS = [("бровар", "brovary"), ("бориспіл", "boryspil"), ("
 
 class Pusher:
     """Sends Web Push notifications for Kyiv events: city / oblast-wide starts, ends and threats, raion events
-    of the subscriber's priority raion, and MiG-31K / ballistic warnings. One background worker, deduped."""
+    of the subscriber's priority raion, and MiG-31K / ballistic warnings. One background worker takes the
+    notifications in order, deduped; each goes to all its phones at once (push.Sender)."""
     def __init__(self, store):
         self.store = store
         self.enabled = bool(_push and _push.AVAILABLE)
@@ -2743,6 +2892,8 @@ class Pusher:
         self.q = []
         self.cond = threading.Condition()
         self.recent = {}
+        self.last_fanout = None
+        self.sender = _push.Sender(self.priv, self.pub) if self.enabled else None
         if self.enabled:
             threading.Thread(target=self._run, daemon=True, name="push").start()
 
@@ -2785,6 +2936,12 @@ class Pusher:
             self.q.append({"title": title, "body": body, "tag": tag, "raion": raion, "ts": now_iso()})
             self.cond.notify()
 
+    def queue_all(self, title, body, tag):
+        """Every subscribed phone, no deduplication: the admin's message, sent on purpose."""
+        with self.cond:
+            self.q.append({"title": title, "body": body, "tag": tag, "raion": None, "ts": now_iso()})
+            self.cond.notify()
+
     def queue_direct(self, title, body, tag, endpoint):
         """One device only — used by the proximity watcher, which does its own deduplication."""
         with self.cond:
@@ -2793,7 +2950,7 @@ class Pusher:
 
     def send_test(self, endpoint=None):
         with self.cond:
-            self.q.append({"title": "Clear Sky", "body": "Push notifications are on for this phone.", "tag": "test", "raion": None, "only": endpoint, "ts": now_iso()})
+            self.q.append({"title": APP_NAME, "body": "Push notifications are on for this phone.", "tag": "test", "raion": None, "only": endpoint, "ts": now_iso()})
             self.cond.notify()
 
     def _run(self):
@@ -2802,18 +2959,25 @@ class Pusher:
                 while not self.q:
                     self.cond.wait()
                 n = self.q.pop(0)
-            subs = self.store.push_all()
-            for s_ in subs:
-                if n.get("only") and s_["endpoint"] != n["only"]:
-                    continue
-                if n.get("raion") and (s_["home"] or {}).get("raion") != n["raion"]:
-                    continue
-                try:
-                    code, gone = _push.send(s_["sub"], {"title": n["title"], "body": n["body"], "tag": n["tag"], "ts": n["ts"], "url": "/m"}, self.priv, self.pub)
-                except Exception as e:
-                    log("push error:", e); continue
+            subs = [s_ for s_ in self.store.push_all()
+                    if not (n.get("only") and s_["endpoint"] != n["only"])
+                    and not (n.get("raion") and (s_["home"] or {}).get("raion") != n["raion"])]
+            if not subs:
+                continue
+            t0 = time.time()
+            try:
+                res = self.sender.send_many([s_["sub"] for s_ in subs], {"title": n["title"], "body": n["body"], "tag": n["tag"],
+                                                                        "ts": n["ts"], "url": "/m"})
+            except Exception as e:
+                log("push error:", e); continue
+            ok = 0
+            for s_, (_, code, gone) in zip(subs, res):
+                ok += 200 <= code < 300
                 if gone:
                     self.store.push_remove(s_["endpoint"])
+            self.last_fanout = {"ts": now_iso(), "phones": len(subs), "ok": ok, "seconds": round(time.time() - t0, 2)}
+            if len(subs) >= 20:
+                log(f"push: {ok}/{len(subs)} phones in {time.time() - t0:.1f} s")
 
 
 def haversine_km(lat1, lon1, lat2, lon2):
@@ -2929,6 +3093,270 @@ def fmt_kyiv(ts):
     if not d:
         return "?"
     return d.astimezone(timezone(timedelta(hours=3))).strftime("%H:%M")
+
+
+# ---------------------------------------------------------------------------
+# Live streams
+# ---------------------------------------------------------------------------
+class StreamHub(threading.Thread):
+    """Every open page's live connection, in one thread (1.29).
+
+    It used to be one thread per open page, each blocked in a wait. On the 256 MB machine Linux allows about
+    2,000 threads in all, so about 1,700 open pages was a hard stop: the next visitor's connection could not
+    start. Now a page's connection is handed over here once its headers are sent, and this one thread writes to
+    every page with non-blocking sockets (epoll). Each message is serialised once, not once per page.
+
+    It also sends the data itself ("sync"): what changed in the marks, the alerts and the feed since the last
+    message. A new post used to make every open page download the marks, the feed and the alerts again, five
+    requests per page per post; now it is one short message. Every page states which version of each part it
+    holds (its hash `h`); a message says which version it starts from (`b`), so a page that missed one simply
+    fetches that part in full. A sync also goes out every 15 s (5 s with cruise missiles up, 2 s with a
+    ballistic one) as the heartbeat that tells the page its line is alive — without it the page falls back to
+    asking on its own, as before.
+
+    A page that stops reading is dropped once `MAX_BACKLOG` bytes are waiting for it; its EventSource reconnects
+    by itself. Nothing about a reader is kept: a connection is a socket, a language and which page it is."""
+
+    MAX_BACKLOG = 512 * 1024
+    FEED_N = 150
+
+    def __init__(self, state):
+        super().__init__(daemon=True, name="streams")
+        self.state = state
+        self.sel = selectors.DefaultSelector()
+        self.clients = {}
+        self.pending = []
+        self.plock = threading.Lock()
+        self._wr, self._ww = socket.socketpair()
+        self._wr.setblocking(False)
+        self._ww.setblocking(False)
+        self.sel.register(self._wr, selectors.EVENT_READ, None)
+        self.q = state.subscribe()
+        self.pub = {}                 # part -> the entries last sent
+        self.sync_due = 0.0
+        self.last_sync = 0.0
+        self.last_want = 0.0
+        self.sent = 0
+        self.peak = {"day": None, "n": 0, "at": None}
+        state.on_publish = self.wake
+
+    # -- called from other threads ------------------------------------------------------------------------------
+    def wake(self):
+        try:
+            self._ww.send(b"\0")
+        except OSError:
+            pass                      # the pipe is full: the hub is already awake
+
+    def add(self, sock, lang, parts, events, kind):
+        with self.plock:
+            self.pending.append((sock, lang, parts, events, kind))
+        self.wake()
+
+    def online(self):
+        cs = list(self.clients.values())
+        tac = sum(1 for c in cs if c["kind"] == "tac")
+        return {"total": len(cs), "tactical": tac, "light": len(cs) - tac, "peak_today": dict(self.peak)}
+
+    @staticmethod
+    def interval(lvl):
+        return 2 if lvl >= 2 else 5 if lvl else 15
+
+    # -- the loop ---------------------------------------------------------------------------------------------------
+    def run(self):
+        while True:
+            try:
+                self._once()
+            except Exception as e:                 # one bad moment must not end every page's live line
+                log("streams:", e)
+                time.sleep(0.5)
+
+    def _once(self):
+        now = time.time()
+        nxt = self.last_sync + self.interval(self.state.missile_active())
+        if self.sync_due:
+            nxt = min(nxt, self.sync_due)
+        for key, mask in self.sel.select(max(0.0, min(nxt - now, 5.0))):
+            c = key.data
+            if c is None:
+                try:
+                    while self._wr.recv(4096):
+                        pass
+                except OSError:
+                    pass
+                continue
+            if mask & selectors.EVENT_READ:
+                try:
+                    if not c["sock"].recv(4096):
+                        self._drop(c)             # the page went away
+                        continue
+                except (BlockingIOError, InterruptedError):
+                    pass
+                except OSError:
+                    self._drop(c)
+                    continue
+            if mask & selectors.EVENT_WRITE:
+                self._flush(c)
+        new = self._adopt()
+        with self.state.cond:
+            items, self.q[:] = list(self.q), []
+        if items:
+            chunk = b"".join(_sse(ev["kind"], ev) for ev in items)
+            for c in self.clients.values():
+                if c["events"] and c not in new:
+                    c["out"] += chunk
+            if not self.sync_due:
+                self.sync_due = time.time() + 0.15      # a burst of alerts becomes one sync
+        now = time.time()
+        if new or (self.sync_due and now >= self.sync_due) or now - self.last_sync >= self.interval(self.state.missile_active()):
+            self._sync(new)
+        if now - self.last_want > 20:
+            self.last_want = now
+            tr = getattr(self.state, "tr", None)
+            if tr:
+                for lang in {c["lang"] for c in self.clients.values()} & {"en", "fr"}:
+                    tr.want(lang)
+        for c in list(self.clients.values()):
+            if c["out"]:
+                self._flush(c)
+
+    def _adopt(self):
+        with self.plock:
+            got, self.pending = self.pending, []
+        new = []
+        for sock, lang, parts, events, kind in got:
+            c = {"sock": sock, "lang": lang, "parts": parts, "events": events, "kind": kind, "out": bytearray(),
+                 "mask": selectors.EVENT_READ}
+            try:
+                sock.setblocking(False)
+                self.sel.register(sock, selectors.EVENT_READ, c)
+            except (OSError, ValueError):
+                try:
+                    sock.close()
+                except OSError:
+                    pass
+                continue
+            self.clients[id(c)] = c
+            new.append(c)
+        if new:
+            day = kyiv_tz_day()
+            if self.peak["day"] != day:
+                self.peak = {"day": day, "n": 0, "at": None}
+            if len(self.clients) > self.peak["n"]:
+                self.peak.update(n=len(self.clients), at=now_iso())
+        return new
+
+    def _drop(self, c):
+        self.clients.pop(id(c), None)
+        try:
+            self.sel.unregister(c["sock"])
+        except (KeyError, ValueError, OSError):
+            pass
+        try:
+            c["sock"].close()
+        except OSError:
+            pass
+
+    def _flush(self, c):
+        try:
+            n = c["sock"].send(c["out"])
+            del c["out"][:n]
+        except (BlockingIOError, InterruptedError):
+            pass
+        except OSError:
+            self._drop(c)
+            return
+        if len(c["out"]) > self.MAX_BACKLOG:
+            self._drop(c)                 # it stopped reading; its EventSource will reconnect and catch up
+            return
+        mask = selectors.EVENT_READ | (selectors.EVENT_WRITE if c["out"] else 0)
+        if mask != c["mask"]:
+            try:
+                self.sel.modify(c["sock"], mask, c)
+                c["mask"] = mask
+            except (KeyError, ValueError, OSError):
+                self._drop(c)
+
+    def _current(self, part):
+        st = self.state
+        if part == "mk":
+            st.markers_now()
+            return st._entries.get("markers")
+        if part == "st":
+            st.state_now()
+            return st._entries.get("state")
+        st.feed_now(self.FEED_N)
+        return st._entries.get(f"feed:{self.FEED_N}")
+
+    def _sync(self, new=()):
+        st = self.state
+        now = time.time()
+        # a sync to everyone is due after events and on the heartbeat; a page that just connected only needs its hello
+        beat = bool(self.sync_due and now >= self.sync_due) or now - self.last_sync >= self.interval(st.missile_active())
+        if beat:
+            self.sync_due = 0.0
+            self.last_sync = now
+        everyone = list(self.clients.values())
+        wanted = set().union(*[c["parts"] for c in everyone]) if everyone else set()
+        changed = {}
+        for part in ("mk", "st", "fd"):
+            if part not in wanted:
+                continue
+            try:
+                cur = self._current(part)
+            except Exception as e:
+                log("streams: building", part, e)
+                continue
+            if not cur:
+                continue
+            prev = self.pub.get(part)
+            if prev and prev["h"] == cur["h"]:
+                continue
+            changed[part] = (_state_delta if part == "st" else _list_delta)(prev, cur)
+            self.pub[part] = cur
+        lvl = st.missile_active()
+        base = {"v": f"{st.seq}-{st.store.feed_count()}", "msl": lvl, "hb": self.interval(lvl), "now": now_iso()}
+        # one serialisation per combination of parts, not per page
+        frames = {}
+        for c in everyone:
+            if c in new or not (beat or changed):
+                continue
+            key = tuple(p for p in ("mk", "st", "fd") if p in c["parts"] and p in changed)
+            if key not in frames:
+                d = dict(base)
+                for p in key:
+                    d[p] = changed[p]
+                frames[key] = _sse("sync", d)
+            c["out"] += frames[key]
+        for c in new:
+            hello = dict(base, h={p: self.pub[p]["h"] for p in c["parts"] if p in self.pub})
+            c["out"] += _sse("hello", hello)
+        self.sent += 1
+
+
+def _sse(kind, obj):
+    return f"event: {kind}\ndata: {json.dumps(obj, ensure_ascii=False)}\n\n".encode("utf-8")
+
+
+def kyiv_tz_day():
+    return datetime.now(kyiv_tz()).strftime("%Y-%m-%d")
+
+
+class Server(ThreadingHTTPServer):
+    """ThreadingHTTPServer that does not close a connection handed to the stream hub."""
+    daemon_threads = True
+    request_queue_size = 128      # Python's default of 5 left a burst of pages waiting on SYN retries
+
+    def __init__(self, *a, **k):
+        self.detached = set()
+        self.detached_lock = threading.Lock()
+        super().__init__(*a, **k)
+
+    def shutdown_request(self, request):
+        with self.detached_lock:
+            if request in self.detached:
+                self.detached.discard(request)
+                return
+        super().shutdown_request(request)
 
 
 # ---------------------------------------------------------------------------
@@ -3106,10 +3534,10 @@ class Handler(BaseHTTPRequestHandler):
             st.store.lock.release()
             return self._json({"ok": True})
         if u.path.startswith("/static/logo") or u.path == "/favicon.ico":
-            return self._file(u.path.split("/")[-1] if u.path != "/favicon.ico" else "logo-cs-64.png", "image/png")
+            return self._file(u.path.split("/")[-1] if u.path != "/favicon.ico" else "logo-hd-64.png", "image/png")
         auth = self._authorized(u, q)
         if not auth:
-            body = b"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><body style='font-family:system-ui;background:#0b0e13;color:#e6e9ef;padding:40px;text-align:center'><img src='/static/logo-192.png' style='width:96px;border-radius:18px'><h2>Clear Sky</h2><form><input name=key placeholder='access key' style='padding:10px;font-size:16px;border-radius:8px;border:1px solid #333'> <button style='padding:10px 14px;border-radius:8px'>Enter</button></form></body>"
+            body = b"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><body style='font-family:system-ui;background:#0b0e13;color:#e6e9ef;padding:40px;text-align:center'><img src='/static/logo-hd-192.png' style='width:96px;border-radius:18px'><h2>Heimdall</h2><form><input name=key placeholder='access key' style='padding:10px;font-size:16px;border-radius:8px;border:1px solid #333'> <button style='padding:10px 14px;border-radius:8px'>Enter</button></form></body>"
             self.send_response(401); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         if auth == "set":
             self.send_response(302); self.send_header("Location", u.path or "/"); self.send_header("Set-Cookie", f"uak={q['key'][0]}; Path=/; Max-Age=31536000; SameSite=Lax"); self.end_headers(); return
@@ -3159,6 +3587,15 @@ class Handler(BaseHTTPRequestHandler):
                     return self._file("admin.html", "text/html; charset=utf-8")
                 usage = getattr(st, "usage", None)
                 return self._json(usage.report(int(q.get("days", ["30"])[0])) if usage else {"days": []})
+            if u.path == "/api/online":
+                # the dashboard's live counter: how many pages have a live line open right now. A number, by page
+                # type — nothing about who, and nothing kept but today's peak.
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                hub = getattr(st, "hub", None)
+                pu = getattr(st, "pusher", None)
+                return self._json({"online": hub.online() if hub else None, "notice": st.notice_now(),
+                                   "push_last": getattr(pu, "last_fanout", None), "now": now_iso()})
             if u.path == "/api/version":
                 usage = getattr(st, "usage", None)
                 if usage:
@@ -3176,20 +3613,22 @@ class Handler(BaseHTTPRequestHandler):
                 hours = max(1, min(int(q.get("hours", ["24"])[0]), 168))
                 return self._send_cached(st.cached(f"impacts:{hours}", 30, lambda: {"now": now_iso(), "hours": hours, "impacts": st.impacts(hours)}))
             if u.path == "/api/state":
-                return self._send_cached(st.cached("state", 5, st.snapshot, ver=st.seq))
+                return self._send_cached(st.state_now())
             if u.path == "/api/feed":
                 limit = max(1, min(int(q.get("limit", ["80"])[0]), 200))
                 lang = q.get("lang", [""])[0]
-                hit = st.cached(f"feed:{limit}", 15, lambda: {"feed": st.store.feed(limit)}, ver=st.seq)
+                hit = st.feed_now(limit)
                 tr = getattr(st, "tr", None)
                 if tr and lang in ("en", "fr"):
                     tr.want(lang)
                     tr.add([p for p in hit[3]["feed"] if not (p["en_mt"] if lang == "en" else p["text_fr"])], lang)
                 return self._send_cached(hit)
             if u.path == "/api/history":
-                hours = int(q.get("hours", ["24"])[0])
-                obl = q.get("oblast", [None])[0]
-                return self._json({"alerts": st.store.history(hours, obl.split(",") if obl else None)})
+                # every open page asks for it after an alert starts or ends: one query for all of them (1.29)
+                hours = max(1, min(int(q.get("hours", ["24"])[0]), 168))
+                obl = ",".join(sorted({x for x in (q.get("oblast", [""])[0] or "").split(",") if x.isdigit()}))
+                return self._send_cached(st.cached(f"hist:{hours}:{obl}", 20, lambda: {"alerts": st.store.history(hours, obl.split(",") if obl else None)},
+                                                   ver=st.seq))
             if u.path == "/api/events_log":
                 return self._json({"events": st.store.events(int(q.get("limit", ["200"])[0]))})
             # Flagged readings are yours alone, on the same terms as the dashboard: they quote posts and
@@ -3227,7 +3666,7 @@ class Handler(BaseHTTPRequestHandler):
             if u.path.startswith("/static/"):
                 return self._file(u.path[len("/static/"):], None)
             if u.path == "/favicon.ico":
-                return self._file("logo-cs-64.png", "image/png")
+                return self._file("logo-hd-64.png", "image/png")
             self._json({"error": "not found"}, 404)
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -3257,6 +3696,32 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "summaries are not running"}, 503)
                 dg.ask(kind)
                 return self._json({"ok": True, "asked": kind})
+            if u.path == "/api/admin/notice":
+                # the admin's message to every reader: a banner on both pages, optionally a push to every phone
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                if data.get("clear"):
+                    st.set_notice(None)
+                    return self._json({"ok": True, "notice": None})
+                text = {k: str((data.get("text") or {}).get(k) or "").strip()[:500] for k in ("uk", "en", "fr")}
+                text = {k: v for k, v in text.items() if v}
+                if not text:
+                    return self._json({"error": "empty message"}, 400)
+                level = data.get("level") if data.get("level") in ("info", "warn", "alert") else "info"
+                try:
+                    hours = max(0.0, min(float(data.get("hours") or 0), 168.0))
+                except (TypeError, ValueError):
+                    hours = 0.0
+                n = {"id": f"n{int(time.time() * 1000)}", "text": text, "level": level, "ts": now_iso(),
+                     "until": (datetime.now(timezone.utc) + timedelta(hours=hours)).isoformat() if hours else None}
+                st.set_notice(n)
+                pushed = 0
+                pu = getattr(st, "pusher", None)
+                if data.get("push") and pu and pu.enabled:
+                    body = text.get("uk") or text.get("en") or text.get("fr")
+                    pu.queue_all(APP_NAME, body[:240], "notice")
+                    pushed = len(st.store.push_all())
+                return self._json({"ok": True, "notice": n, "pushed": pushed})
             if u.path == "/api/corpus/review":
                 if not self._admin_ok(q):
                     return self._json({"error": "unauthorized"}, 401)
@@ -3348,10 +3813,24 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-store")
         self.send_header("Connection", "keep-alive")
+        self.send_header("X-Accel-Buffering", "no")
         self.end_headers()
-        q = self.state.subscribe()
+        qs = parse_qs(urlparse(self.path).query)
         # a page reading English or French keeps its language "wanted" for as long as it is open
-        lang = (parse_qs(urlparse(self.path).query).get("lang") or [""])[0]
+        lang = (qs.get("lang") or [""])[0]
+        hub = getattr(self.state, "hub", None)
+        detached = getattr(self.server, "detached", None)
+        if hub is not None and hub.is_alive() and detached is not None:
+            parts = set((qs.get("sync") or [""])[0].split(",")) & {"mk", "st", "fd"}
+            events = (qs.get("ev") or ["1"])[0] != "0"
+            kind = "light" if (qs.get("p") or [""])[0] == "light" else "tac"
+            self.close_connection = True
+            with self.server.detached_lock:
+                detached.add(self.request)
+            hub.add(self.request, lang, parts, events, kind)
+            return
+        # no hub (a test server): the old way, one thread for this page
+        q = self.state.subscribe()
         tr = getattr(self.state, "tr", None)
         try:
             self.wfile.write(b"event: hello\ndata: {}\n\n")
@@ -3496,10 +3975,19 @@ def main():
     state.digests = Digests(state, cfg)
     state.digests.start()
 
-    # the listen backlog: Python's default of 5 left a burst of pages (a new post, a restart) waiting on SYN retries
-    ThreadingHTTPServer.request_queue_size = 128
-    srv = ThreadingHTTPServer((bind, int(cfg["port"])), Handler)
-    srv.daemon_threads = True
+    # Every open page is a socket. Linux's default of 1,024 open files per process would stop the server long
+    # before the stream hub does: raise it to what the system allows.
+    try:
+        import resource
+        soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
+        want = 65536 if hard == resource.RLIM_INFINITY else min(hard, 65536)
+        if soft < want:
+            resource.setrlimit(resource.RLIMIT_NOFILE, (want, hard))
+    except Exception:
+        pass
+    state.hub = StreamHub(state)
+    state.hub.start()
+    srv = Server((bind, int(cfg["port"])), Handler)
     log(f"dashboard → http://localhost:{cfg['port']}   mobile → http://localhost:{cfg['port']}/m")
     if bind == "0.0.0.0":
         ip = lan_ip()

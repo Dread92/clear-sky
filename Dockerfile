@@ -1,4 +1,4 @@
-# Clear Sky — single-process Python service, no build step, no framework.
+# Heimdall — single-process Python service, no build step, no framework.
 FROM python:3.12-slim
 
 WORKDIR /srv

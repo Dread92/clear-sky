@@ -1,6 +1,9 @@
-# Clear Sky — technical documentation
+# Heimdall — technical documentation
 
-**Documented version: 1.28** · last updated 2026-09-27
+**Documented version: 1.29** · last updated 2026-09-28
+
+Heimdall was called **Clear Sky** until 1.29; the repository, the Fly app (`kyiv-air-watch-gb`) and some
+internal names still carry the old name.
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -53,8 +56,10 @@ and serves two web pages from the same data:
 | **Tactical** | `/m` (also `/`, `/k`, `/kyiv`) | The full map: every mark with its evidence, the feed, alerts, statistics, display modes, layers. |
 | **Light** | `/light` (also `/l`) | One place (Home / Work / Kids / Pin): its raion's official status, what is within 30 km, what is heading there. |
 
-Both install as separate PWAs. Production runs on Fly.io as `kyiv-air-watch-gb` (one shared-cpu-1x machine,
-256 MB, a 1 GB volume for the database).
+Both install as separate PWAs (manifest ids `/m` and `/light` — unchanged by the 1.29 rename, so Android offers
+the new name and icon as an update of the installed app; an iPhone keeps an installed app's name and icon until
+it is added again). Production runs on Fly.io as `kyiv-air-watch-gb` (one shared-cpu-1x machine, 256 MB, a 1 GB
+volume for the database).
 
 ## 2. Principles the code enforces
 
@@ -159,7 +164,8 @@ clear-sky/
 | `Watchdog` | the database and alert-state locks must be free within 15 s; a held lock logs every thread's stack, five in a row (~2 min) → exit, Fly restarts it; a starved process is only logged (load, not a deadlock) | 20 s |
 | `Digests` | each night (18:00–08:00 Kyiv) after `digest_hour`, and each Monday for the week: the figures (`State.digest_facts`), and with `ANTHROPIC_API_KEY` a written summary in EN + UK; stored in `digests` | 5 min check |
 | `Translations` | machine-translates feed posts into a language somebody reads | on demand, ~3 calls/s max |
-| `Pusher` | sends Web Push | queue |
+| `Pusher` | sends Web Push: one notification at a time, each to all its phones at once through `push.Sender` (32 workers, one kept-open HTTPS connection per push service per worker, VAPID signed once an hour per service) | queue |
+| `streams` | **every open page's live line** (`StreamHub`, §5.4): one thread, non-blocking sockets (epoll), the data sent as changes | events + every 15 / 5 / 2 s |
 | `proximity` | per-subscriber distance checks → push | continuous |
 | `AlertsInUa.backfill` | a month of history for the favourite regions | once at start |
 
@@ -170,8 +176,50 @@ proximity pushes use the same marks (`markers_now()`). Nothing in a request path
 English text is the offline glossary (machine translation is the `Translations` worker's alone). The listen
 backlog is 128. Measured on a 200-post window: ~1,000 requests/s, p95 ≈ 50 ms, where 1.23 managed 3/s.
 
-`poll_gap()` shortens the official-source and Telegram intervals while a missile threat is open; the pages
-follow `/api/version`'s `msl` level (0 → 15 s, 1 → 5 s, 2 → 1 s pings).
+`poll_gap()` shortens the official-source and Telegram intervals while a missile threat is open. The live line
+beats faster with it (`msl` 0 → every 15 s, 1 → 5 s, 2 → 2 s); a page whose line is down falls back to asking
+`/api/version` at 15 / 5 / 1 s, as before 1.29.
+
+At start the process raises its open-file limit to what the system allows (up to 65,536): every open page is a
+socket, and Linux's default of 1,024 would stop the server long before the hub does.
+
+### 5.4 The live line (1.29)
+
+Before 1.29 each open page held one server thread in `/api/stream`, and every new post made every page
+download the marks, the feed and the alerts again — five requests per page per post. On the 256 MB machine
+Linux allows ~2,000 threads, so ~1,700 open pages was a hard stop, and the CPU cost grew with pages × posts.
+
+Now `Handler._stream` sends the headers and hands the socket to **`StreamHub`** (the connection is not closed:
+`Server.shutdown_request` skips it). The hub writes to every page from one thread, each message serialised
+once. What it sends:
+
+- the old events, unchanged, for a page that asked for them (`ev=1`, the default): `start`, `end`, `threat`,
+  `update`, `feed`, `eradar`, `tr`, `notice` — the Tactical page raises its toasts and sounds from them;
+- **`hello`** on connecting: `{v, msl, hb, now, h: {part: hash}}` — which version of each part is current;
+- **`sync`** after a burst of events (150 ms to gather it) and at least every `hb` seconds (15 / 5 / 2 by
+  missile level — the heartbeat): `{v, msl, hb, now}` plus, for each part that changed and that the page asked
+  for (`sync=mk,st,fd`), what changed:
+  - `mk` (the marks, by `id`) and `fd` (the feed's 150 posts, by `post_id`): `set` = changed entries, same
+    order; `pre` + `n` = new entries at the head (a new post, a new mark); `ids` = a new order; `all` = the
+    whole list when there is nothing to diff against;
+  - `st` (the alerts state): `act` = the active alerts as a list (by `location_uid|alert_type`), `sub` /
+    `unset` = keys of `oblasts` and `sources` that changed, `set` = other values whole.
+  Every part carries `b` (the version it starts from) and `h` (the version it leads to). The full answers
+  (`/api/markers`, `/api/state`, `/api/feed`) carry the same `h`. A page applies a change only when it holds
+  exactly `b` (`static/live.js`, `LiveSync.part`), otherwise it fetches that part in full — nothing is
+  guessed. `tests/test_live.py` checks that the deltas rebuild exactly what the server serves.
+
+The pages: while the line beats (a message within 3 × `hb`), they ask nothing; the Tactical page checks
+`/api/version` once a minute (build, safety) and does a full reload every 10 minutes. A silent line is
+reopened, and the page asks at its old cadence until it beats again. The Light page takes `sync=mk,st` without
+events (`p=light&ev=0`); the Tactical page in blackout mode takes `mk,st` and still fetches its 25-post feed.
+
+A page that stops reading is dropped once 512 KB are waiting for it (its EventSource reconnects). Nothing
+about a reader is kept: a connection is a socket, a language and which page it is; `/api/online` counts them.
+
+Measured on the demo feed (one core, 2026-09-28): 9,000 open pages — **8 threads, 62 MB**, ~80 ms of CPU per
+second, a change reaching the last page ~0.1 s after the first; ~25 KB per page per minute under the demo's
+heavy churn. The same pages on 1.28 needed 9,000 threads and ~45,000 requests per post.
 
 ### 5.2 Configuration keys
 
@@ -226,6 +274,7 @@ Environment variables win over `config.json`. On Fly they are set as **secrets**
 | `TRANSLATOR` | `google` (default) allows the free Google endpoint as last resort; anything else disables it. |
 | `TG_API_ID` | Telegram API app id (my.telegram.org). |
 | `TG_API_HASH` | Telegram API app hash. |
+| `CANONICAL_HOST` | The app's own address (e.g. `heimdall.com.ua`). Pages opened elsewhere show the move banner (§9). Set by `scripts/set-domain.bat`. |
 | `TG_SESSION` | The signed-in Telegram session (a key to that account). Set only by `scripts/telegram-login.bat`, via `fly secrets import`. |
 
 Secrets live only in `config.json` (git-ignored) or in Fly secrets. They are never committed, never printed
@@ -426,6 +475,11 @@ can be checked. Without a key the figures are still stored and shown. The model 
 
 - **Web Push** (`push.py`; the VAPID key pair is generated on first run and kept in the `kv` table). A subscription
   stores the browser's coarse location snapped to a **~10 km cell** (`HOME_CELL_KM`), never a name.
+- **How it is sent** (1.29): all the phones at once — `push.Sender`, 32 sends in flight, each worker keeping one
+  open HTTPS connection per push service, the VAPID signature made once an hour per service. It used to be one
+  phone at a time on a new connection (~0.15 s per Android phone, up to ~0.5 s per iPhone): with a thousand
+  subscribers the last one heard of a ballistic missile minutes late. `tests/test_push_fanout.py`: 400 phones
+  against a 50 ms push service in well under 3 s, over at most 32 connections.
 - **What is pushed**: MiG-31K airborne (country-wide), ballistic threat (Kyiv city/oblast), and from
   `proximity_watch`: a live, non-stale target within the subscriber's radius (+ half a cell), throttled to one
   push per 2 min per device — except immediate types, which alert the whole region with no throttle. Siren-start
@@ -437,6 +491,15 @@ can be checked. Without a key the figures are still stored and shown. The model 
   the slider or **▶** (test) plays the loudest alert at the chosen level. The zones keep their relative levels under
   it. Push notifications (app closed) use the phone's own notification sound and volume. And a **shoot-down notice** for a track the reader was warned about — worded so it can never read
   as an all-clear.
+- **The team's message** (1.29): the dashboard publishes one message (UK / EN / FR, info / warning / urgent, for
+  1 h – 3 days or until removed), stored in `kv.notice` and carried in the alerts state (`notice`), so the live
+  line and `/api/state` bring it to both pages as a banner. A reader can close it (remembered on that phone,
+  `notice_x`). Optionally sent as a push to every subscribed phone (the Ukrainian text).
+- **A new address** (1.29): with `CANONICAL_HOST` set, pages opened on any other address show "Heimdall has moved
+  to …" with a button to the new one; the phone's **settings** (language, display, sound, oblast, layers — the
+  `CARRY` list) travel in the link's `#fragment` (never sent to a server) and are stored there only where the new
+  address has nothing of its own (`<script id="carry">`). The watched places do **not** travel: they never leave
+  the phone, not even in a link that browser history might keep; the reader sets them again. `scripts/set-domain.bat` attaches the domain (Fly certificates, DNS records) and sets it.
 
 ## 10. The two pages: Tactical and Light
 
@@ -550,8 +613,8 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `GET /api/state` | active alerts, per-oblast status, sources' health, єРадар counts, config summary |
 | `GET /api/markers` | live marks with evidence, history, staleness |
 | `GET /api/feed?limit=&lang=` | recent posts (`text`, `text_en`, `text_fr`, `en_mt`, tags); `lang` asks for translation |
-| `GET /api/stream?lang=` | SSE: `start`, `end`, `threat`, `update`, `feed`, `eradar`, `tr` |
-| `GET /api/history?hours=&oblast=` | past alerts |
+| `GET /api/stream?sync=&ev=&p=&lang=` | the live line (§5.4): `hello`, `sync` (changes of `mk`, `st`, `fd` as asked in `sync`) and, unless `ev=0`, the events `start`, `end`, `threat`, `update`, `feed`, `eradar`, `tr`, `notice`; `p=light` counts it as a Light page |
+| `GET /api/history?hours=&oblast=` | past alerts (1–168 h; cached, one query per change for every page) |
 | `GET /api/events_log?limit=` | alert events |
 | `GET /api/impacts?hours=` | explosions and confirmed shoot-downs |
 | `GET /api/stats?days=` | statistics; the Stats tab reads only `windows` and `af_days` (the Air Force summaries, each with its `post`) |
@@ -560,6 +623,8 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `POST /api/flag` | "this reading is wrong" report |
 | 🔒 `GET /admin`, `/api/usage` | dashboard, usage counters |
 | 🔒 `GET /api/health` | official sources (ok, last check, detail), every channel read (posts / marks 24 h, share read 7 d, last post, reader state), translation backends, lead time over the official alert in Kyiv + oblast (30 days) |
+| 🔒 `GET /api/online` | pages open now with a live line (`total`, `tactical`, `light`, today's peak), the current message, the last push fan-out (phones, seconds, delivered) |
+| 🔒 `POST /api/admin/notice` | `{text: {uk, en, fr}, level: info|warn|alert, hours: 0–168 (0 = until removed), push: bool}` or `{clear: true}` — the team's message (§9) |
 | 🔒 `GET /api/digests` | the stored nights and weeks: figures, written summary (EN / UK), model |
 | 🔒 `POST /api/digest/run` | `{kind: night|week}` — asks the `Digests` thread to write the last one up now (never calls the model itself) |
 | 🔒 `GET /api/flags`, `/api/corpus`; `POST /api/corpus/review`, `/api/corpus/translate` | flags and corpus review — no longer in the dashboard (1.19); used by `scripts/corpus.py` |

@@ -2,12 +2,17 @@
 Used by server.py to wake the phone even when the page is closed (Android Chrome / desktop; iOS needs the
 page added to the home screen). If `cryptography` is missing, push is simply disabled."""
 import base64
+import http.client
 import json
 import os
+import ssl
 import struct
+import threading
 import time
 import urllib.error
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
 
 try:
     from cryptography.hazmat.primitives import hashes, serialization
@@ -86,6 +91,107 @@ def send(subscription, payload, priv_b64, pub_b64, subject="mailto:clear-sky@exa
         return e.code, e.code in (404, 410)
     except Exception:
         return 0, False
+
+
+
+class Sender:
+    """One notification to many phones at once (1.29).
+
+    It used to be one phone at a time, each on a new HTTPS connection: ~0.15 s per Android phone and up to
+    ~0.5 s per iPhone, so with a thousand subscribers the last phone heard of a ballistic missile minutes after
+    the first — possibly after it had landed. Now `workers` sends are in flight together, and each worker keeps
+    one open connection per push service (Google's for Android and Chrome, Apple's for iPhones, Mozilla's…), so
+    after the first message a push costs one round trip, not a TLS handshake. The VAPID signature depends only
+    on the push service and is valid for 12 h, so it is signed once an hour per service, not once per phone.
+    Encryption stays per phone: every phone has its own keys, and nothing is shared between them."""
+
+    def __init__(self, priv_b64, pub_b64, subject="mailto:clear-sky@example.com", workers=32, timeout=10):
+        self.priv, self.pub, self.subject = priv_b64, pub_b64, subject
+        self.timeout = timeout
+        self.pool = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="push")
+        self.local = threading.local()
+        self._jwt = {}
+        self._jwt_lock = threading.Lock()
+        self._ctx = ssl.create_default_context()
+
+    def _auth(self, scheme, host):
+        aud = f"{scheme}://{host}"
+        now = time.time()
+        with self._jwt_lock:                  # signed under the lock: 32 workers starting together sign once
+            hit = self._jwt.get(aud)
+            if hit and hit[0] > now:
+                return hit[1]
+            h = vapid_headers(aud + "/", self.priv, self.pub, self.subject)
+            self._jwt[aud] = (now + 3600, h)
+            return h
+
+    def _conn(self, scheme, host):
+        conns = getattr(self.local, "conns", None)
+        if conns is None:
+            conns = self.local.conns = {}
+        c = conns.get((scheme, host))
+        if c is None:
+            c = (http.client.HTTPSConnection(host, timeout=self.timeout, context=self._ctx) if scheme == "https"
+                 else http.client.HTTPConnection(host, timeout=self.timeout))
+            conns[(scheme, host)] = c
+        return c
+
+    def _drop(self, scheme, host):
+        c = (getattr(self.local, "conns", None) or {}).pop((scheme, host), None)
+        if c:
+            try:
+                c.close()
+            except Exception:
+                pass
+
+    def send_one(self, subscription, data, ttl=300, urgency="high"):
+        """(status, gone) for one phone; `data` is the JSON payload, already encoded."""
+        endpoint = subscription["endpoint"]
+        keys = subscription.get("keys") or {}
+        u = urlparse(endpoint)
+        path = (u.path or "/") + ("?" + u.query if u.query else "")
+        body = encrypt(data, keys["p256dh"], keys["auth"])
+        headers = {"Content-Type": "application/octet-stream", "Content-Encoding": "aes128gcm", "TTL": str(ttl),
+                   "Urgency": urgency, "Content-Length": str(len(body))}
+        headers.update(self._auth(u.scheme, u.netloc))
+        for attempt in (0, 1):
+            c = self._conn(u.scheme, u.netloc)
+            reused = c.sock is not None
+            if not reused:
+                try:
+                    c.connect()
+                except OSError:
+                    # nothing was sent yet, so trying again cannot deliver twice
+                    self._drop(u.scheme, u.netloc)
+                    if attempt:
+                        return 0, False
+                    continue
+            try:
+                c.request("POST", path, body=body, headers=headers)
+                r = c.getresponse()
+                r.read()
+                if r.will_close:
+                    self._drop(u.scheme, u.netloc)
+                return r.status, r.status in (404, 410)
+            except (http.client.HTTPException, OSError):
+                self._drop(u.scheme, u.netloc)
+                # A kept-open connection the push service closed while it sat idle fails on first use: once,
+                # on a fresh connection. A fresh connection that fails is a real failure — no second try.
+                if not reused or attempt:
+                    return 0, False
+        return 0, False
+
+    def send_many(self, subscriptions, payload, ttl=300, urgency="high"):
+        """[(subscription, status, gone)] for every phone, all at once."""
+        data = json.dumps(payload).encode("utf-8")
+
+        def one(s):
+            try:
+                code, gone = self.send_one(s, data, ttl, urgency)
+            except Exception:           # a malformed subscription must not stop the others
+                code, gone = 0, False
+            return s, code, gone
+        return list(self.pool.map(one, subscriptions))
 
 
 if __name__ == "__main__":

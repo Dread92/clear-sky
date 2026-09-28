@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d11">
 <meta name="robots" content="noindex, nofollow">
-<title>Clear Sky — usage</title>
-<link rel="icon" href="/static/logo-cs-64.png">
+<title>Heimdall — usage</title>
+<link rel="icon" href="/static/logo-hd-64.png">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{--bg:#0b0d11;--ink:#e8e6df;--ink2:#a9a79f;--ink3:#6c6b66;--line:#242830;--panel:#12151b;
@@ -50,13 +50,44 @@ table.dgf td{padding:3px 4px;font-size:12.5px}.dg details{margin-top:6px}.dg pre
 button.dgb{border:1px solid var(--line);background:transparent;color:var(--ink);padding:8px 12px;font:600 12.5px var(--sans);cursor:pointer;border-radius:2px}button.dgb:disabled{opacity:.5}
 .lead{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--green);padding:12px 14px;font:14px/1.5 var(--sans)}
 .tscroll{overflow-x:auto}
+/* 1.29: online now, and the message to every reader */
+.ops{display:grid;grid-template-columns:minmax(200px,260px) 1fr;gap:12px;margin:4px 0 20px}
+@media (max-width:640px){.ops{grid-template-columns:1fr}}
+.onl{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--green);padding:12px 14px}
+.onl .v{font:800 40px/1 var(--cond)}.onl .l{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3);margin-top:4px}
+.onl .d{font:12px/1.5 var(--sans);color:var(--ink2);margin-top:8px}.onl .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;animation:bl 2s infinite}
+@keyframes bl{50%{opacity:.35}}
+.msg{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--blue);padding:12px 14px}
+.msg h3{margin:0 0 8px;font:700 12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)}
+.msg textarea{width:100%;min-height:52px;background:#0b0d11;border:1px solid var(--line);color:var(--ink);font:13.5px/1.4 var(--sans);padding:7px 8px;border-radius:2px;resize:vertical;margin:2px 0 8px}
+.msg label.t{display:block;font:600 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--ink3)}
+.msg .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 10px;font:13px var(--sans);color:var(--ink2)}
+.msg select{background:#0b0d11;border:1px solid var(--line);color:var(--ink);padding:6px 8px;font:13px var(--sans)}
+.msg .cur{margin-top:10px;padding:8px 10px;border:1px dashed var(--line);font:13px/1.45 var(--sans);white-space:pre-wrap}
+.msg .cur.none{color:var(--ink3)}.msg .res{font:12px var(--mono);color:var(--ink3);margin-left:8px}
 </style>
 </head>
 <body>
 <div class="hdr">
-  <h1>Clear Sky — usage</h1>
+  <h1>Heimdall — usage</h1>
   <div class="sub" id="gen">loading…</div>
   <div class="langsw" id="langsw"><button data-l="en">EN</button><button data-l="uk">UA</button></div>
+</div>
+<div class="ops" id="ops">
+  <div class="onl"><div class="v" id="onl_n">—</div><div class="l"><span class="dot"></span><span data-tr="on_now">online now</span></div><div class="d" id="onl_d"></div></div>
+  <div class="msg">
+    <h3 data-tr="nt_h">Message to every reader</h3>
+    <label class="t" for="nt_uk">Українська</label><textarea id="nt_uk" maxlength="500"></textarea>
+    <label class="t" for="nt_en">English</label><textarea id="nt_en" maxlength="500"></textarea>
+    <label class="t" for="nt_fr">Français</label><textarea id="nt_fr" maxlength="500"></textarea>
+    <div class="row">
+      <select id="nt_lv"><option value="info" data-tr="nt_info">Information</option><option value="warn" data-tr="nt_warn">Warning</option><option value="alert" data-tr="nt_alert">Urgent</option></select>
+      <select id="nt_hr"><option value="1">1 h</option><option value="6">6 h</option><option value="24" selected>24 h</option><option value="72">3 d</option><option value="0" data-tr="nt_until">until cleared</option></select>
+      <label><input type="checkbox" id="nt_push"> <span data-tr="nt_push">also as a push notification to every phone</span></label>
+    </div>
+    <button class="dgb" id="nt_send" data-tr="nt_send">Publish</button> <button class="dgb" id="nt_clear" data-tr="nt_clear">Remove the current message</button><span class="res" id="nt_res"></span>
+    <div class="cur none" id="nt_cur"></div>
+  </div>
 </div>
 <div id="out"></div>
 <div class="foot" id="foot"></div>
@@ -68,7 +99,7 @@ const $=i=>document.getElementById(i);
 // missing one is visible instead of silently English.
 // ---------------------------------------------------------------------------------------------------
 const T={
- en:{title:'Clear Sky — usage',
+ en:{title:'Heimdall — usage',
   c_today:'devices today',c_7:'device-days · 7 d',c_30:'device-days · 30 d',c_push:'push subscribers',
   c_opens:'app opens · 30 d',c_pwa:'opened as an app',
   note:'A <b>device-day</b> is one device on one day. Somebody who opens the app every day for a week counts seven times, and that is on purpose: the daily hash is regenerated every midnight precisely so the same person cannot be recognised tomorrow. There is no unique-visitor figure here and there cannot be one — that is the cost of not tracking anybody, and it is worth it.',
@@ -93,8 +124,14 @@ const T={
   ch_note:'“Read” is the share of the channel’s posts over 7 days that put something on the map. A channel silent for 12 h or more, or whose reader fails, is highlighted.',
   h_tr:'Translation',tr_av:'in use: {0}',tr_none:'no translation service reachable — offline glossary only',tr_paused:'paused after an error: {0}',
   ago_m:'{0} min ago',ago_h:'{0} h ago',ago_d:'{0} d ago',never:'never',
-  gen:'generated {0}'},
- uk:{title:'Clear Sky — використання',
+  gen:'generated {0}',
+  on_now:'online now',on_d:'{0} Tactical · {1} Light — pages open with a live line, counted as they are, nothing kept about who.',on_peak:'Peak today: {0} at {1}',
+  on_push:'Last push: {0} phones in {1} s ({2} delivered)',on_na:'the live counter starts with the stream hub (1.29)',
+  nt_h:'Message to every reader',nt_info:'Information',nt_warn:'Warning',nt_alert:'Urgent',nt_until:'until cleared',
+  nt_push:'also as a push notification to every phone (uses the Ukrainian text)',nt_send:'Publish',nt_clear:'Remove the current message',
+  nt_cur:'Shown now ({0}, until {1}):',nt_none:'No message is shown.',nt_ok:'published',nt_gone:'removed',nt_empty:'write at least one language',nt_forever:'cleared by hand',
+  nt_confirm_push:'Send this as a push notification to every subscribed phone?'},
+ uk:{title:'Heimdall — використання',
   c_today:'пристроїв сьогодні',c_7:'пристроє-днів · 7 д',c_30:'пристроє-днів · 30 д',c_push:'підписок на сповіщення',
   c_opens:'відкриттів · 30 д',c_pwa:'відкрито як застосунок',
   note:'<b>Пристрій-день</b> — це один пристрій за один день. Той, хто відкриває застосунок щодня протягом тижня, рахується сім разів, і це навмисно: денний хеш перегенеровується щопівночі саме для того, щоб завтра ту саму людину не можна було впізнати. Показника унікальних відвідувачів тут немає і бути не може — така ціна того, що ми ні за ким не стежимо, і вона того варта.',
@@ -119,7 +156,13 @@ const T={
   ch_note:'«Зчитано» — частка дописів каналу за 7 днів, що поставили щось на мапу. Канал, що мовчить 12 год і більше, або чиє читання збоїть, підсвічено.',
   h_tr:'Переклад',tr_av:'працює: {0}',tr_none:'жоден сервіс перекладу недоступний — лише офлайн-глосарій',tr_paused:'призупинено після помилки: {0}',
   ago_m:'{0} хв тому',ago_h:'{0} год тому',ago_d:'{0} д тому',never:'ніколи',
-  gen:'згенеровано {0}'}};
+  gen:'згенеровано {0}',
+  on_now:'онлайн зараз',on_d:'{0} Tactical · {1} Light — відкриті сторінки з живим з’єднанням; лише кількість, нічого про те, хто.',on_peak:'Пік сьогодні: {0} о {1}',
+  on_push:'Останні сповіщення: {0} телефонів за {1} с (доставлено {2})',on_na:'лічильник працює з 1.29',
+  nt_h:'Повідомлення всім читачам',nt_info:'Інформація',nt_warn:'Попередження',nt_alert:'Терміново',nt_until:'доки не прибрати',
+  nt_push:'також push-сповіщенням на кожен телефон (український текст)',nt_send:'Опублікувати',nt_clear:'Прибрати поточне повідомлення',
+  nt_cur:'Показується ({0}, до {1}):',nt_none:'Повідомлення немає.',nt_ok:'опубліковано',nt_gone:'прибрано',nt_empty:'напишіть хоча б однією мовою',nt_forever:'доки не прибрати',
+  nt_confirm_push:'Надіслати це push-сповіщенням на кожен підписаний телефон?'}};
 
 let L='en'; try{const v=localStorage.getItem('adminlang'); if(v==='en'||v==='uk') L=v;}catch(e){}
 const tr=(k,...a)=>{let s=(T[L]&&T[L][k])!==undefined?T[L][k]:(T.en[k]!==undefined?T.en[k]:k);
@@ -252,10 +295,36 @@ async function loadHealth(){
   drawHealth();
 }
 
+// ---- online now + the message to every reader (1.29) ------------------------------------------------------
+let ON=null;
+function drawOps(){
+  document.querySelectorAll('[data-tr]').forEach(el=>{ el.textContent=tr(el.dataset.tr); });
+  if(!ON){ return; }
+  const o=ON.online;
+  $('onl_n').textContent=o?fmt(o.total):'—';
+  const pk=o&&o.peak_today&&o.peak_today.n?tr('on_peak',fmt(o.peak_today.n),new Date(o.peak_today.at).toLocaleTimeString(L==='uk'?'uk-UA':'en-GB',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Kyiv'})):'';
+  const pl=ON.push_last?tr('on_push',fmt(ON.push_last.phones),ON.push_last.seconds,fmt(ON.push_last.ok)):'';
+  $('onl_d').innerHTML=o?[esc(tr('on_d',fmt(o.tactical),fmt(o.light))),esc(pk),esc(pl)].filter(Boolean).join('<br>'):esc(tr('on_na'));
+  const n=ON.notice, cur=$('nt_cur');
+  if(n){ const until=n.until?new Date(n.until).toLocaleString(L==='uk'?'uk-UA':'en-GB',{timeZone:'Europe/Kyiv'}):tr('nt_forever');
+    cur.className='cur'; cur.textContent=tr('nt_cur',n.level,until)+'\n'+Object.entries(n.text||{}).map(([k,v])=>k.toUpperCase()+': '+v).join('\n'); }
+  else { cur.className='cur none'; cur.textContent=tr('nt_none'); }
+}
+async function loadOnline(){ try{ const r=await fetch('/api/online'+(KEYQ?'?'+KEYQ.slice(1):'')); const d=await r.json(); if(!d.error){ ON=d; } }catch(e){} drawOps(); }
+async function postNotice(body){ const r=await fetch('/api/admin/notice'+(KEYQ?'?'+KEYQ.slice(1):''),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); return r.json(); }
+$('nt_send').onclick=async()=>{ const text={uk:$('nt_uk').value.trim(),en:$('nt_en').value.trim(),fr:$('nt_fr').value.trim()};
+  if(!text.uk&&!text.en&&!text.fr){ $('nt_res').textContent=tr('nt_empty'); return; }
+  const push=$('nt_push').checked; if(push&&!confirm(tr('nt_confirm_push'))) return;
+  $('nt_send').disabled=true;
+  try{ const d=await postNotice({text,level:$('nt_lv').value,hours:+$('nt_hr').value,push}); $('nt_res').textContent=d.error?d.error:tr('nt_ok'); $('nt_push').checked=false; }
+  catch(e){ $('nt_res').textContent=String(e); }
+  $('nt_send').disabled=false; loadOnline(); };
+$('nt_clear').onclick=async()=>{ try{ const d=await postNotice({clear:true}); $('nt_res').textContent=d.error?d.error:tr('nt_gone'); }catch(e){ $('nt_res').textContent=String(e); } loadOnline(); };
+
 $('langsw').addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
   L=b.dataset.l; try{localStorage.setItem('adminlang',L);}catch(err){}
-  drawAll();
+  drawAll(); drawOps();
 });
 
 (async()=>{
@@ -267,6 +336,7 @@ $('langsw').addEventListener('click',e=>{
   loadHealth();
   loadDigests();
   setInterval(loadHealth,60000);   // the health view is worth leaving open on a live night
+  loadOnline(); setInterval(loadOnline,10000);
 })();
 </script>
 </body>

@@ -2,6 +2,45 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.29.0 — 2026-09-28
+
+**Clear Sky is now Heimdall.** Same app, same address, same data; a new name and a new logo.
+
+### Changed
+- **The name and the icon.** Heimdall everywhere a reader sees it, in the three languages; the radar over Ukraine
+  is the app icon (home screen, notifications, favicon), cut out of the logo. The installed Tactical app keeps its
+  identity (manifest `id` `/m`), so Android offers the new name and icon as an update of the same app. An
+  iPhone keeps an installed app's name and icon until it is added to the home screen again — Apple does not
+  update them. NGO 07300 and Black Flame Studio stay where they were.
+- **Push goes to every phone at once.** It went one phone at a time, each on a new HTTPS connection: ~0.15 s per
+  Android phone, up to ~0.5 s per iPhone, so with a thousand subscribers the last phone heard of a ballistic
+  missile minutes after the first. Now 32 sends are in flight together, each worker keeps one open connection
+  per push service, and the VAPID signature is made once an hour per service: a thousand phones in seconds.
+- **The live line carries the data.** Every new post made every open page download the marks, the feed and
+  the alerts again — five requests per page per post. The stream now sends what changed (a new post at the head
+  of the feed, the marks that moved, the raions whose alert changed), each part labelled with the version it
+  starts from, so a page that missed something fetches that part in full instead of guessing. It beats every
+  15 s (5 s with cruise missiles up, 2 s with a ballistic one); while it beats a page asks for nothing but a
+  version check once a minute, and when it stops the page asks by itself as before. The Light page uses it too
+  (alerts and marks only): it no longer downloads both every 15 s.
+- **One thread for every open page.** Each open page held a server thread; on the 256 MB machine Linux allows
+  about 2,000, so ~1,700 open pages was a hard stop. Now one thread holds them all (epoll). Measured on one
+  core: 9,000 open pages — 8 threads, 62 MB, ~80 ms of CPU per second, a change reaching the last page ~0.1 s
+  after the first. The open-file limit is raised at start.
+- The alert history (asked by every page after an alert starts or ends) is cached, and the pages ask for it
+  spread over 20 s instead of all at the same instant.
+
+### Added
+- **A message from the team.** The dashboard publishes one message to every reader — Ukrainian, English,
+  French; information, warning or urgent; for 1 h to 3 days or until removed — shown as a banner on both pages
+  (a reader can close it), optionally also as a push to every phone.
+- **Online now** on the dashboard: pages open with a live line, Tactical and Light, and today's peak. A count
+  only — nothing about who.
+- **Ready for its own address.** `scripts/set-domain.bat` attaches a domain (Fly certificates, the DNS records
+  to add) and sets `CANONICAL_HOST`; pages opened on the old address then show "Heimdall has moved to …" with a
+  button that takes the reader's settings along in the link's #fragment (never sent to a server). The watched
+  places do not travel — they never leave the phone — and are set again there.
+
 ## 1.28.0 — 2026-09-28
 
 ### Changed

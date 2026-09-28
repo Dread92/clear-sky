@@ -1,4 +1,4 @@
-# Clear Sky runs on the Python standard library alone. Both dependencies below are optional:
+# Heimdall runs on the Python standard library alone. Both dependencies below are optional:
 # cryptography enables Web Push notifications (phone alerts with the app closed); without it push is off.
 cryptography>=42.0
 # telethon reads the channels whose web preview is switched off (chyste_nebo) through the Telegram API,

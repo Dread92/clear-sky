@@ -1,6 +1,6 @@
-# Working on Clear Sky (notes for Claude sessions)
+# Working on Heimdall (formerly Clear Sky) — notes for Claude sessions
 
-Clear Sky is used live by people deciding whether to take cover. Read `docs/SAFETY.md` and
+Heimdall is used live by people deciding whether to take cover. Read `docs/SAFETY.md` and
 `docs/TECHNICAL.md` before changing `app/` or `static/`.
 
 ## Non-negotiable

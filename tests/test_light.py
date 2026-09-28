@@ -45,10 +45,19 @@ def test_it_stays_light():
     for f in ("light-map.json", "kyiv-districts.json"):
         with open(os.path.join(ROOT, "static", f), "rb") as fh:
             extra += len(gzip.compress(fh.read(), 6))
-    # 1.19 raised both by ~2.5 KB for the map's own zoom and the tap-to-open card (about 0.2 s on 2G)
-    assert page < 19_500, f"the light page is no longer light ({page} B gzipped)"
-    assert page + extra < 61_000, f"page + map data = {page + extra} B gzipped"
-    for heavy in ("kyiv-map.json", "EventSource", "tile.openstreetmap", "/api/feed"):
+    # 1.19 raised both by ~2.5 KB for the map's own zoom and the tap-to-open card (about 0.2 s on 2G).
+    # 1.29 raised them by ~3 KB (page + static/live.js) for the live line, the team's message and the move to a new
+    # address: in exchange the page no longer downloads the alerts and the marks every 15 s (~8 KB gzipped each
+    # time) while the line is up.
+    with open(os.path.join(ROOT, "static", "live.js"), "rb") as fh:
+        page += len(gzip.compress(fh.read(), 6))
+    assert page < 23_000, f"the light page is no longer light ({page} B gzipped)"
+    assert page + extra < 64_000, f"page + map data = {page + extra} B gzipped"
+    # 1.29: the live line is allowed — the light variant only (alerts and marks, no feed, no raw events). An open
+    # line costs the server nothing any more (one thread holds them all) and the phone ~100 bytes every 15 s,
+    # against ~8 KB every 15 s for asking.
+    assert "/api/stream?p=light&ev=0&sync=mk,st" in LIGHT
+    for heavy in ("kyiv-map.json", "tile.openstreetmap", "/api/feed"):
         assert heavy not in LIGHT, f"the light page loads {heavy}"
 
 

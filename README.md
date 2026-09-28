@@ -1,6 +1,11 @@
-# Clear Sky
+<p align="center">
+  <img src="docs/brand/heimdall-mark.png" width="160" alt="Heimdall">
+</p>
+
+# Heimdall
 
 **Unofficial air-raid and drone tracker for Kyiv, Kyiv oblast and the oblasts around it.**
+*Formerly Clear Sky — same app, same address, new name (1.29).*
 
 A single Python service (standard library only) reads the official «Повітряна тривога» alert data raion
 by raion, and six public Telegram channels — the Air Force and the live trackers of the Kyiv sky — parses the
@@ -14,10 +19,6 @@ behind every mark, and **Light** (`/light`), one place, its raion's official sta
 > soon as an alert starts**. Nothing here should ever be used to decide it is safe to stay outside,
 > to delay taking cover, or to go and watch. See [docs/SAFETY.md](docs/SAFETY.md) for the rules the
 > code itself follows.
-
-<p align="center">
-  <img src="static/logo-192.png" width="96" alt="Clear Sky">
-</p>
 
 ---
 
@@ -54,12 +55,15 @@ and opens the browser. Linux/macOS: `scripts/start.sh`.
 | **Per-target justification** | Tap any marker: the sentence it came from, the channel, the time, how position / heading / count were read, the confidence, and other reports nearby. |
 | **Goes grey, then goes away** | A target with no new report for 5 minutes turns grey with a `?`, fades in steps, and disappears after 15 minutes. Stale is never shown as active. |
 | **Preventive warnings** | MiG-31K take-off and ballistic threats raise a banner *before* anything is seen — and it disappears the moment a later post lifts it. Nightly *assessments* ("threats are above average tonight") are classified as forecasts and never raise it. |
-| **Missile mode** | Refresh drops from 15 s to 5 s while a ballistic or cruise-missile threat is open. |
+| **Live, without asking** | The server sends each open page what changed — a new mark, a new post, an alert — the moment it knows, in one small message, and beats every 15 s (5 s with cruise missiles up, 2 s with a ballistic one). A page asks for nothing while its line is alive, and falls back to asking by itself when it is not. |
+| **Missile mode** | The server reads its sources faster while a ballistic or cruise-missile threat is open, and the live line beats faster with it. |
 | **History layer** | Explosions ✸ and confirmed shoot-downs ✕ over the last 24 / 48 / 72 h. |
 | **Stats** | Alerts per day, time of day, longest alert, explosions and shoot-downs by oblast, and what the Air Force says was *launched* over Ukraine (24 h / 7 d / 30 d) — kept separate from the count of *reports*, which is a volume of posts, not of targets. |
 | **Three languages** | Full UI in 🇬🇧 English, 🇺🇦 Ukrainian, 🇫🇷 French — including place names, raions, districts and channel names. See [docs/I18N.md](docs/I18N.md). |
 | **Altitude when it is stated** | A post saying `знижується` marks the target ↓ DESCENDING in crimson — it is diving. Climbing, low, high and values in metres are read the same way. Never inferred: no public source publishes altitude. |
-| **Push notifications** | Web Push (VAPID / RFC 8291, hand-rolled on `cryptography`) wakes the phone with the app closed — for a target reported within your radius, a MiG-31K take-off or a ballistic threat. No siren-start or all-clear pushes: the siren already says that. |
+| **Push notifications** | Web Push (VAPID / RFC 8291, hand-rolled on `cryptography`) wakes the phone with the app closed — for a target reported within your radius, a MiG-31K take-off or a ballistic threat. No siren-start or all-clear pushes: the siren already says that. Sent to every phone at once over kept-open connections: a thousand phones in seconds, not minutes. |
+| **A word from the team** | From the dashboard, one message to every reader — in Ukrainian, English and French, as information, a warning or urgent, for a set time — shown as a banner on both pages, optionally also as a push. |
+| **Sound you can turn down** | A volume slider, not just on/off: an iPhone played the tones at full media volume. Test it with ▶. |
 | **Share in one tap** | The status of any target as text, for a chat: what, where, when, descent, heading, distance, source, and the caveat that it is not radar. |
 | **Install as an app** | A PWA: add it to the home screen and it runs full-screen with no browser bar. No store, no download. |
 | **Blackout mode** | For 2G during an attack: black and white, no tiles, no images, minimal data. |
@@ -80,14 +84,15 @@ clear-sky/
 │   ├── light.html          Light: one place, its raion, a 30 km radar (one self-contained page)
 │   ├── light-map.json      raion outlines, rivers, roads, towns for the Light map (built)
 │   ├── i18n.js             EN / UK / FR strings, place and channel names
+│   ├── live.js             applies the live line's changes (shared by both pages)
 │   ├── kyiv-map.json       27 oblasts + 136 raions, projected to km around Kyiv
 │   ├── kyiv-districts.json the 10 Kyiv city districts (OSM boundaries)
 │   ├── sw.js               service worker (push + notification clicks)
 │   └── manifest.json       PWA manifest ("add to home screen")
 ├── data/                   ua_regions.json (official region ids, built) · corpus.jsonl (regression corpus)
-├── tests/                  ~370 tests — parsing, alerts by raion, privacy, languages, documentation
+├── tests/                  ~400 tests — parsing, alerts by raion, privacy, languages, live line, push, documentation
 ├── docs/                   TECHNICAL.md (complete reference), SAFETY, DEPLOY, I18N, CORPUS
-├── scripts/                build_geo.py, corpus.py, github-push.bat, start.sh, dev.sh, tunnel.bat
+├── scripts/                release.bat, set-domain.bat, set-ai-key.bat, telegram-login.bat, build_geo.py, corpus.py, …
 ├── start.bat               Windows: double-click to run
 ├── deploy-fly.bat          Windows: one-click deploy to Fly.io
 ├── Dockerfile · fly.toml · render.yaml
@@ -136,8 +141,8 @@ the admin routes: [docs/TECHNICAL.md §12](docs/TECHNICAL.md#12-http-api).
 | `GET /light` | The Light version (also `/l`). |
 | `GET /api/feed?limit=150&lang=en` | Recent parsed posts with tags and translations (`lang` asks for machine translation). |
 | `GET /api/history?hours=24&oblast=31,14` | Past alerts for those regions. |
-| `GET /api/version` | Tiny version ping (`v`, `now`, `missile`) — the page polls this, not the whole state. |
-| `GET /api/stream` | Server-sent events: `start`, `end`, `threat`, `update`, `feed`, `eradar`, `tr`. |
+| `GET /api/version` | Tiny version ping (`v`, `now`, `msl`) — a page asks it once a minute while its live line is up. |
+| `GET /api/stream?sync=mk,st,fd` | The live line (server-sent events): `hello`, then `sync` messages carrying what changed in the marks, the alerts and the feed, plus the events `start`, `end`, `threat`, `update`, `feed`, `eradar`, `tr`. How a page applies them: [docs/TECHNICAL.md §5.4](docs/TECHNICAL.md#54-the-live-line-129). |
 | `GET /api/places?oblast=all` | Gazetteer of places with coordinates. |
 | `GET /healthz` | Liveness. |
 | `POST /api/push/{subscribe,unsubscribe,test}` | Web Push subscriptions. |
@@ -146,7 +151,7 @@ the admin routes: [docs/TECHNICAL.md §12](docs/TECHNICAL.md#12-http-api).
 
 | | what it protects | who can read the map |
 |---|---|---|
-| `ADMIN_KEY` | `/admin`, `/api/usage`, `/api/flags` | **everyone** — this is what a public deployment wants |
+| `ADMIN_KEY` | `/admin` (usage, online now, the team's message, sources, summaries) and its APIs | **everyone** — this is what a public deployment wants |
 | `ACCESS_KEY` | **the entire app**, behind a login form | only people with the key — a private deployment |
 
 On a public instance, setting `ACCESS_KEY` is an outage: every reader gets a password box instead of an
@@ -189,7 +194,7 @@ python -m ruff check app tests
 python app/server.py --demo --port 8099
 ```
 
-In VS Code: **F5** runs *Clear Sky — demo*, the Test panel is wired to pytest, and the recommended
+In VS Code: **F5** runs *Heimdall — demo*, the Test panel is wired to pytest, and the recommended
 extensions are proposed on first open. Tasks (`Ctrl+Shift+B`): run, demo, tests, lint, deploy.
 
 CI runs the tests on Python 3.9 and 3.12, starts the service and checks it answers, parses the
@@ -201,8 +206,19 @@ front-end scripts, and verifies that every UI string exists in all three languag
 fly deploy                  # Windows: scripts\release.bat ships a patch (deploy + push); deploy-fly.bat the first time
 ```
 
-Runs as one `shared-cpu-1x` / 256 MB machine with a 1 GB volume for the history. Full walkthrough,
-including Render and running it at home behind a tunnel: [docs/DEPLOY.md](docs/DEPLOY.md).
+Runs as one `shared-cpu-1x` machine with a 1 GB volume for the history. Full walkthrough, including Render
+and running it at home behind a tunnel: [docs/DEPLOY.md](docs/DEPLOY.md).
+
+**How many readers.** Installed apps that are closed cost the server nothing; what counts is pages open at the
+same moment. Since 1.29 one thread holds every open page's live line and sends each change once: measured on a
+single core, 9,000 open pages took 8 threads, 62 MB and ~80 ms of CPU per second, and a change reached the last
+page ~0.1 s after the first. Before 1.29 each open page held a thread (a hard stop near 1,700 on 256 MB) and
+downloaded three answers again after every post. For a big wave of readers, 512 MB–1 GB of memory is cheap
+headroom (`[[vm]]` in `fly.toml`).
+
+**Its own address.** Buy the domain, then double-click `scripts\set-domain.bat`: it asks Fly for the HTTPS
+certificates, shows the DNS records to add at the registrar, and — once the certificate is issued — tells pages
+still opened on the old address that Heimdall has moved (with a button that takes the reader's settings along).
 
 ## Sources
 
@@ -217,7 +233,7 @@ OpenStreetMap (© OpenStreetMap contributors).
 
 ## Credits
 
-Made by **Black Flame Studio** & **NGO 07300**. Built by the French Cossack of Obolon.
+**Heimdall** — made by **Black Flame Studio** & **NGO 07300**. Built by the French Cossack of Obolon.
 
 The app is free and stays free. Donations cover the server, the development and the humanitarian work of
 NGO 07300: **nomakievip@gmail.com**.

@@ -1,7 +1,7 @@
 {
   "id": "/light",
-  "name": "Clear Sky Light",
-  "short_name": "Clear Sky Light",
+  "name": "Heimdall Light",
+  "short_name": "Heimdall Light",
   "description": "What concerns your place, and nothing else: the official alert status and the threats reported within 60 km. Unofficial — follow the official alerts first.",
   "start_url": "/light",
   "scope": "/light",
@@ -16,19 +16,19 @@
   ],
   "icons": [
     {
-      "src": "/static/logo-cs-192.png",
+      "src": "/static/logo-hd-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/logo-cs-512.png",
+      "src": "/static/logo-hd-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/logo-cs-maskable-512.png",
+      "src": "/static/logo-hd-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

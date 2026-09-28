@@ -6,7 +6,7 @@ a pull request that breaks one will not be merged.
 
 ## The app is never the primary warning
 
-The official *Повітряна тривога* app and the sirens come first, always. Clear Sky adds detail to a
+The official *Повітряна тривога* app and the sirens come first, always. Heimdall adds detail to a
 warning that has already been given; it never replaces it. The disclaimer is shown on **every**
 open, not once, and the scrolling ticker repeats the essentials while the app is in use.
 

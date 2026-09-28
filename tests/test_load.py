@@ -47,9 +47,17 @@ def test_one_computation_for_everybody():
 
 
 def test_the_busy_answers_are_cached():
-    for route, key in (('"/api/markers"', "st.markers_now()"), ('"/api/state"', 'st.cached("state"'),
-                       ('"/api/feed"', 'st.cached(f"feed:'), ('"/api/stats"', 'st.cached(f"stats:')):
+    for route, key in (('"/api/markers"', "st.markers_now()"), ('"/api/state"', 'st.state_now()'),
+                       ('"/api/feed"', 'st.feed_now(limit)'), ('"/api/stats"', 'st.cached(f"stats:')):
         i = SRC.index(f"if u.path == {route}:")
         assert key in SRC[i:i + 700], route
     assert "state.markers_now()" in SRC                                # the proximity pushes share it too
     assert "request_queue_size = 128" in SRC
+
+
+def test_state_and_feed_go_through_the_one_cache():
+    """1.29: the helpers the routes and the stream hub share are the cache, not a recomputation."""
+    for name, key in (("state_now", 'self.cached("state", 5, self._state_obj, ver=self.seq)'),
+                      ("feed_now", 'self.cached(f"feed:{limit}", 15, lambda: self._feed_obj(limit), ver=self.seq)')):
+        i = SRC.index(f"    def {name}(self")
+        assert key in SRC[i:i + 300], name

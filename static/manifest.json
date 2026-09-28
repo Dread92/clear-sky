@@ -1,6 +1,7 @@
 {
-  "name": "Clear Sky — air-raid tracker",
-  "short_name": "Clear Sky",
+  "id": "/m",
+  "name": "Heimdall — air-raid tracker",
+  "short_name": "Heimdall",
   "description": "Unofficial air-raid and drone tracker for Kyiv and all of Ukraine. Not an official warning system — follow the official alerts first.",
   "start_url": "/m",
   "scope": "/",
@@ -16,19 +17,19 @@
   ],
   "icons": [
     {
-      "src": "/static/logo-cs-192.png",
+      "src": "/static/logo-hd-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/logo-cs-512.png",
+      "src": "/static/logo-hd-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/static/logo-cs-maskable-512.png",
+      "src": "/static/logo-hd-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

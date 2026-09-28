@@ -1,4 +1,4 @@
-// Clear Sky — the weapon silhouettes, shared by the Tactical page (kyiv.html) and the Light page (light.html).
+// Heimdall — the weapon silhouettes, shared by the Tactical page (kyiv.html) and the Light page (light.html).
 // One file so the two pages can never draw the same weapon two different ways.
 // Each shape is drawn nose-up, centred on 0,0, about 24 units tall; a page scales and rotates it (only to a
 // course the post reported — see orientOf() in kyiv.html and markOrient() in light.html).

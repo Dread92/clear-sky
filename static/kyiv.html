@@ -8,8 +8,18 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/static/logo-cs-64.png"><link rel="apple-touch-icon" href="/static/logo-cs-192.png">
-<title>Clear Sky</title>
+<link rel="icon" href="/static/logo-hd-64.png"><link rel="apple-touch-icon" href="/static/logo-hd-apple-180.png">
+<title>Heimdall</title>
+<script id="carry">
+// 1.29: arriving from the old address with this phone's settings in the link's #fragment — a fragment is never
+// sent to any server. Settings only (a link cannot set a watched place), kept only where this address has nothing
+// of its own yet, then taken out of the address bar.
+(function(){try{var h=location.hash;if(h.indexOf('#carry=')!==0)return;
+var d=JSON.parse(decodeURIComponent(escape(atob(h.slice(7).replace(/-/g,'+').replace(/_/g,'/')))));
+var ok=['lang','mode','lite','snd','sndvol','vib','est','layers','layers_v2','imph','myobl','sup_seen','sup_never'];
+for(var k in d)if(ok.indexOf(k)>=0&&typeof d[k]==='string'&&d[k].length<4000&&localStorage.getItem(k)===null)localStorage.setItem(k,d[k]);
+history.replaceState(null,'',location.pathname+location.search);}catch(e){}})();
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
 :root{--top:86px;--peek:40px;--bg:#0b0d11;--ink:#e8e6df;--ink2:#a9a79f;--ink3:#6c6b66;--line:#242830;--panel:#12151b;--panel2:#181c24;
@@ -46,6 +56,15 @@ body.lite .ticker .tki{color:#fff}
 /* ballistic: a second-by-second countdown would read as a stutter, so it says LIVE and pulses instead */
 .upd .cd.live{color:#ff5b52;letter-spacing:.08em;animation:livepulse 1s ease-in-out infinite}
 .upd .cd.live.bad{color:#ff8a3d;animation:none}
+.upd .cd.on{color:var(--green,#2fbf71);letter-spacing:.08em}
+/* the admin's message to every reader (1.29): under the header, until it expires or the reader closes it */
+.notice{display:flex;align-items:flex-start;gap:8px;margin:0;padding:8px 10px 8px 12px;background:#10213b;border-top:1px solid var(--line);border-left:4px solid #5b9cff;color:var(--ink)}
+.notice[hidden]{display:none}.notice.lv-warn{background:#2c1d08;border-left-color:#ff8a3d}.notice.lv-alert{background:#351210;border-left-color:#e0342c}
+.notice .ntb{flex:1;min-width:0;font:500 13px/1.4 var(--sans);white-space:pre-wrap;overflow-wrap:anywhere;max-height:30vh;overflow:auto}
+.notice .nth{display:block;font:700 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:2px}
+.notice .mvgo{display:inline-block;margin-top:6px;padding:7px 12px;background:var(--ua-yellow);color:#111;font:700 13px var(--sans);border-radius:4px;text-decoration:none}
+.notice .nx{flex:none;background:transparent;border:1px solid var(--line);color:var(--ink2);width:32px;height:32px;border-radius:4px;font:600 14px var(--sans);cursor:pointer}
+body.m-day .notice{background:#e8f0ff;color:#12161c}body.m-day .notice.lv-warn{background:#fff1e0}body.m-day .notice.lv-alert{background:#ffe3e0}
 @keyframes livepulse{0%,100%{opacity:1}50%{opacity:.35}}
 .upd .cd.bad{color:var(--red2)}
 /* The overlay itself scrolls, and it is sized by inset:0 (the part of the screen really visible), never by vh:
@@ -656,8 +675,8 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 
 <header id="top">
   <div class="r1">
-    <img class="logo" src="/static/logo-cs-64.png" alt="Clear Sky"><img class="logo ngo" src="/static/logo-64.png" alt="07300">
-    <div class="name">Clear Sky</div>
+    <img class="logo" src="/static/logo-hd-64.png" alt="Heimdall"><img class="logo ngo" src="/static/logo-64.png" alt="07300">
+    <div class="name">Heimdall</div>
     <nav class="vsw" data-t-title="sw_title" title="Two versions"><a href="/light" data-t="sw_light">LIGHT</a><span class="on" data-t="sw_tac">TACTICAL</span></nav>
     <span class="srcs" id="srcs"></span>
     <span class="sp"></span>
@@ -682,18 +701,20 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <label class="mi lrow"><span data-t="m_lang">Language</span><select class="lsel" id="langsel" aria-label="Language"></select></label>
     <div class="mrow z"><span class="ml" data-t="m_mode">Display mode</span><button class="mi2" id="mdstd" data-t="m_md_std">Standard</button><button class="mi2" id="mdday" data-t="m_md_day">Daylight</button><button class="mi2" id="mdnight" data-t="m_md_night">Night</button></div>
     <button class="mi" id="litebtn" data-t="m_lite">Blackout mode (2G / weak signal)</button>
-    <a class="mi" href="/light" data-t="m_light">Clear Sky Light — only your place</a>
+    <a class="mi" href="/light" data-t="m_light">Heimdall Light — only your place</a>
 
     <div class="mg" data-t="m_g_info">About</div>
     <button class="mi" id="helpbtn" data-t="m_help">How this app works</button>
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.28</div>
+    <div class="mi bt" id="buildtag">v1.29</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
   <div class="tstrip" id="tstrip" hidden></div>
+  <div class="notice lv-warn" id="moved" hidden role="status"><div class="ntb"><b class="nth mvt"></b><span class="mvb"></span><a class="mvgo" href="#"></a></div><button class="nx" type="button" aria-label="✕">✕</button></div>
+  <div class="notice" id="notice" hidden role="status"><div class="ntb"><b class="nth" data-t="nt_from">Heimdall team</b><span class="ntx"></span></div><button class="nx" type="button" data-t-aria="btn_close" aria-label="Close">✕</button></div>
 </header>
 
 <div id="stage">
@@ -754,7 +775,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 <div style="margin-top:8px;display:flex;justify-content:space-between"><button class="tgl" id="homeclear" data-t="btn_clear">Clear</button><button class="tgl" onclick="$('homesheet').classList.remove('show')" data-t="btn_close">Close</button></div></div>
 <div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
 <div class="toast" id="toast"></div>
-<div class="modal" id="disc" hidden><div class="mbox"><img class="dlogo" src="/static/logo-cs.png" alt="Clear Sky" loading="lazy"><div class="type" style="display:flex;align-items:center;gap:8px"><span data-t="d_title">Clear Sky — please read</span><select class="lsel" id="dlang" style="margin-left:auto" aria-label="Language"></select></div>
+<div class="modal" id="disc" hidden><div class="mbox"><img class="dlogo" src="/static/logo-hd.png" alt="Heimdall" loading="lazy"><div class="type" style="display:flex;align-items:center;gap:8px"><span data-t="d_title">Heimdall — please read</span><select class="lsel" id="dlang" style="margin-left:auto" aria-label="Language"></select></div>
   <p data-t-html="d_p1"></p>
   <p data-t-html="d_p2"></p>
   <p data-t-html="d_p3"></p>
@@ -766,6 +787,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 
 <script src="/static/i18n.js"></script>
 <script src="/static/glyphs.js"></script>
+<script src="/static/live.js"></script>
 <script>
 const THREAT={drones:['🛸',t('th_drones')],ballistic_missiles:['🚀',t('th_bal')],cruise_missiles:['🎯',t('th_cruise')],supersonic_missiles:['⚡',t('th_super')],banderol_missiles:['🛩',t('th_band')],unspecified_missiles:['🎯',t('th_msl')],
   mig31k_departure:['✈️',t('th_mig')],strategic_aircraft_activity:['🛩️',t('th_strat')],tactic_aircraft_activity:['🛩️',t('th_tac')],
@@ -2137,7 +2159,7 @@ function render(){
   el.innerHTML=`<div class="dot ${st==='N'?'N':st==='P'?'P':st==='Y'?'Y':'A'}"></div><div><div class="big">${big}</div>
     <div class="small">${cityL?`${t('b_city')} ${cityL==='R'?t('b_red'):t('b_yel')}${oblL?' · '+t('b_oblwide')+' '+(oblL==='R'?t('b_red'):t('b_yel')):hasRaions?' · '+raionList:' · '+t('b_oblclear')}`:oblL?`${isK?t('b_cityclear')+' · ':''}${t('b_oblwide')} ${oblL==='R'?t('b_red'):t('b_yel')}${hasRaions?' · '+raionList:''}`:hasRaions?raionList:(st==='P'?raionAlerts.map(a=>LANG==='uk'?a.location_title:(a.location_title_en||a.location_title)).join(', '):t('b_noalert',isK?t('b_kyivorobl'):ON))}${since&&st!=='N'?' · '+t('b_since')+' '+fmtT(since):''}${thr.length?' · '+thr.join(', '):''}</div></div>
     ${st!=='N'&&since?`<div class="dur">${dur(since)}</div>`:''}`;
-  document.title=(st==='R'||st==='A'?'🔴 ':st==='Y'||st==='P'?'🟡 ':'')+'Clear Sky';
+  document.title=(st==='R'||st==='A'?'🔴 ':st==='Y'||st==='P'?'🟡 ':'')+'Heimdall';
   // priority location row
   const hr=$('homerow'); if(HOME){ const hraion=(()=>{const h=homeRaion(); if(h&&(h.obl==='14'||h.obl==='31')) return h.obl==='31'?'kyiv-city':h.key; const [hx,hy]=proj(HOME.lon,HOME.lat); let best=null; for(const f of (MAP?MAP.features:[])){ if(!f.raion) continue; const d=Math.hypot(f.cx-hx,f.cy-hy); if(!best||d<best.d) best={d,r:f.raion}; } return best?best.r:null;})();
     const hl=hraion==='kyiv-city'?kCity:(maxL(kFill,krst[hraion])||null);
@@ -2209,12 +2231,12 @@ function renderHist(){
   if(!$('stats')) $('hist').innerHTML='<div id="stats"></div>';
   renderStats();
 }
-async function loadState(){try{S=await jget('/api/state',12000);render();if(CITY)paintDistricts();}catch(e){}}
+async function loadState(){try{S=await jget('/api/state',12000);H.st=S.h||null;render();if(CITY)paintDistricts();showNotice(S.notice);checkMove(S);}catch(e){}}
 let STALE=5;
-async function loadMarkers(){try{const d=await jget('/api/markers',12000);MK=d.markers;ttl=d.ttl_minutes||45;STALE=d.stale_minutes||5;linkStatus();if(CITY)paintDistricts();}catch(e){}}
+async function loadMarkers(){try{const d=await jget('/api/markers',12000);MK=d.markers;H.mk=d.h||null;ttl=d.ttl_minutes||45;STALE=d.stale_minutes||5;linkStatus();if(CITY)paintDistricts();}catch(e){}}
 // ?lang= tells the server somebody reads the feed in English or French: it then translates posts into it, in the
 // background, and says so with a 'tr' event — the post first shows the offline glossary, then the translation.
-async function loadFeed(flash){try{const posts=(await jget('/api/feed?limit='+((typeof LITE!=='undefined'&&LITE)?25:150)+(LANG!=='uk'?'&lang='+LANG:''),12000)).feed;renderFeed(posts,flash&&!firstFeed);firstFeed=false;}catch(e){}}
+async function loadFeed(flash){try{const lite=typeof LITE!=='undefined'&&LITE;const d=await jget('/api/feed?limit='+(lite?25:150)+(LANG!=='uk'?'&lang='+LANG:''),12000);H.fd=lite?null:(d.h||null);renderFeed(d.feed,flash&&!firstFeed);firstFeed=false;}catch(e){}}
 async function loadHist(){try{hist=(await jget('/api/history?hours=24&oblast=31,14',12000)).alerts;renderHist();}catch(e){} loadStats();}
 // ---- statistics of past attacks (server-aggregated, Kyiv time) ----
 let STATS=null,STAT_DAYS=14;
@@ -2248,7 +2270,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.28';
+const APP_VERSION='1.29';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
@@ -2328,7 +2350,7 @@ function markerText(m){
   const kind=m.status?statusName(m.status):(m.type==='drones'?(m.jet?t('k_jet'):t('k_shahed')):THREAT[m.type]?.[1]||m.type);
   const n=(m.csum||m.count||1)>1?` ×${m.csum||m.count}`:'';
   const place=m.place==='область'?t('oblcentre'):pn(m.place);
-  const L=[`Clear Sky · ${kind}${n} — ${place} · ${fmtT(m.ts)}`];
+  const L=[`Heimdall · ${kind}${n} — ${place} · ${fmtT(m.ts)}`];
   if(m.alt&&m.alt.state==='descending') L.push('↓ '+t('alt_desc'));
   if(m.alt&&m.alt.m) L.push(`~${m.alt.m} ${t('m_unit')}`);
   if(m.heading!=null&&!m.status) L.push(`${t('tp_heading')}: ${dirName(m.heading)}`);
@@ -2412,6 +2434,7 @@ let LITE=ls('lite')==='1';
 function applyLite(){ document.body.classList.toggle('lite',LITE); $('litebtn').classList.toggle('on',LITE);
   if(typeof updateTiles==='function') updateTiles(); }
 $('litebtn').onclick=()=>{ LITE=!LITE; ls('lite',LITE?'1':'0'); applyLite(); $('menu').hidden=true;
+  try{ es.close(); }catch(e){} connect(); loadFeed(false);   // the live line carries the feed only outside blackout mode
   notify(LITE?t('lite_on'):t('lite_off'),'','end'); };
 applyLite(); applyMode();
 
@@ -2461,17 +2484,61 @@ $('livebar').addEventListener('click',e=>{ const b=e.target.closest('#lbexp,#lbd
 $('helpbtn').onclick=()=>{$('menu').hidden=true;helpSheet();};
 $('geobtn').onclick=()=>{$('menu').hidden=true;geoSheet();};
 
-let es, trT=null; function connect(){ es=new EventSource('/api/stream'+(LANG!=='uk'?'?lang='+LANG:''));
-  es.addEventListener('tr',ev=>{const d=JSON.parse(ev.data); if(d.lang!==LANG) return; clearTimeout(trT); trT=setTimeout(()=>loadFeed(false),2500);});
-  const onA=kind=>ev=>{const d=JSON.parse(ev.data),a=d.alert,fav=a.oblast_uid==='31'||a.oblast_uid==='14'; loadState(); if(kind!=='update')loadHist(); if(!fav)return;
+// ---- the live line (1.29) ----------------------------------------------------------------------------------
+// The stream sends the data itself: a "sync" message carries what changed in the marks, the alerts and the feed
+// (static/live.js applies it), and one arrives at least every `hb` seconds (15, 5 with cruise missiles up, 2 with
+// a ballistic one) as the heartbeat. While it beats, the page asks nothing; the version check below becomes a
+// once-a-minute safety net. If it stops, the page goes back to asking every 15 / 5 / 1 s, as before 1.29.
+let es, trT=null, histT=null;
+const H={mk:null,st:null,fd:null};            // the server's version (hash) of each part this page holds
+let LIVE_SYNC=false, liveLast=0, liveHb=15, lastPingAt=0;
+const liveOK=()=>LIVE_SYNC&&Date.now()-liveLast<Math.max(3*liveHb*1000,8000);
+function liveBeat(d){ LIVE_SYNC=true; liveLast=Date.now(); liveHb=d.hb||15; if(d.v) lastV=d.v; setMsl(d.msl);
+  lastUpd=nowKyiv(); netOK=true; lastPing=Date.now(); }
+function applySync(d){ const L=window.LiveSync; if(!L) return;
+  if(d.mk){ const r=L.part('mk',d.mk,H.mk,MK); if(r===null) loadMarkers();
+    else if(r!=='same'){ MK=r.v; H.mk=d.mk.h; linkStatus(); if(CITY)paintDistricts(); } }
+  if(d.st){ const r=L.part('st',d.st,H.st,S); if(r===null) loadState();
+    else if(r!=='same'){ S=r.v; S.h=d.st.h; if(d.now) S.now=d.now; H.st=d.st.h; render(); if(CITY)paintDistricts(); showNotice(S.notice); checkMove(S); } }
+  if(d.fd&&!LITE){ const r=L.part('fd',d.fd,H.fd,lastPosts); if(r===null) loadFeed(true);
+    else if(r!=='same'){ H.fd=d.fd.h; renderFeed(r.v,!firstFeed); firstFeed=false; } } }
+// after an alert starts or ends, every open page used to ask for the history at the same instant
+// 1.29: the app has a new address (CANONICAL_HOST on the server). On the old one, a banner sends the reader there
+// with this phone's settings in the link's #fragment. Settings only: the watched places never leave this phone —
+// not even in a link, which browser history may keep — so they are set again there.
+const CARRY=['lang','mode','lite','snd','sndvol','vib','est','layers','layers_v2','imph','myobl','sup_seen','sup_never'];
+function checkMove(st){ const el=$('moved'); if(!el) return; const c=st&&st.config&&st.config.canonical;
+  if(!c||location.host===c||sessionStorage.getItem('moved_x')){ el.hidden=true; return; }
+  let d={}; try{ CARRY.forEach(k=>{ const v=localStorage.getItem(k); if(v!==null) d[k]=v; }); }catch(e){}
+  let b=''; try{ b=btoa(unescape(encodeURIComponent(JSON.stringify(d)))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }catch(e){}
+  el.querySelector('.mvt').textContent=t('mv_t',c); el.querySelector('.mvb').textContent=t('mv_b');
+  const a=el.querySelector('a'); a.textContent=t('mv_go',c); a.href='https://'+c+location.pathname+(b?'#carry='+b:'');
+  el.querySelector('.nx').onclick=()=>{ try{sessionStorage.setItem('moved_x','1');}catch(e){} el.hidden=true; if(typeof syncTop==='function') syncTop(); };
+  if(el.hidden){ el.hidden=false; if(typeof syncTop==='function') syncTop(); } }
+// the admin's message (S.notice): shown until it expires or this reader closes it — closing is remembered here only
+function showNotice(n){ const el=$('notice'); if(!el) return; let gone=null; try{gone=localStorage.getItem('notice_x');}catch(e){}
+  const tx=n&&n.text?(n.text[LANG]||n.text.uk||n.text.en||n.text.fr||''):'';
+  const hide=!tx||gone===n.id;
+  if(!hide){ el.className='notice lv-'+(n.level||'info'); el.querySelector('.ntx').textContent=tx;
+    el.querySelector('.nx').onclick=()=>{ try{localStorage.setItem('notice_x',n.id);}catch(e){} el.hidden=true; syncTop(); }; }
+  if(el.hidden!==hide){ el.hidden=hide; syncTop(); } }
+function histSoon(){ if(histT) return; histT=setTimeout(()=>{histT=null;loadHist();},2000+Math.random()*18000); }
+function connect(){
+  const qs=['sync='+(LITE?'mk,st':'mk,st,fd')]; if(LANG!=='uk') qs.push('lang='+LANG);
+  es=new EventSource('/api/stream?'+qs.join('&'));
+  es.addEventListener('hello',ev=>{const d=JSON.parse(ev.data); liveBeat(d); const h=d.h||{};
+    if('mk' in h&&h.mk!==H.mk) loadMarkers(); if('st' in h&&h.st!==H.st) loadState(); if('fd' in h&&h.fd!==H.fd) loadFeed(false);});
+  es.addEventListener('sync',ev=>{const d=JSON.parse(ev.data); liveBeat(d); applySync(d);});
+  es.addEventListener('tr',ev=>{const d=JSON.parse(ev.data); if(d.lang!==LANG||(LIVE_SYNC&&!LITE)) return; clearTimeout(trT); trT=setTimeout(()=>loadFeed(false),2500);});
+  const onA=kind=>ev=>{const d=JSON.parse(ev.data),a=d.alert,fav=a.oblast_uid==='31'||a.oblast_uid==='14'; if(!LIVE_SYNC) loadState(); if(kind!=='update')histSoon(); if(!fav)return;
     const lt=LANG==='uk'?a.location_title:(a.location_title_en||a.location_title);
     if(kind==='start')notify(`🔴 ${ATYPE[a.alert_type]||t('n_alert')} — ${lt}`,`${LT(a.location_type)} · ${fmtT(a.started_at)}${a.notes?' · '+a.notes:''}`,'start');
     else if(kind==='end')notify(`🟢 ${t('n_allclear')} — ${lt}`,t('n_lasted',dur(a.started_at,a.finished_at)),'end');
     else if(kind==='threat'){const th=d.threat||{};notify(`⚠️ ${THREAT[th.threat_type]?.[1]||th.threat_type} — ${lt}`,th.source_message||'','threat');}};
   ['start','end','threat','update'].forEach(k=>es.addEventListener(k,onA(k)));
-  es.addEventListener('eradar',()=>loadState());
-  es.addEventListener('feed',ev=>{const d=JSON.parse(ev.data);loadFeed(true);loadMarkers();if(!HOME&&(d.post.tags||[]).includes('kyiv')&&!(d.post.tags||[]).includes('official'))notify(t('n_kyivarea')+' — '+(CH[d.post.channel]||d.post.channel),ptxt(d.post).slice(0,160),'threat');});
-  es.onerror=()=>{es.close();setTimeout(connect,3000);};
+  es.addEventListener('eradar',()=>{ if(!LIVE_SYNC) loadState(); });
+  es.addEventListener('feed',ev=>{const d=JSON.parse(ev.data);if(!LIVE_SYNC||LITE)loadFeed(true);if(!LIVE_SYNC)loadMarkers();if(!HOME&&(d.post.tags||[]).includes('kyiv')&&!(d.post.tags||[]).includes('official'))notify(t('n_kyivarea')+' — '+(CH[d.post.channel]||d.post.channel),ptxt(d.post).slice(0,160),'threat');});
+  es.onerror=()=>{LIVE_SYNC=false;es.close();setTimeout(connect,3000);};
 }
 document.querySelectorAll('#tabs button').forEach(b=>b.onclick=e=>{e.stopPropagation();document.querySelectorAll('#tabs button').forEach(x=>x.classList.remove('on'));b.classList.add('on');['feedwrap','alerts','hist','layers'].forEach(x=>$(x).hidden=x!==b.dataset.tab);if(window.innerWidth<1000)$('drawer').classList.add('open');});
 $('handle').onclick=()=>{if(window.innerWidth<1000)$('drawer').classList.toggle('open');};
@@ -2501,15 +2568,19 @@ const pulseIv=()=>MSLLVL>=2?1000:MSLLVL?5000:15000;
 async function jget(url,ms){ const c=new AbortController(); const t0=setTimeout(()=>c.abort(),ms);
   try{ const r=await fetch(url,{signal:c.signal,cache:'no-store'}); if(!r.ok) throw new Error(r.status); return await r.json(); }
   finally{ clearTimeout(t0); } }
+function setMsl(lvl){ if(lvl==null) return; lvl=+lvl;
+  if(lvl!==MSLLVL){MSLLVL=lvl;MISSILE=lvl>0;document.body.classList.toggle('missile',MISSILE);document.body.classList.toggle('ballistic',lvl>=2);schedulePulse();} }
 async function pulse(force){
   if(pulseBusy){ if(Date.now()-pulseStarted<20000) return; pulseBusy=false; }   // a wedged round never blocks the next
   if(document.hidden&&!force) return;
+  // the live line carries everything and beats every few seconds: asking is a safety net, once a minute
+  if(liveOK()&&!force&&Date.now()-lastPingAt<60000){ netOK=true; lastPing=Date.now(); return; }
   pulseBusy=true; pulseStarted=Date.now();
   try{
-    const v=await jget('/api/version',MSLLVL>=2?4000:8000); checkBuild(v);
-    const lvl=v.msl!=null?+v.msl:(v.missile?1:0);
-    if(lvl!==MSLLVL){MSLLVL=lvl;MISSILE=lvl>0;document.body.classList.toggle('missile',MISSILE);document.body.classList.toggle('ballistic',lvl>=2);schedulePulse();}
-    if(v.v!==lastV||Date.now()-lastFull>60000){lastV=v.v;await refreshAll();}
+    const v=await jget('/api/version',MSLLVL>=2?4000:8000); lastPingAt=Date.now(); checkBuild(v);
+    setMsl(v.msl!=null?+v.msl:(v.missile?1:0));
+    if(liveOK()){ if(Date.now()-lastFull>600000) await refreshAll(); else lastUpd=nowKyiv(); }
+    else if(v.v!==lastV||Date.now()-lastFull>60000){lastV=v.v;await refreshAll();}
     else lastUpd=nowKyiv();
     netOK=true; lastPing=Date.now();
   }catch(e){ netOK=false; }
@@ -2524,6 +2595,8 @@ function schedulePulse(){ clearInterval(pulseTimer); const iv=pulseIv(); nextPul
 setInterval(()=>{
   const iv=pulseIv();
   if(!document.hidden&&!pulseBusy&&Date.now()-lastPing>Math.max(iv*2.5,3000)) { nextPulse=Date.now()+iv; pulse(); }
+  if(LIVE_SYNC&&!liveOK()){ LIVE_SYNC=false; try{es.close();}catch(e){} setTimeout(connect,500); pulse(true); }
+  if(liveOK()&&MSLLVL<2&&!pulseBusy){ $('upd').innerHTML=`${lastUpd?t('u_upd')+' '+lastUpd+' \u00b7 ':''}<span class="cd on">${t('u_live')}</span>`; return; }
   if(pulseBusy&&MSLLVL<2){$('upd').textContent=t('u_updating');return;}
   // At one-second cadence a countdown would just flicker between 1 and 0 and read as a fault. It says LIVE
   // instead, and turns red the moment a round actually fails — which is the only thing worth noticing there.

@@ -1,4 +1,4 @@
-"""Clear Sky — unofficial air-raid / drone tracker for Kyiv and all of Ukraine.
+"""Heimdall (formerly Clear Sky) — unofficial air-raid / drone tracker for Kyiv and all of Ukraine.
 
 Modules
 -------

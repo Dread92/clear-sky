@@ -7,7 +7,7 @@ set APP=kyiv-air-watch-gb
 if exist .flyapp set /p APP=<.flyapp
 where fly >nul 2>&1 || (echo flyctl not found - run deploy-fly.bat once first. & pause & exit /b 1)
 echo.
-echo === Clear Sky - AI summaries ===
+echo === Heimdall - AI summaries ===
 echo Create a key at https://platform.claude.com (API keys), then paste it here (right-click pastes).
 echo.
 set "KEY="

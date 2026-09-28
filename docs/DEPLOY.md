@@ -65,6 +65,21 @@ fly ssh console -a clear-sky   # shell inside the machine
 fly ssh console -a clear-sky -C "ls -la /data"   # the database on the volume
 ```
 
+### Its own address (domain)
+
+Fly cannot rename an app, and a new `*.fly.dev` name would be one more move for everybody who installed the
+app. Give it a real domain instead (for example `heimdall.com.ua`, open to anyone, ~700 UAH a year):
+
+1. Buy the domain at any registrar.
+2. Double-click `scripts\set-domain.bat`. It adds the free HTTPS certificates on Fly (`fly certs add`), shows
+   the DNS records to create at the registrar (A and AAAA for the domain, CNAME for `www`), and checks the
+   certificate.
+3. When the certificate is issued, the script offers to set `CANONICAL_HOST`: pages still opened on
+   `kyiv-air-watch-gb.fly.dev` then show "Heimdall has moved to …" with a button to the new address. The old
+   address keeps working; the reader's settings follow in the link (never the watched places — they are set
+   again there). An installed app has to be added to the home screen again from the new address: a browser
+   ties an installed app to its address, nothing can move it.
+
 ### Access key
 
 With `ACCESS_KEY` set, every request needs `?key=…` once per device; the key is then remembered in

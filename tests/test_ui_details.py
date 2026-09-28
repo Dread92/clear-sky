@@ -83,15 +83,23 @@ def test_light_opens_a_mark_on_a_tap():
 
 
 def test_the_new_logo_is_the_app_icon_and_the_partner_logos_stay():
+    """1.29: Heimdall's radar is the app icon everywhere (it was Clear Sky's since 1.19); 07300 and Black Flame stay."""
     for man in ("manifest.json", "light.webmanifest"):
-        icons = json.load(open(os.path.join(ROOT, "static", man), encoding="utf-8"))["icons"]
-        for ic in icons:
-            assert ic["src"].startswith("/static/logo-cs"), ic
+        m = json.load(open(os.path.join(ROOT, "static", man), encoding="utf-8"))
+        assert m["short_name"].startswith("Heimdall")
+        for ic in m["icons"]:
+            assert ic["src"].startswith("/static/logo-hd"), ic
             assert os.path.isfile(os.path.join(ROOT, ic["src"].lstrip("/")))
-        assert any(ic["purpose"] == "maskable" for ic in icons)
+        assert any(ic["purpose"] == "maskable" for ic in m["icons"])
+    # the installed Tactical app keeps its identity: an update of the same app, not a second one beside it
+    assert json.load(open(os.path.join(ROOT, "static", "manifest.json"), encoding="utf-8"))["id"] == "/m"
+    for page in (PAGE, LIGHT):
+        assert 'rel="apple-touch-icon" href="/static/logo-hd-apple-180.png"' in page     # an iPhone's home screen
+        assert "Clear Sky" not in page
     assert 'src="/static/logo-64.png" alt="07300"' in PAGE          # NGO 07300 stays in the header
     assert "/static/bf-logo.png" in PAGE                             # Black Flame stays in the credits
-    assert '"logo-cs-64.png"' in SRC                                 # the favicon
+    assert '"logo-hd-64.png"' in SRC                                 # the favicon
+    assert "Clear Sky" not in I18N
 
 
 def test_mark_labels_are_spaced_from_what_is_drawn_not_from_a_copy_of_the_css():
@@ -147,3 +155,27 @@ def test_the_sound_has_a_volume_that_an_iphone_obeys():
     assert ".volume" not in PAGE  # no <audio>.volume: it does nothing on an iPhone
     for k in ("m_vol", "m_vol_test", "m_vol_test_t", "m_vol_off"):
         assert I18N.count(k + ":") == 3, k
+
+
+def test_a_move_to_a_new_address_carries_settings_but_never_a_watched_place():
+    """1.29: CANONICAL_HOST shows the move banner; the link carries settings in its #fragment, and neither the
+    sender nor the receiver lets a watched place through (they never leave the phone)."""
+    for page in (PAGE, LIGHT):
+        carry_in = page[page.index('<script id="carry">'):page.index("</script>", page.index('<script id="carry">'))]
+        assert page.index('<script id="carry">') < page.index('<script src="/static/i18n.js">')   # before anything reads
+        send = page[page.index("const CARRY=["):page.index("];", page.index("const CARRY=["))]
+        for place_key in ("'slots'", "'slot_active'", "'home'", "'geo'"):
+            assert place_key not in carry_in and place_key not in send, place_key
+        assert "ok.indexOf(k)>=0" in carry_in and "history.replaceState" in carry_in
+        assert "location.host===c" in page
+    assert 'os.environ.get("CANONICAL_HOST")' in SRC and '"canonical": canonical_host(self.cfg)' in SRC
+
+
+def test_the_team_message_is_escaped_and_admin_only():
+    for page in (PAGE, LIGHT):
+        assert "el.querySelector('.ntx').textContent=tx" in page       # text, never HTML
+    i = SRC.index('if u.path == "/api/admin/notice":')
+    assert "if not self._admin_ok(q):" in SRC[i:i + 300]
+    i = SRC.index('if u.path == "/api/online":')
+    assert "if not self._admin_ok(q):" in SRC[i:i + 400]
+

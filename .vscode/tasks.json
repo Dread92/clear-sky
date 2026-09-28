@@ -2,7 +2,7 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run Clear Sky",
+      "label": "Run Heimdall",
       "type": "shell",
       "command": "python app/server.py",
       "problemMatcher": [],
@@ -10,7 +10,7 @@
       "presentation": { "panel": "dedicated" }
     },
     {
-      "label": "Run Clear Sky (demo)",
+      "label": "Run Heimdall (demo)",
       "type": "shell",
       "command": "python app/server.py --demo",
       "problemMatcher": [],

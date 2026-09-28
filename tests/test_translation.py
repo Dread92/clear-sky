@@ -115,5 +115,6 @@ def test_a_translation_lands_in_the_feed_and_tells_the_pages(monkeypatch):
 
 def test_the_page_asks_for_its_language_and_shows_french_when_there_is_some():
     html = open(server.os.path.join(server.STATIC, "kyiv.html"), encoding="utf-8").read()
-    assert "'&lang='+LANG" in html and "'?lang='+LANG" in html
+    assert "'&lang='+LANG" in html                    # the feed request
+    assert "qs.push('lang='+LANG)" in html             # the live stream (1.29: /api/stream?sync=…&lang=…)
     assert "(LANG==='fr'&&p.text_fr)||p.text_en" in html

@@ -8,7 +8,7 @@ set APP=kyiv-air-watch-gb
 if exist .flyapp set /p APP=<.flyapp
 
 echo.
-echo === Clear Sky - release ===
+echo === Heimdall - release ===
 for /f "tokens=3" %%v in ('findstr /b /c:"APP_VERSION = " app\server.py') do set VER=%%~v
 echo  version !VER!, app %APP%
 git log -1 --format="  last commit: %%h %%s"

@@ -11,7 +11,7 @@ What it does, all on this PC:
      never on a command line, never printed, never written to a file). Fly restarts the app with them.
 
 The session string is a key to that Telegram account. It exists only in Fly's secret store afterwards.
-To revoke it: Telegram > Settings > Devices > "Clear Sky server" > Terminate.
+To revoke it: Telegram > Settings > Devices > "Heimdall server" > Terminate.
 """
 import asyncio
 import getpass
@@ -90,7 +90,7 @@ def ask_password():
 def main():
     TelegramClient, StringSession, JoinChannelRequest = telethon()
     print()
-    print("=== Clear Sky - Telegram sign-in for the server ===")
+    print("=== Heimdall - Telegram sign-in for the server ===")
     print("The values you type here stay on this PC and go straight to Fly's secret store.")
     print()
     api_id, api_hash = ask_app()
@@ -99,7 +99,7 @@ def main():
     async def sign_in():
         nonlocal api_id, api_hash
         while True:
-            client = TelegramClient(StringSession(), int(api_id), api_hash, device_model="Clear Sky server")
+            client = TelegramClient(StringSession(), int(api_id), api_hash, device_model="Heimdall server")
             try:
                 await client.start(phone=phone, code_callback=ask_code, password=ask_password)
                 break
