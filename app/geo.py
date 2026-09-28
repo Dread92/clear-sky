@@ -227,7 +227,7 @@ COMPASS = [
 ]
 
 TYPE_RX = [
-    ("ballistic_missiles", re.compile(r"баліст|іскандер|кінжал|швидкісн[а-яіїє]*\s+ціл", re.I)),
+    ("ballistic_missiles", re.compile(r"баліст|іскандер|кінжал|к[иі]нджал|х-?47|швидкісн[а-яіїє]*\s+ціл", re.I)),
     # "Мігну31к в небе", "міг 31", "миг31к": the channels decline it and drop the hyphen. The word still has
     # to start with міг/миг and be followed by 31 within three letters — loose enough for their spelling,
     # tight enough that no ordinary word raises the loudest banner in the app.
@@ -1438,7 +1438,18 @@ CHANNEL_PARSER = {"povitryanatrivogaaa": parse_arrows, "kyiv_airdef": parse_kyiv
                   "xydessa_live": lambda t: _parse_live(t, "18")}
 
 
+# The carriers never fly over Ukraine: a Tu-95, a Tu-160, a Tu-22M3 or a MiG-31K is over Russia, Crimea or the sea
+# when the channels report it, and any Ukrainian place in those posts is something else. "Також у повітрі 4х борти
+# Ту-160 з «Українки»" — the airbase in the Amur region — was drawn as strategic aviation at Ukrainka, 40 km south
+# of Kyiv, every time the Tu-160s took off (1.33). Their posts raise their banners; they place no mark.
+NEVER_PLACED = frozenset({"strategic_aircraft_activity", "mig31k_departure"})
+
+
 def parse_for_channel(channel, text):
+    return [m for m in _parse_for_channel(channel, text) if m.get("type") not in NEVER_PLACED]
+
+
+def _parse_for_channel(channel, text):
     if channel == "eRadarrua" and "◦" in text:
         return []          # per-oblast group-count summary: counts only, no positions (see parse_eradar_summary)
     # A notice that is plainly not about the sky — a press release, a metro timetable — places nothing, whichever

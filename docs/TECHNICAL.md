@@ -1,6 +1,6 @@
 # Heimdall — technical documentation
 
-**Documented version: 1.32** · last updated 2026-09-28
+**Documented version: 1.33** · last updated 2026-09-28
 
 Heimdall was called **Clear Sky** until 1.29; the repository, the Fly app (`kyiv-air-watch-gb`) and some
 internal names still carry the old name.
@@ -168,7 +168,8 @@ clear-sky/
 | `streams` | **every open page's live line** (`StreamHub`, §5.4): one thread, non-blocking sockets (epoll), the data sent as changes | events + every 15 / 5 / 2 s |
 | `proximity` | per-subscriber distance checks → push | continuous |
 | `AlertsInUa.backfill` | a month of history for the favourite regions | once at start |
-| `AFBackfill` | the Air Force summaries of the last 14 days that `af_reports` lacks: first from the stored feed, then from `t.me/s/kpszsu?before=…` pages (at most 240, stops once nothing is missing) | 60 s after start, then daily |
+| `AFBackfill` | the Air Force summaries of the last 14 days that `af_reports` lacks: first from the stored feed, then from `t.me/s/kpszsu?before=…` pages (at most 240, stops once nothing is missing); since 1.33 also the carriers (`parse_air_report`) in every stored post, once per parser version (`kv.air_parsed`) | 60 s after start, then daily |
+| `Weather` | the last nights' weather at the launch areas and Kyiv from Open-Meteo (`WEATHER_POINTS`; 92 nights the first time, then 10) into `weather` | 90 s after start, then every 6 h (1 h after a failure) |
 
 **One computation for everybody** (`State.cached`): `/api/markers`, `/api/state`, `/api/feed`, `/api/stats`,
 `/api/impacts` are built once per change (the publish sequence `seq`) and at most every few seconds, by one
@@ -453,6 +454,37 @@ block for every value:
 
 Fires, ground damage and the channels' own "чисто" are not drawn (`HIDDEN_STATUS` on the pages).
 
+### 7.6 The carriers: take-offs, launches, stand-downs (1.33)
+
+`parse_air_report(text)` reads what a post reports about the aircraft and ships that carry the missiles — `mig31k`
+(MiG-31K, Kinzhal), `strategic` (Tu-95MS / Tu-160), `tu22` (Tu-22M3, Kh-22/32), `kalibr` (the ships) — as
+`(kind, phase)` pairs, phase `up` (airborne: "зліт", "у повітрі", "відбувся виліт", "борт Ту-22м3 в районі …"),
+`launch` ("пуски КР «Калібр»", "перші пуски … повітряного базування Х-101", "Кинджал вектор …", "Пуски Х-22", the
+Air Force's "імовірно здійснено пуски" included — it reads them from the aircraft) or `end` ("Відбій загрози
+МіГ-31К", "Посадка МіГ-31К", "Чисто по Х-22"). Sentence by sentence, so that the sentence that says what MAY come
+("Якщо будуть пуски…", "Загроза пусків Х-22", "Може відбутись пуск", "готових до вильоту") never counts; a post
+about moving aircraft between airfields, a tally written after the attack, and the Air Force's summaries are
+not reports. Pinned on 63 real posts read by hand (`tests/fixtures/air_posts_2026.json`).
+
+Every post read (before the relevance filter) goes into `air_reports` (`Store.air_save`, with a fingerprint of the
+text). `air_sorties()` groups them: several channels reporting one take-off are one sortie; a sortie stays open
+`AIR_OPEN` minutes after its last report (MiG-31K 90, Tu-95/160 12 h, Tu-22M3 6 h); a take-off more than 10 min
+after a stand-down is a new sortie; the same words from the same channel within 45 min count once. Each sortie has
+its first take-off report, first launch report and stand-down, the minutes from take-off to launch and to
+stand-down. Statistics only: none of it places a mark or raises anything.
+
+Two live bugs were found on the way and fixed in 1.33:
+- **A reply was read as the message it answers.** On `t.me/s/` a reply carries the quoted message first, in a div
+  of the same class. The reader took it: the Air Force's "📢 Відбій небезпеки по МіГ-31К", posted as a reply to its
+  take-off message, was stored as "Зафіксовано зліт МіГ-31К" — a second take-off at the minute the danger was
+  called off. `tg_post_text()` takes the post's own text (`js-message_text`, never `js-message_reply_text`) for
+  every `t.me/s/` reader.
+- **A Tu-160 airbase was drawn near Kyiv.** "Також у повітрі 4х борти Ту-160 з «Українки»" (the airbase in the Amur
+  region) placed strategic aviation at Ukrainka, Obukhiv raion. The carriers never fly over Ukraine: `geo.NEVER_PLACED`
+  (strategic aviation, MiG-31K) — their posts raise their banners and place no mark. And "Кинджал", the way the Air
+  Force and war_monitor spell it, is now read as ballistic (it was an unspecified missile, without the ballistic
+  banner).
+
 ### 7.5 The Air Force's summaries (1.32)
 
 Twice a day `kpszsu` sums up the attack on all of Ukraine: "У ніч на 28 вересня (з 18:00 27 вересня) противник
@@ -539,8 +571,21 @@ owner and his partners, "Excel-like":
   oblast (any raion of 14); when alerts start in the city (weekday × hour); the marks placed over the city and the
   oblast per 24 h from 18:00 by type (Banderol with the jet drones), by hour, and the drone courses **stated** in
   posts (8 sectors; none guessed);
-- the KPIs compare the last 7 days with the 7 before; a date without a summary says so instead of showing zeros.
+- the KPIs compare the last 7 days with the 7 before; a date without a summary says so instead of showing zeros;
+- (1.33) **the carriers** (§7.6): sorties per date by kind, and per kind the number on record, how many a launch
+  report followed, the median (and middle half) from take-off to launch, the MiG-31K's median time to the stand-down,
+  the last 25 in a table;
+- (1.33) **the weather**: one dot per night — the mean wind, cloud cover and rain over the launch areas (Orel,
+  Kursk, Bryansk, Shatalovo, Millerovo, Primorsko-Akhtarsk; 18:00–06:00) against the drones the Air Force says were
+  launched that night; Pearson's r, the number of nights and a least-squares line from 8 nights, with the reminder
+  that a link is not a cause;
+- (1.33) **the approach sides**: drone positions the posts named in Kyiv oblast 20–130 km from the centre, by side of
+  Kyiv (8 sectors), per 24 h from 18:00 (a post once per side; town-level positions only), and the total per side;
+- (1.33) **hours under alert by oblast**, all Ukraine: official air-raid alerts in any part of each oblast, per week
+  (per day up to 14 days), coloured by the share of the time in the heat layer's bins; an alert row a restart left
+  open counts only while it is really active.
 
+Each of the new cards has its CSV (carriers, weather with the night's drones, approach sides, oblast hours).
 Charts are SVG drawn in the page (no library), in the validated dark categorical order (blue, orange, aqua,
 yellow, magenta — never by rank), one axis each, a legend for two series or more, a tooltip on every mark; the
 width follows the screen so a phone can read them. Every chart's table downloads as **CSV for Excel** (UTF-8
@@ -609,6 +654,11 @@ level-of-detail classes by zoom, OSM tiles under the vector layers below 150 km 
 - **the 📍 pin**: press and hold on open map (a ring fills while the finger stays; a drag only starts past
   `HOLD_SLOP_PX` = 10 screen px; the browser's long-press menu is suppressed), or tap the empty Pin chip to arm the
   map (`armPin`, banner with Cancel) and tap where it goes (`dropPin`);
+- **the heat layer** (1.33, Map tab → Layers, off at every opening — never remembered): hours under an official
+  air-raid alert in each oblast over 24 h / 7 days / 30 days (`GET /api/alert_hours`), filled in a violet ramp by
+  the share of the time (bins 2 / 10 / 25 / 45 / 70 %), the hours written on each oblast, drawn over the fills and
+  under every mark; the oblasts with an alert anywhere in them right now outlined in red / yellow on top; a legend
+  that says "not live"; switching it on zooms out to the whole country;
 - tabs: **Feed**; **Alerts** (the live tally of what is on the map, then the official alerts); **Stats** — the Air
   Force's official figures only, weapon by weapon since 1.32 (§7.5): for 24 h / 7 d / 30 d (`windows[…].af`) a
   row per type — launched and ↓ shot down, ✓ when used without a number — and the hit locations; then each
@@ -685,6 +735,7 @@ flag and code only — and notice); `pickLang()` stores it and reloads.
 - Usage counters (`usage`, `usage_seen`): a daily salted hash, no IP address, no location, no per-person
   history.
 - Flags and the corpus review are behind `ADMIN_KEY`.
+- The weather (1.33) asks Open-Meteo for seven fixed points (six launch areas and Kyiv) — nothing about a reader.
 - No secret is committed: `config.json`, `vapid.json`, `.env`, `*.pem`, databases and `.flyapp` are
   git-ignored; the history was scanned for tokens before the repository was published.
 - Static files are served gzipped with an ETag (`Cache-Control: no-cache`): a phone revalidates instead of
@@ -712,12 +763,13 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `GET /api/impacts?hours=` | explosions and confirmed shoot-downs |
 | `GET /api/stats?days=` | statistics; the Stats tab reads only `windows` (with `af`: launched / down by type, used, impacts, debris) and `af_days` (the Air Force summaries, each with its `post`) |
 | `GET /api/places?oblast=` | gazetteer (names, coordinates, oblast) |
+| `GET /api/alert_hours?days=1|7|30` | the heat layer: per oblast `{h, pct}` — hours under an air-raid alert over the last days and the share of the time (cached 10 min) |
 | `POST /api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/test`; `GET /api/push/key` | Web Push |
 | `POST /api/flag` | "this reading is wrong" report |
 | 🔒 `GET /admin`, `/api/usage` | dashboard, usage counters |
 | 🔒 `GET /api/health` | official sources (ok, last check, detail), every channel read (posts / marks 24 h, share read 7 d, last post, reader state, `mode`, `read_via`, `builtin`), translation backends, lead time over the official alert in Kyiv + oblast (30 days) |
 | 🔒 `GET /api/online` | pages open now with a live line (`total`, `tactical`, `light`, today's peak), the current message, the nuclear event (`nuke`), the last push fan-out (phones, seconds, delivered) |
-| 🔒 `GET /api/analytics?days=` | the dashboard's Analytics (§8c), 7–365 days: `af` per date (launched, down, used, impacts, debris, periods), `af_areas`, `af_directions`, `af_models`, `kyiv` per date (city / oblast minutes, city alerts), `starts` (7 × 24), `reports` per date by type, `hours`, `headings` |
+| 🔒 `GET /api/analytics?days=` | the dashboard's Analytics (§8c), 7–365 days: `af` per date (launched, down, used, impacts, debris, periods), `af_areas`, `af_directions`, `af_models`, `kyiv` per date (city / oblast minutes, city alerts), `starts` (7 × 24), `reports` per date by type, `hours`, `headings`; since 1.33 `weather` per date (`kyiv`, `launch`), `approach` (8 sectors per date), `air` (`per_date`, `stats`, `sorties`), `obl` (`by`, `cols`, `rows`), `weather_status` |
 | 🔒 `POST /api/admin/nuke` | `{action: arm}` → `{code, expires_s, phrase}` (refused while one is on); `{action: fire, code, phrase, text: {uk, en, fr}, push}`; `{action: end}` — the nuclear event (§9) |
 | 🔒 `POST /api/admin/channel` | `{action: add|set|delete, name, mode: map|trial|off, via: web|api}` — the channels read (§7.1); `add` checks `t.me/s/<name>` for readable posts and starts it on trial |
 | 🔒 `POST /api/admin/notice` | `{text: {uk, en, fr}, level: info|warn|alert, hours: 0–168 (0 = until removed), push: bool}` or `{clear: true}` — the team's message (§9) |
@@ -741,6 +793,8 @@ SQLite in WAL mode (`DB_PATH`; on Fly, the volume). Tables:
 | `channel_stats` | per channel per day: posts, posts with a reading, flagged readings |
 | `digests` | each night / week: the figures (JSON), the summary in EN and UK, the model, any error |
 | `af_reports` | each Air Force summary read (§7.5): `post_id, channel, ts, period, date` and the reading (JSON) — kept for good, one row per post |
+| `air_reports` | what posts reported about the carriers (§7.6): `post_id, kind, phase, channel, ts` and a fingerprint of the text |
+| `weather` | each night's weather per point (`date, place`, JSON: mean wind, strongest gust, mean cloud cover, rain, lowest temperature) |
 | `flags` | readings people reported as wrong |
 | `corpus_reviews` | verdicts from `/admin` review, merged back with `scripts/corpus.py pull` |
 | `usage`, `usage_seen` | anonymous usage counters |
@@ -769,6 +823,7 @@ python app/server.py --demo --port 8099
 | `test_destination`, `test_scripts_parse` | where it is vs where it is going; every page script parses (node) |
 | `test_load`, `test_watchdog` | no network in the marks' path, one computation for everybody; the watchdog |
 | `test_digests` | a night's figures, the model's rules and answer, windows, owner-only and never in a request |
+| `test_carriers_weather_heat` | the carriers on 63 real posts, sorties and delays, a reply read as itself, no mark for a carrier, Kinzhal ballistic, the weather, the approach sides, the oblast hours, the heat layer |
 | `test_af_reports`, `test_nuke_analytics`, `test_channels` | the Air Force read weapon by weapon, one per night, the backfill; the nuclear event's locks, Analytics, the loud message, both languages on the dashboard; channels from the dashboard |
 
 **The corpus** (`data/corpus.jsonl`, [CORPUS.md](CORPUS.md)): real posts with their expected reading; a

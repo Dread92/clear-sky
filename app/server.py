@@ -156,7 +156,9 @@ def norm_uk(s):
 # ---------------------------------------------------------------------------
 FEED_TAGS = [
     ("drones", re.compile(r"бпла|шахед|дрон|безпілотн|мопед|реактив|\bбп\b", re.I)),
-    ("ballistic_missiles", re.compile(r"баліст|іскандер|кінжал|kn-?23|балістич", re.I)),
+    # "Кинджал" is how the Air Force and war_monitor write it (1.33): read as "a missile" it lost the ballistic
+    # banner — for an aeroballistic missile that reaches Kyiv in minutes
+    ("ballistic_missiles", re.compile(r"баліст|іскандер|кінжал|к[иі]нджал|х-?47|kn-?23|балістич", re.I)),
     ("banderol_missiles", re.compile(r"бандерол", re.I)),
     ("cruise_missiles", re.compile(r"крилат|калібр|калиб|х-?101|х-?555|х-?59|х-?69|х-?22|х-?32|ракет", re.I)),
     # the channels decline it and drop the hyphen ("Мігну31к в небе"), so міг/миг/mig then 31 within three letters
@@ -334,7 +336,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.32"
+APP_VERSION = "1.33"
 APP_NAME = "Heimdall"
 BUILD = None    # filled at startup
 
@@ -659,6 +661,148 @@ def parse_af_report(text, ts=None):
     return out
 
 
+# ---------------------------------------------------------------------------
+# 1.33: the aircraft that carry the missiles — take-offs, launches, stand-downs
+# ---------------------------------------------------------------------------
+# The channels announce the carriers before the missiles: "Зафіксовано зліт МіГ-31К", "Відмічено зліт 4х бортів
+# Ту-95мс з ае «Оленья»", "Борт Ту-22м3 в районі Криму", then "Проведено пуски КР «Калібр»", "Ворог ймовірно
+# виконав перші пуски крилатих ракет повітряного базування Х-101", "Відбій загрози МіГ-31К". Each post is read
+# for what it says happened — a carrier up, a launch, a stand-down — sentence by sentence, so that a sentence
+# about what MAY come ("Якщо будуть пуски КР…", "Загроза пусків Х-22") never counts as a report. Kept in
+# air_reports; the sorties and the delay from take-off to launch are computed from them (State.air_sorties).
+# Statistics only: none of this places a mark or raises anything.
+AIR_KINDS = ("mig31k", "strategic", "tu22", "kalibr")
+_AIR_KIND_RX = {
+    "mig31k": re.compile(r"м[іи]г\w{0,3}\s?-?\s?31|mig\w{0,3}\s?-?\s?31", re.I),
+    "strategic": re.compile(r"ту-?\s?95|ту-?\s?160|стратегічн\w*\s+(?:бомбардувальник|авіац|борт)|стратавіа", re.I),
+    "tu22": re.compile(r"ту-?\s?22", re.I),
+}
+_AIR_SENT = re.compile(r"[.!?;\n]+")
+# said as possible, expected, conditional or as a threat: not a report that anything happened
+_AIR_IF = re.compile(r"\bмож(?:е|уть)\b|можлив|імітаці|якщо|чи\s+будуть|у\s+разі|очіку|загроз|імовірн\w*\s+застосуванн|ймовірн\w*\s+застосуванн|"
+                     r"буде\s+надходит|надходить\s+інформаці|по\s+фактичн|прогноз|попередження\s+на|на\s+вечір|на\s+ніч\b|найближчими\s+днями", re.I)
+_AIR_UP = re.compile(r"\bзліт\b|злет[іи]в|злетіл|\bвиліт\b|вилетіл|(?:в|у)\s+повітрі|(?:в|у)\s+повітряному\s+просторі|здійснюють\s+політ|"
+                     r"\d+\s*(?:-?(?:ти|х|x|×))?\s*борт|борт\w*\s+(?:да\s+)?(?:ту|стратав)|в\s+акваторії|(?:в|у)\s+напрямку|в\s+районі|"
+                     r"на\s+(?:північ|південь|схід|захід)", re.I)
+_AIR_NOT_UP = re.compile(r"не\s+активн|тихо\b|посадк|приземл|відбі|повернул|залишают|зворотн|готов\w*\s+до|присутніст", re.I)
+# a whole post about moving aircraft between airfields is not a sortie
+_AIR_REDEPLOY = re.compile(r"передислок|перебазув|переміщ", re.I)
+# a report written after the attack ("Застосовано …") is a tally, not a launch as it happens
+_AIR_TALLY = re.compile(r"застосовано|застосував|вибухи\s+лунали|за\s+добу|(?:у|в)\s+ніч\s+(?:на|з)\s+\d|уночі\s+\d|уранці\s+\d|"
+                        r"цієї\s+ночі|знищено\s+\d|збито\s+\d|за\s+даними\s+пс", re.I)
+_AIR_LAUNCH = re.compile(r"\b(?:за)?пуск\w*", re.I)
+_AIR_MISSILE = re.compile(r"крилат|\bкр\b|х-?\s?101|х-?\s?555|ракет", re.I)
+_AIR_STRAT_LAUNCH = re.compile(r"повітряного\s+базування|х-?\s?101|х-?\s?555", re.I)
+_AIR_KALIBR = re.compile(r"калібр|калибр", re.I)
+_AIR_X22 = re.compile(r"х-?\s?(?:22|32)\b", re.I)
+_AIR_X22_COUNT = re.compile(r"\d+\s*[хx×]\s*(?:пкр\s+|кр\s+)?х-?\s?(?:22|32)\b", re.I)
+_AIR_KINZHAL = re.compile(r"к[иі]нджал|кінжал|х-?\s?47", re.I)
+_AIR_KINZHAL_GO = re.compile(r"вектор|курс|напрям|\bна\s+[А-ЯІЇЄҐ]|\bпуск|\d+\s*[хx×]", re.I)
+_AIR_MIG_END = re.compile(r"відбі\w*\s+(?:\S+\s+){0,3}?м[іи]г|посадк\w*\s+(?:\S+\s+){0,1}?м[іи]г|м[іи]г\S*\s+(?:\S+\s+){0,2}?(?:приземл|сів|сіли|посадк)", re.I)
+_AIR_TU22_END = re.compile(r"чисто\s+по\s+х-?\s?22|залишают\w*\s+пускові|(?:у|в)\s+зворотному\s+напрямку", re.I)
+
+
+def parse_air_report(text):
+    """A post → what it reports about the carriers: a list of (kind, phase), phase "up" (airborne), "launch"
+    or "end" (stood down, landed). [] when it reports none of it."""
+    if not text or parse_af_report(text):
+        return []                                   # the Air Force's summary of a night: a tally, not a report
+    found = []
+    redeploy = bool(_AIR_REDEPLOY.search(text))
+    tally = bool(_AIR_TALLY.search(text))
+    strat_post = bool(_AIR_KIND_RX["strategic"].search(text))     # "В повітрі … Ту-95МС. Імовірно здійснили пуски КР!"
+
+    def add(kind, phase):
+        if (kind, phase) not in found:
+            found.append((kind, phase))
+    for sent in _AIR_SENT.split(text):
+        sent = sent.strip()
+        if not sent:
+            continue
+        kinds = [k for k, rx in _AIR_KIND_RX.items() if rx.search(sent)]
+        hedged = bool(_AIR_IF.search(sent))
+        # stood down / landed
+        if _AIR_MIG_END.search(sent):
+            add("mig31k", "end")
+            continue
+        if _AIR_TU22_END.search(sent) and ("tu22" in kinds or _AIR_X22.search(sent)):
+            add("tu22", "end")
+            continue
+        # launches, as reported (the Air Force's "імовірно здійснено пуски" included: it reads them from the aircraft)
+        if not hedged and not tally:
+            if _AIR_LAUNCH.search(sent) and _AIR_KALIBR.search(sent):
+                add("kalibr", "launch")
+            elif _AIR_LAUNCH.search(sent) and _AIR_MISSILE.search(sent) and ("strategic" in kinds or strat_post or _AIR_STRAT_LAUNCH.search(sent)) \
+                    and not _AIR_X22.search(sent):
+                add("strategic", "launch")
+            if (_AIR_LAUNCH.search(sent) and _AIR_X22.search(sent)) or _AIR_X22_COUNT.search(sent):
+                add("tu22", "launch")
+            if _AIR_KINZHAL.search(sent) and _AIR_KINZHAL_GO.search(sent) and not re.search(r"носі", sent, re.I):
+                add("mig31k", "launch")
+        # a carrier in the air
+        if kinds and not hedged and not redeploy and not tally and not _AIR_NOT_UP.search(sent) and _AIR_UP.search(sent):
+            for k in kinds:
+                if k == "strategic" and ("strategic", "launch") in found and not re.search(r"(?:в|у)\s+повітрі", sent, re.I):
+                    continue                        # "пуски … з Ту-95" names the carrier of the launch, not a new take-off
+                add(k, "up")
+    return found
+
+
+# How long a sortie stays open after its last report, and how long after the take-off a launch still belongs to it
+# (minutes). A MiG-31K flight lasts under an hour and is called off ("Відбій загрози МіГ-31К"); Tu-95/Tu-160 fly to
+# their launch lines for hours and launch before dawn; a Tu-22M3 sortie over the Black Sea is a few hours.
+AIR_OPEN = {"mig31k": 90, "strategic": 12 * 60, "tu22": 6 * 60, "kalibr": 120}
+
+
+def air_sorties(reports):
+    """Reports (dicts with ts, kind, phase, channel, h — oldest first) → sorties: {kind, start (first "up"),
+    launch (first launch report), end (first stand-down), reports, channels}. Several channels reporting the
+    same take-off are one sortie; the same text from the same channel again within 45 minutes counts once;
+    a take-off more than 10 minutes after a stand-down is a new sortie. A launch with no take-off on record
+    (the Kalibr ships, or a take-off nobody posted) is a sortie with no start: it has no delay."""
+    out, cur, seen = [], {}, {}
+    for r in reports:
+        t = parse_iso(r["ts"])
+        if not t:
+            continue
+        k, ph = r["kind"], r["phase"]
+        key = (r.get("channel"), r.get("h"), ph)
+        if r.get("h") and key in seen and (t - seen[key]).total_seconds() < 45 * 60:
+            continue                        # the same words again within minutes: a repost, an edit, or a reply
+                                            # stored with the message it answered (before 1.33) — not a new take-off
+        seen[key] = t
+        s = cur.get(k)
+        if s and ((t - s["_last"]).total_seconds() / 60 > AIR_OPEN.get(k, 120)
+                  or (ph == "up" and s["end"] and (t - s["end"]).total_seconds() > 600)
+                  or (ph == "launch" and k == "kalibr" and s["launch"] and (t - s["launch"]).total_seconds() / 60 > AIR_OPEN["kalibr"])):
+            s = None
+        if s is None:
+            if ph == "end":
+                continue                                   # a stand-down with no take-off on record
+            s = {"kind": k, "start": None, "launch": None, "end": None, "reports": 0, "channels": set(), "_last": t}
+            cur[k] = s
+            out.append(s)
+        s["reports"] += 1
+        s["channels"].add(r.get("channel"))
+        if ph != "end":
+            s["_last"] = t
+        if ph == "up" and not s["start"] and not s["launch"]:
+            s["start"] = t
+        elif ph == "launch" and not s["launch"]:
+            s["launch"] = t
+        elif ph == "end" and not s["end"]:
+            s["end"] = t
+    res = []
+    for s in out:
+        d = {"kind": s["kind"], "reports": s["reports"], "channels": sorted(c for c in s["channels"] if c)}
+        for f in ("start", "launch", "end"):
+            d[f] = s[f].isoformat().replace("+00:00", "Z") if s[f] else None
+        d["delay_min"] = round((s["launch"] - s["start"]).total_seconds() / 60) if s["start"] and s["launch"] else None
+        d["up_min"] = round((s["end"] - s["start"]).total_seconds() / 60) if s["start"] and s["end"] else None
+        res.append(d)
+    return res
+
+
 def kyiv_tz():
     """Kyiv's own time, summer and winter. Without the zone data (a bare container) the summer offset stands in."""
     try:
@@ -841,6 +985,12 @@ class Store:
         c.execute("""CREATE TABLE IF NOT EXISTS af_reports(
             post_id TEXT PRIMARY KEY, channel TEXT, ts TEXT, period TEXT, date TEXT, data TEXT)""")
         c.execute("CREATE INDEX IF NOT EXISTS ix_af_date ON af_reports(date)")
+        # 1.33: what the posts reported about the carriers (parse_air_report), and the weather of each night
+        c.execute("""CREATE TABLE IF NOT EXISTS air_reports(
+            post_id TEXT, kind TEXT, phase TEXT, channel TEXT, ts TEXT, h TEXT, PRIMARY KEY(post_id, kind, phase))""")
+        c.execute("CREATE INDEX IF NOT EXISTS ix_air_ts ON air_reports(ts)")
+        c.execute("""CREATE TABLE IF NOT EXISTS weather(
+            date TEXT, place TEXT, data TEXT, PRIMARY KEY(date, place))""")
         c.execute("CREATE INDEX IF NOT EXISTS ix_alerts_started ON alerts(started_at)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_feed_ts ON feed(ts)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_mlog_ts ON marker_log(ts)")
@@ -872,6 +1022,40 @@ class Store:
             if key not in best or score >= best[key][0]:
                 best[key] = (score, dict(rep, post=pid, channel=ch, ts=ts))
         return [v[1] for _, v in sorted(best.items())]
+
+    def air_save(self, post_id, channel, ts, items, text):
+        """The carriers a post reported (parse_air_report). `h` fingerprints the text: the same words from the same
+        channel again are a repost or an edit, not a second take-off."""
+        if not items:
+            return 0
+        h = hashlib.sha1(re.sub(r"\W+", "", (text or "").lower()).encode("utf-8")).hexdigest()[:12]
+        with self.lock:
+            n = 0
+            for kind, phase in items:
+                n += self.conn.execute("INSERT OR IGNORE INTO air_reports(post_id,kind,phase,channel,ts,h) VALUES(?,?,?,?,?,?)",
+                                       (post_id, kind, phase, channel, ts, h)).rowcount
+            self.conn.commit()
+        return n
+
+    def air_reports(self, since_iso):
+        with self.lock:
+            rows = self.conn.execute("SELECT post_id,kind,phase,channel,ts,h FROM air_reports WHERE ts>=? ORDER BY ts", (since_iso,)).fetchall()
+        return [dict(zip(("post", "kind", "phase", "channel", "ts", "h"), r)) for r in rows if self.mode_of(r[3]) == "map"]
+
+    def weather_save(self, nights):
+        with self.lock:
+            for (date, place), d in nights.items():
+                self.conn.execute("INSERT OR REPLACE INTO weather(date,place,data) VALUES(?,?,?)", (date, place, json.dumps(d)))
+            self.conn.commit()
+        return len(nights)
+
+    def weather(self, since_date):
+        with self.lock:
+            rows = self.conn.execute("SELECT date,place,data FROM weather WHERE date>=?", (since_date,)).fetchall()
+        out = {}
+        for d, pl, data in rows:
+            out.setdefault(d, {})[pl] = json.loads(data)
+        return out
 
     def kv_get(self, k):
         with self.lock:
@@ -1823,6 +2007,8 @@ class State:
             if not row:
                 continue
             row["periods"].append(r.get("period"))
+            if r.get("period") == "night" and (r.get("launched") or {}).get("drones") is not None:
+                row["night_drones"] = r["launched"]["drones"]
             for k, v in (r.get("launched") or {}).items():
                 row["launched"][k] = row["launched"].get(k, 0) + v
             for k, v in (r.get("down") or {}).items():
@@ -1844,8 +2030,8 @@ class State:
         starts = [[0] * 24 for _ in range(7)]
         for uid, _lt, _lvl, sa, fa in al:
             a, b = parse_iso(sa), parse_iso(fa) or now
-            if not a:
-                continue
+            if not a or (not fa and (now - a).days > 3):
+                continue                            # left open by a restart, not an alert of three days
             spans[uid].append((max(a, t0), b))
             if uid == "31" and a >= t0:
                 k = a.astimezone(tz)
@@ -1885,7 +2071,150 @@ class State:
         return {"days": days, "from": dates[0], "to": dates[-1], "generated": now_iso(),
                 "af": [af[d] for d in dates], "af_areas": areas.most_common(15), "af_directions": dirs.most_common(12),
                 "af_models": models.most_common(12), "kyiv": kyiv, "starts": starts,
-                "reports": [rep[d] for d in dates], "hours": hours, "headings": heads}
+                "reports": [rep[d] for d in dates], "hours": hours, "headings": heads,
+                "weather": self._an_weather(dates), "approach": self._an_approach(t0, dates),
+                "air": self._an_air(t0, dates), "obl": self._an_oblasts(t0, dates),
+                "weather_status": getattr(self, "weather_status", None)}
+
+    # -- 1.33: the weather, the approach sides, the carriers, and the time under alert oblast by oblast ---------------
+    def _an_weather(self, dates):
+        wx = self.store.weather(dates[0])
+        out = []
+        for d in dates:
+            w = wx.get(d) or {}
+            launch = [w[k] for k in WEATHER_LAUNCH if k in w]
+            row = {"date": d, "kyiv": w.get("kyiv")}
+            if launch:
+                def avg(f):
+                    v = [x[f] for x in launch if x.get(f) is not None]
+                    return round(sum(v) / len(v), 1) if v else None
+                row["launch"] = {"wind": avg("wind"), "gust": max((x["gust"] for x in launch if x.get("gust") is not None), default=None),
+                                 "cloud": avg("cloud"), "precip": avg("precip"), "tmin": min((x["tmin"] for x in launch if x.get("tmin") is not None), default=None),
+                                 "points": len(launch)}
+            out.append(row)
+        return out
+
+    APPROACH_KM = (20, 130)
+
+    def _an_approach(self, t0, dates):
+        """Where the channels placed drones around Kyiv: the side of Kyiv (8 sectors), 20–130 km out, in Kyiv oblast,
+        per 24 h from 18:00. Positions the posts stated (a town, high or medium confidence); a post counts once per
+        side. Nothing is extrapolated."""
+        tz = kyiv_tz()
+        with self.store.lock:
+            rows = self.store.conn.execute(
+                "SELECT ts, post_id, lon, lat FROM marker_log WHERE ts>=? AND oblast_uid='14' AND type='drones' AND status IS NULL "
+                "AND lon IS NOT NULL AND lat IS NOT NULL AND pos_conf IN ('high','medium')", (t0.isoformat(),)).fetchall()
+        by = {d: [0] * 8 for d in dates}
+        seen = set()
+        lo, hi = self.APPROACH_KM
+        for ts, pid, lon, lat in rows:
+            k = parse_iso(ts)
+            if not k:
+                continue
+            dist = haversine_km(50.45, 30.52, lat, lon)
+            if not lo <= dist <= hi:
+                continue
+            sec = int(((geo.bearing(30.52, 50.45, lon, lat) if geo else 0) + 22.5) // 45) % 8
+            d = (k.astimezone(tz) + timedelta(hours=6)).date().isoformat()
+            if d not in by or (pid, sec) in seen:
+                continue
+            seen.add((pid, sec))
+            by[d][sec] += 1
+        return [{"date": d, "s": by[d]} for d in dates]
+
+    def _an_air(self, t0, dates):
+        tz = kyiv_tz()
+        sorties = air_sorties(self.store.air_reports((t0 - timedelta(hours=14)).isoformat()))
+        keep, per = [], {d: {k: 0 for k in AIR_KINDS} for d in dates}
+        for so in sorties:
+            first = parse_iso(so["start"] or so["launch"])
+            if not first or first < t0:
+                continue
+            d = (first.astimezone(tz) + timedelta(hours=6)).date().isoformat()
+            if d in per:
+                per[d][so["kind"]] += 1
+            keep.append(so)
+
+        def q(v, f):                                    # a quantile, interpolated (the median of 3 and 50 is 26)
+            v = sorted(v)
+            if not v:
+                return None
+            i = f * (len(v) - 1)
+            lo = int(i)
+            hi = min(lo + 1, len(v) - 1)
+            return round(v[lo] + (v[hi] - v[lo]) * (i - lo))
+        stats = {}
+        for k in AIR_KINDS:
+            ss = [x for x in keep if x["kind"] == k]
+            dl = [x["delay_min"] for x in ss if x["delay_min"] is not None]
+            up = [x["up_min"] for x in ss if x["up_min"] is not None]
+            stats[k] = {"sorties": len(ss), "with_takeoff": sum(1 for x in ss if x["start"]),
+                        "launched": sum(1 for x in ss if x["launch"]), "stood_down": sum(1 for x in ss if x["end"] and not x["launch"]),
+                        "delay_median": q(dl, .5), "delay_p25": q(dl, .25), "delay_p75": q(dl, .75), "delays": len(dl),
+                        "up_median": q(up, .5)}
+        return {"per_date": [dict(per[d], date=d) for d in dates], "stats": stats, "sorties": keep[-60:][::-1]}
+
+    def _alert_spans(self, t0):
+        """Air-raid alert time per oblast since t0 — in any part of it (the oblast's own alert, a raion's, a
+        hromada's). A row still open counts to now only while that alert is active: one a restart left open does not."""
+        now = datetime.now(timezone.utc)
+        with self.lock:
+            live = set(self.active)
+        with self.store.lock:
+            rows = self.store.conn.execute("SELECT key, oblast_uid, started_at, finished_at FROM alerts WHERE alert_type='air_raid' "
+                                           "AND (finished_at IS NULL OR finished_at>=?)", (t0.isoformat(),)).fetchall()
+        spans = collections.defaultdict(list)
+        for key, uid, sa, fa in rows:
+            a = parse_iso(sa)
+            b = parse_iso(fa) if fa else (now if key in live else None)
+            if not uid or not a or not b or b <= t0 or a >= now:
+                continue
+            spans[uid].append((max(a, t0), min(b, now)))
+        return spans
+
+    def _an_oblasts(self, t0, dates):
+        """Hours under an air-raid alert, oblast by oblast, per week (per day for two weeks or less)."""
+        tz = kyiv_tz()
+        spans = self._alert_spans(t0)
+        edges = [datetime.fromisoformat(d).replace(tzinfo=tz).astimezone(timezone.utc) for d in dates]
+        last = datetime.fromisoformat(dates[-1]).replace(tzinfo=tz) + timedelta(days=1)
+        edges.append(last.astimezone(timezone.utc))
+        by_week = len(dates) > 14
+        cols, col_of = [], []
+        for d in dates:
+            key = (datetime.fromisoformat(d) - timedelta(days=datetime.fromisoformat(d).weekday())).date().isoformat() if by_week else d
+            if not cols or cols[-1]["from"] != key:
+                cols.append({"from": key, "days": 0})
+            cols[-1]["days"] += 1
+            col_of.append(len(cols) - 1)
+        rows = []
+        for uid, uk, en in OBLASTS:
+            per_day = collections.defaultdict(list)
+            for a, b in spans.get(uid, []):
+                i = max(0, bisect.bisect_right(edges, a) - 1)
+                while i < len(dates) and edges[i] < b:
+                    per_day[i].append((max(a, edges[i]), min(b, edges[i + 1])))
+                    i += 1
+            mins = [0] * len(cols)
+            for i, sp in per_day.items():
+                mins[col_of[i]] += _union_minutes(sp)
+            tot = sum(mins)
+            if tot:
+                rows.append({"uid": uid, "uk": uk, "en": en, "h": [round(m / 60, 1) for m in mins], "total_h": round(tot / 60, 1)})
+        rows.sort(key=lambda r: -r["total_h"])
+        return {"by": "week" if by_week else "day", "cols": cols, "rows": rows}
+
+    def alert_hours(self, days):
+        """The map's heat layer (public): hours under an air-raid alert in each oblast over the last `days`."""
+        now = datetime.now(timezone.utc)
+        t0 = now - timedelta(days=days)
+        spans = self._alert_spans(t0)
+        out = {}
+        for uid, _uk, _en in OBLASTS:
+            m = _union_minutes(spans.get(uid, []))
+            out[uid] = {"h": round(m / 60, 1), "pct": round(m / (days * 1440) * 100, 1)}
+        return {"days": days, "from": t0.isoformat().replace("+00:00", "Z"), "to": now_iso(), "generated": now_iso(), "oblasts": out}
 
     # -- the dashboard: is every source alive, is every channel still posting, how early was the map ---------
     _health_res = None
@@ -2827,12 +3156,22 @@ class Translations(threading.Thread):
                     self.queued.discard((pid, lang))
 
 
+# A reply on t.me/s/ carries the message it answers first, in a div of the same class
+# ("tgme_widget_message_text js-message_reply_text"), then its own ("… js-message_text"). The reader took the first
+# one: the Air Force's "📢 Відбій небезпеки по МіГ-31К", posted as a reply to its take-off message, was stored as
+# "Зафіксовано зліт МіГ-31К" — a second take-off at the very minute the danger was called off (1.33).
+_TG_TEXT_RX = re.compile(r'<div class="tgme_widget_message_text(?![^"]*reply)[^"]*"[^>]*>(.*?)</div>', re.S)
+
+
+def tg_post_text(block):
+    """The text of one t.me/s/ message block — its own, not the quoted message of a reply — as HTML, or None."""
+    m = _TG_TEXT_RX.search(block)
+    return m.group(1) if m else None
+
+
 class Telegram(threading.Thread):
     """Reads public channel previews at t.me/s/<channel> (no API key)."""
     NAME = "telegram"
-    MSG_RE = re.compile(r'<div class="tgme_widget_message_wrap.*?data-post="([^"]+)".*?'
-                        r'(?:<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>)?.*?'
-                        r'<time[^>]*datetime="([^"]+)"', re.S)
     TAG_RE = re.compile(r"<br\s*/?>", re.I)
     STRIP_RE = re.compile(r"<[^>]+>")
 
@@ -2881,11 +3220,11 @@ class Telegram(threading.Thread):
         raw_posts = []
         for part in page.split('<div class="tgme_widget_message_wrap')[1:]:
             mid = re.search(r'data-post="([^"]+)"', part)
-            mtxt = re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', part, re.S)
+            mtxt = tg_post_text(part)
             mdt = re.search(r'<time[^>]*datetime="([^"]+)"', part)
             if not (mid and mtxt and mdt):
                 continue
-            text = html.unescape(self.STRIP_RE.sub("", self.TAG_RE.sub("\n", mtxt.group(1)))).strip()
+            text = html.unescape(self.STRIP_RE.sub("", self.TAG_RE.sub("\n", mtxt))).strip()
             raw_posts.append((mid.group(1), mdt.group(1), text))
         self.ingest(ch, raw_posts, f"tg:{ch}")
 
@@ -2903,6 +3242,7 @@ class Telegram(threading.Thread):
                 rep = parse_af_report(text, dt)
                 if rep:
                     self.state.store.af_save(post_id, ch, dt, rep)
+            self.state.store.air_save(post_id, ch, dt, parse_air_report(text), text)
             tags = tag_feed_text(text, ch)
             if not is_relevant(text, tags, ch):
                 self.state.store.mark_seen(post_id)
@@ -2989,23 +3329,49 @@ class AFBackfill(threading.Thread):
                 if not m:
                     continue
                 ids.append(int(m.group(1)))
-                tm = re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', blk, re.S)
+                tm = tg_post_text(blk)
                 dt = re.search(r'<time[^>]*datetime="([^"]+)"', blk)
                 if not (tm and dt):
                     continue
                 last_ts = dt.group(1)
-                text = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<br\s*/?>", "\n", tm.group(1))))
+                text = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<br\s*/?>", "\n", tm)))
                 rep = parse_af_report(text, dt.group(1))
                 if rep and self.state.store.af_save(f"kpszsu/{m.group(1)}", "kpszsu", dt.group(1), rep):
                     n += 1
+                self.state.store.air_save(f"kpszsu/{m.group(1)}", "kpszsu", dt.group(1), parse_air_report(text), text)
             if not ids or (last_ts and last_ts < oldest):
                 break
             before = min(ids)
             time.sleep(1)
         return n
 
+    AIR_VERSION = "1"                        # bump when parse_air_report changes: the stored feed is read again
+
+    def air_from_feed(self):
+        """The carriers in every post already stored (1.33): once, and again whenever the parser changes."""
+        st = self.state.store
+        if st.kv_get("air_parsed") == self.AIR_VERSION:
+            return 0
+        n, last = 0, 0
+        while True:
+            with st.lock:
+                rows = st.conn.execute("SELECT rowid,post_id,channel,ts,text FROM feed WHERE rowid>? ORDER BY rowid LIMIT 2000", (last,)).fetchall()
+            if not rows:
+                break
+            for rid, pid, ch, ts, text in rows:
+                last = rid
+                n += st.air_save(pid, ch, ts, parse_air_report(text or ""), text)
+            time.sleep(0.05)
+        st.kv_set("air_parsed", self.AIR_VERSION)
+        log(f"air: {n} carrier reports read from the stored posts")
+        return n
+
     def run(self):
         time.sleep(60)                       # after the start's own work
+        try:
+            self.air_from_feed()
+        except Exception as e:
+            log("air backfill:", e)
         while True:
             try:
                 n = self.from_feed()
@@ -3017,6 +3383,85 @@ class AFBackfill(threading.Thread):
             except Exception as e:
                 log("af backfill:", e)
             time.sleep(24 * 3600)
+
+
+# 1.33: the weather of each night where the drones are launched from, and over Kyiv — to see whether the volume of
+# an attack follows the wind, the cloud or the rain. Open-Meteo (free, no key); only these fixed points are asked
+# for, nothing about anybody. A night is 18:00 the day before to 06:00 on `date`, Kyiv time — the Air Force's night.
+WEATHER_POINTS = [("kyiv", "Київ", 50.45, 30.52), ("orel", "Орел", 52.97, 36.06), ("kursk", "Курськ", 51.73, 36.19),
+                  ("bryansk", "Брянськ", 53.24, 34.36), ("shatalovo", "Шаталово", 54.34, 32.47),
+                  ("millerovo", "Міллерово", 48.92, 40.40), ("primorsko", "Приморсько-Ахтарськ", 46.05, 38.17)]
+WEATHER_LAUNCH = [k for k, *_ in WEATHER_POINTS if k != "kyiv"]
+
+
+def parse_open_meteo(data, now=None):
+    """Open-Meteo's hourly series (one per point, in WEATHER_POINTS order, Kyiv local time) → {(date, place):
+    {wind, gust, cloud, precip, tmin}} for every complete night: mean wind at 10 m (km/h), strongest gust, mean
+    cloud cover (%), rain over the night (mm), lowest temperature (°C)."""
+    if isinstance(data, dict):
+        data = [data]
+    now_local = (now or datetime.now(timezone.utc)).astimezone(kyiv_tz()).replace(tzinfo=None)
+    out = {}
+    for (key, *_), d in zip(WEATHER_POINTS, data or []):
+        h = (d or {}).get("hourly") or {}
+        nights = {}
+        for i, tm in enumerate(h.get("time") or []):
+            try:
+                t = datetime.fromisoformat(tm)
+            except ValueError:
+                continue
+            if t.hour >= 18:
+                nights.setdefault((t + timedelta(days=1)).date(), []).append(i)
+            elif t.hour < 6:
+                nights.setdefault(t.date(), []).append(i)
+        for nd, idx in nights.items():
+            if len(idx) < 12 or datetime(nd.year, nd.month, nd.day, 6) > now_local:
+                continue                                   # not over yet, or cut at the start of the series
+
+            def col(k):
+                v = h.get(k) or []
+                return [v[i] for i in idx if i < len(v) and v[i] is not None]
+            w, g, c, pr, tt = col("wind_speed_10m"), col("wind_gusts_10m"), col("cloud_cover"), col("precipitation"), col("temperature_2m")
+            if not w:
+                continue
+            out[(nd.isoformat(), key)] = {"wind": round(sum(w) / len(w), 1), "gust": round(max(g), 1) if g else None,
+                                         "cloud": round(sum(c) / len(c)) if c else None, "precip": round(sum(pr), 1) if pr else None,
+                                         "tmin": round(min(tt), 1) if tt else None}
+    return out
+
+
+class Weather(threading.Thread):
+    """Every 6 h: the last nights' weather at WEATHER_POINTS (92 days the first time)."""
+    URL = ("https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&hourly=wind_speed_10m,wind_gusts_10m,"
+           "cloud_cover,precipitation,temperature_2m&past_days={days}&forecast_days=1&timezone=Europe%2FKyiv")
+
+    def __init__(self, state):
+        super().__init__(daemon=True, name="weather")
+        self.state = state
+
+    def fetch(self, days=None):
+        st = self.state.store
+        if days is None:
+            days = 10 if st.weather((datetime.now(timezone.utc) - timedelta(days=30)).date().isoformat()) else 92
+        url = self.URL.format(lat=",".join(str(p[2]) for p in WEATHER_POINTS), lon=",".join(str(p[3]) for p in WEATHER_POINTS), days=days)
+        _, _, body = http_get(url, timeout=30)
+        n = st.weather_save(parse_open_meteo(json.loads(body.decode("utf-8"))))
+        self.state.weather_status = {"ok": True, "last": now_iso(), "nights": n}   # the dashboard's, not a page's source
+        return n
+
+    def run(self):
+        time.sleep(90)
+        while True:
+            wait = 6 * 3600
+            try:
+                self.fetch()
+            except Exception as e:
+                # Open-Meteo limits calls per address and per day ("Daily API request limit exceeded" on a shared
+                # address): try again in an hour, not in six
+                log("weather:", e)
+                self.state.weather_status = {"ok": False, "last": now_iso(), "error": str(e)[:160]}
+                wait = 3600
+            time.sleep(wait)
 
 
 class TelegramAPI(threading.Thread):
@@ -4113,6 +4558,14 @@ class Handler(BaseHTTPRequestHandler):
                     return self._file("admin.html", "text/html; charset=utf-8")
                 usage = getattr(st, "usage", None)
                 return self._json(usage.report(int(q.get("days", ["30"])[0])) if usage else {"days": []})
+            if u.path == "/api/alert_hours":
+                # the Tactical map's heat layer: hours under alert per oblast — public, a count per oblast, cached 10 min
+                try:
+                    d = int(q.get("days", ["7"])[0])
+                except ValueError:
+                    d = 7
+                d = d if d in (1, 7, 30) else 7
+                return self._send_cached(st.cached(f"alert_hours:{d}", 600, lambda: st.alert_hours(d)))
             if u.path == "/api/analytics":
                 if not self._admin_ok(q):
                     return self._json({"error": "unauthorized"}, 401)
@@ -4532,6 +4985,7 @@ def main():
         tg = Telegram(state, cfg)
         tg.start()
         AFBackfill(state).start()
+        Weather(state).start()
         log("feed:", ", ".join("t.me/" + c for c in cfg["telegram_channels"]))
         if TelegramAPI.configured(cfg):
             TelegramAPI(state, cfg, tg).start()

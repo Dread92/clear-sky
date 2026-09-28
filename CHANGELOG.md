@@ -2,6 +2,32 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.33.0 — 2026-09-28
+
+### Added
+- **Heat map of alert hours on the Tactical map** (Map tab → Layers): how long each oblast was under an official
+  air-raid alert over 24 h, 7 days or 30 days, in violet by the share of the time, with the hours written on each
+  oblast. It never hides the live picture: drawn under every mark, the oblasts under an alert right now outlined
+  in red / yellow on top, "not live" in its legend, and off again at every opening.
+- **Analytics — the carriers**: MiG-31K, Tu-95/Tu-160 and Tu-22M3 take-offs and the Kalibr ships' salvos, read
+  from the channels; how often a launch followed, and the time from the take-off report to the launch report
+  (median and middle half); the MiG-31K's time to the stand-down; the last 25 in a table.
+- **Analytics — the weather**: the wind, cloud cover and rain of each night over the launch areas (Open-Meteo)
+  against the drones launched that night, with the strength of the link and a trend line.
+- **Analytics — where the drones come from around Kyiv**: the side of Kyiv (8 sectors, 20–130 km) the channels
+  placed drones on, night by night, and over the period.
+- **Analytics — hours under alert by oblast**, all Ukraine, week by week. Every new card downloads as CSV.
+
+### Fixed
+- **A reply was read as the message it answers.** The Air Force's "Відбій небезпеки по МіГ-31К", posted as a reply
+  to its take-off message, was stored as a second "Зафіксовано зліт МіГ-31К" at the minute the danger was called
+  off. Every reply is now read as its own text.
+- **Strategic aviation drawn near Kyiv.** A Tu-160 taking off from the "Українка" airbase (Amur region) was placed
+  at Ukrainka, 40 km south of Kyiv. Tu-95/Tu-160/Tu-22M3 and MiG-31K posts now place no mark (they never fly over
+  Ukraine); their banners are unchanged.
+- **"Кинджал" is ballistic.** Spelled that way (the Air Force's spelling) it was read as an unspecified missile,
+  without the ballistic banner.
+
 ## 1.32.0 — 2026-09-28
 
 ### Fixed

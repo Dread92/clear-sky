@@ -345,7 +345,19 @@ body.lite #drawer .dchev{background:#111;border-color:#fff;color:#fff}
 svg#map{display:block;width:100%;height:min(64vh,560px)}
 .nb{fill:#0e1116;stroke:#1a1f28;stroke-width:1px;vector-effect:non-scaling-stroke;transition:fill .5s}
 .nb.R{fill:rgba(229,72,77,.34)}.nb.Y{fill:rgba(245,185,64,.22)}.nb.oR{fill:rgba(229,72,77,.11)}.nb.oY{fill:rgba(245,185,64,.08)}
-.ob{fill:none;stroke:#2a3344;stroke-width:1.3px;vector-effect:non-scaling-stroke;transition:fill .5s}.ob.far{stroke:#1a2029;fill:#0b0d11}
+.ob{fill:none;stroke:#2a3344;stroke-width:1.3px;vector-effect:non-scaling-stroke;transition:fill .5s}
+/* 1.33: the heat map layer — statistics in violet, the live alerts outlined on top, the value per oblast */
+.hmo{fill-opacity:.62;stroke:#0b0d11;stroke-width:.8px;vector-effect:non-scaling-stroke;pointer-events:none}
+.hmlive{fill:none;stroke-width:2.6px;vector-effect:non-scaling-stroke;pointer-events:none}.hmlive.R{stroke:#ff4d55}.hmlive.Y{stroke:#f5b940}
+.hmv{fill:#fff;font:800 calc(var(--k,1)*12px) var(--mono);paint-order:stroke;stroke:#0b0d11;stroke-width:3px;stroke-linejoin:round;pointer-events:none}
+body.m-day .hmv{fill:#1a1340;stroke:#fff}body.m-day .hmo{stroke:#fff}
+#heatleg{position:absolute;right:52px;top:8px;z-index:6;max-width:min(250px,calc(100% - 70px));background:rgba(14,17,23,.95);border:1px solid var(--line);border-left:3px solid #8b7fe0;padding:7px 8px 7px 10px;font:12px/1.35 var(--sans);color:var(--ink)}
+#heatleg[hidden]{display:none}.hlh{display:flex;align-items:center;gap:8px}.hlh b{flex:1;font:700 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+#heatx{background:transparent;border:1px solid var(--line);color:var(--ink2);width:26px;height:24px;border-radius:3px;font-size:12px}
+.hlr{display:grid;grid-template-columns:repeat(6,1fr);gap:0;margin:6px 0 2px}.hlr i{display:block;height:9px}.hlr small{display:block;font:9.5px var(--mono);color:var(--ink3);margin-top:2px}.hle{grid-column:1/-1;color:var(--orange);font-size:11px}
+.hlw{display:flex;gap:4px;margin:4px 0 5px}.hlw button{flex:1;background:transparent;border:1px solid var(--line);color:var(--ink2);font:600 11px var(--mono);padding:4px 0;border-radius:3px}.hlw button.on{background:#2b2556;color:#fff;border-color:#8b7fe0}
+.hln{font-size:11px;color:var(--ink3)}
+body.m-day #heatleg{background:rgba(255,255,255,.96)}.ob.far{stroke:#1a2029;fill:#0b0d11}
 .ob.region.R{fill:rgba(229,72,77,.10)}.ob.region.Y{fill:rgba(245,185,64,.07)}
 .oblbl{fill:#3f4a5c;font:800 calc(var(--k,1)*13px) system-ui;text-transform:uppercase;letter-spacing:.6px;pointer-events:none}svg.close .oblbl{display:none}svg:not(.veryfar) .oblbl.faro{display:none}
 .ob.occ{fill:url(#occ);stroke:#5a6272;stroke-dasharray:4 3}.nb.occ{fill:none;stroke:#3a4252}
@@ -725,7 +737,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.32</div>
+    <div class="mi bt" id="buildtag">v1.33</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -744,6 +756,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <g id="selg"></g>
     <g id="raionsg"></g>
     <g id="kdistg"></g>
+    <g id="heatg"></g>
     <g id="rings"></g>
     <g id="zones"></g>
     <g id="homeg"></g>
@@ -762,6 +775,8 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
   <div id="pinarm" hidden><span data-t="sl_pin_arm">Tap the map where the pin goes</span><button type="button" id="pinarmx" data-t="sl_pin_cancel">Cancel</button></div>
   <div class="mapctl"><button id="zin">+</button><button id="zout">−</button><button id="zkyiv" data-t-title="t_center" title="Centre on my oblast">◎</button><button id="impbtn" data-t-title="t_hist" title="History of explosions and confirmed shoot-downs: off / 24 h / 48 h / 72 h">✸<small id="imph"></small></button></div>
   <div class="tip" id="tip" hidden></div>
+  <div id="heatleg" hidden><div class="hlh"><b data-t="hm_title">Alert hours by oblast</b><button type="button" id="heatx" data-t-aria="hm_off" aria-label="Hide">✕</button></div>
+    <div class="hlr" id="heatramp"></div><div class="hlw" id="heatw"></div><div class="hln" data-t="hm_not_live">Share of the time under alert. Not live — an oblast with an alert anywhere in it right now is outlined in red / yellow.</div></div>
   <div id="litetag">BLACKOUT</div>
   <div id="modetag"></div>
 </div>
@@ -779,7 +794,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <div class="sec" id="feedwrap"><div class="filters"><span class="chip on" data-f="kyiv" data-t="f_kyiv">Kyiv area</span><span class="chip" data-f="region" data-t="f_region">Region</span><span class="chip" data-f="all" data-t="f_threats">Threats</span><span class="chip" data-f="official" data-t="f_official">Official</span><span class="chip" data-f="everything" data-t="f_all">All</span></div><div id="feed"></div></div>
     <div class="sec" id="alerts" hidden></div>
     <div class="sec" id="hist" hidden></div>
-    <div id="layers" hidden><div class="layermenu" id="layerbox"><span class="lbl" data-t="l_title">Layers</span><label><input type="checkbox" data-l="tiles"> <span data-t="l_tiles">Streets &amp; buildings (OSM, zoomed in)</span></label><label><input type="checkbox" data-l="himp"> <span data-t="l_himp">History: explosions ✸</span></label><label><input type="checkbox" data-l="hdown"> <span data-t="l_hdown">History: confirmed shot down ✕</span></label><label><input type="checkbox" data-l="trails"> <span data-t="l_trails">Tracks</span></label><label><input type="checkbox" data-l="cones"> <span data-t="l_cones">Course rays</span></label><label><input type="checkbox" data-l="rivers"> <span data-t="l_rivers">Rivers</span></label><label><input type="checkbox" data-l="roads"> <span data-t="l_roads">Roads</span></label><label><input type="checkbox" data-l="infra"> <span data-t="l_infra">Airports / plants</span></label><label><input type="checkbox" data-l="rings"> <span data-t="l_rings">Rings</span></label><label><input type="checkbox" data-l="minor"> <span data-t="l_minor">Villages &amp; small towns (off by default — clutters the phone)</span></label></div>
+    <div id="layers" hidden><div class="layermenu" id="layerbox"><span class="lbl" data-t="l_title">Layers</span><label><input type="checkbox" data-l="tiles"> <span data-t="l_tiles">Streets &amp; buildings (OSM, zoomed in)</span></label><label><input type="checkbox" data-l="heat"> <span data-t="l_heat">Alert hours by oblast (heat map, not live)</span></label><label><input type="checkbox" data-l="himp"> <span data-t="l_himp">History: explosions ✸</span></label><label><input type="checkbox" data-l="hdown"> <span data-t="l_hdown">History: confirmed shot down ✕</span></label><label><input type="checkbox" data-l="trails"> <span data-t="l_trails">Tracks</span></label><label><input type="checkbox" data-l="cones"> <span data-t="l_cones">Course rays</span></label><label><input type="checkbox" data-l="rivers"> <span data-t="l_rivers">Rivers</span></label><label><input type="checkbox" data-l="roads"> <span data-t="l_roads">Roads</span></label><label><input type="checkbox" data-l="infra"> <span data-t="l_infra">Airports / plants</span></label><label><input type="checkbox" data-l="rings"> <span data-t="l_rings">Rings</span></label><label><input type="checkbox" data-l="minor"> <span data-t="l_minor">Villages &amp; small towns (off by default — clutters the phone)</span></label></div>
       <div class="foot" data-t-html="legend"></div>
       <div class="foot" id="mapfoot"></div></div>
     <div class="foot" id="panelfoot"></div>
@@ -1074,10 +1089,13 @@ function setView(cx,cy,w){VB.w=Math.max(8,Math.min(1500,w));VB.h=VB.w*ASPECT();V
 function zoomAt(f,cx,cy){const nw=Math.max(8,Math.min(1500,VB.w/f)),nh=nw*ASPECT();VB.x=cx-(cx-VB.x)*(nw/VB.w);VB.y=cy-(cy-VB.y)*(nh/VB.h);VB.w=nw;VB.h=nh;applyVB();}
 function toSvg(px,py){const r=svg.getBoundingClientRect();return [VB.x+(px-r.left)/r.width*VB.w, VB.y+(py-r.top)/r.height*VB.h];}
 $('zin').onclick=()=>zoomAt(1.5,VB.x+VB.w/2,VB.y+VB.h/2); $('zout').onclick=()=>zoomAt(1/1.5,VB.x+VB.w/2,VB.y+VB.h/2);
-const LAYERS={tiles:true,himp:true,hdown:true,trails:false,cones:true,rivers:false,roads:true,infra:true,rings:true,minor:false};
+const LAYERS={tiles:true,himp:true,hdown:true,trails:false,cones:true,rivers:false,roads:true,infra:true,rings:true,minor:false,heat:false};
 try{Object.assign(LAYERS,JSON.parse(localStorage.getItem('layers')||'{}')); if(!localStorage.getItem('layers_v2')){LAYERS.minor=false;localStorage.setItem('layers_v2','1');localStorage.setItem('layers',JSON.stringify(LAYERS));}}catch(e){}
-function applyLayers(){for(const [l,on] of Object.entries(LAYERS)){svg.classList.toggle('no-'+l,!on);const cb=document.querySelector(`#layerbox input[data-l="${l}"]`);if(cb)cb.checked=on;}if(typeof updateTiles==='function')updateTiles();}
-document.querySelectorAll('#layerbox input').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.l]=cb.checked;try{localStorage.setItem('layers',JSON.stringify(LAYERS))}catch(e){};applyLayers();});
+LAYERS.heat=false;   // 1.33: the heat map is never remembered — every opening starts on the live picture
+function applyLayers(){for(const [l,on] of Object.entries(LAYERS)){svg.classList.toggle('no-'+l,!on);const cb=document.querySelector(`#layerbox input[data-l="${l}"]`);if(cb)cb.checked=on;}if(typeof updateTiles==='function')updateTiles();if(typeof drawHeat==='function')drawHeat();}
+document.querySelectorAll('#layerbox input').forEach(cb=>cb.onchange=()=>{LAYERS[cb.dataset.l]=cb.checked;try{localStorage.setItem('layers',JSON.stringify(Object.assign({},LAYERS,{heat:false})))}catch(e){};
+  if(cb.dataset.l==='heat'&&cb.checked&&VB.w<600) setView(120,110,1400);   // the whole country, where the comparison is
+  applyLayers();});
 applyLayers();
 $('zkyiv').onclick=()=>{if(CITY)toggleCity(false);const o=(MAP.oblasts||[]).find(x=>x.uid===MYOBL.uid); if(o&&MYOBL.uid!=='14') setView(o.cx,o.cy,260); else setView(0,0,110);};
 // Kyiv city map: a separate, simplified map — the 10 districts (OSM boundaries), the city outline, targets, nothing else
@@ -1088,7 +1106,33 @@ function paintDistricts(){ if(!KD||!KD.length||!S) return; const lvl=x=>x==='yel
   const paths=[...document.querySelectorAll('#kdistg .kd')]; const live=MK.filter(m=>!m.status&&!m.endedBy&&!m.stale); const pt=svg.createSVGPoint();
   paths.forEach(p=>{ let hot=false; for(const m of live){const [x,y]=proj(m.lon,m.lat); pt.x=x;pt.y=y; try{ if(p.isPointInFill(pt)){hot=true;break;} }catch(e){} } p.setAttribute('class',`kd ${cityL} ${hot?'hot':''}`); }); }
 function toggleCity(on){ CITY=on; svg.classList.toggle('city',CITY);  if(CITY){prevVB={...VB}; setView(3,2,24); paintDistricts();} else if(prevVB){VB.x=prevVB.x;VB.y=prevVB.y;VB.w=prevVB.w;VB.h=prevVB.h;applyVB();} }
- $('est').onclick=()=>{ESTIMATE=!ESTIMATE;$('est').classList.toggle('on',ESTIMATE);try{localStorage.setItem('est',ESTIMATE?'1':'0')}catch(e){}}; $('est').classList.toggle('on',ESTIMATE); $('zobl').onclick=()=>setView(10,10,260); $('zcity2').onclick=()=>{$('menu').hidden=true;toggleCity(!CITY);}; $('zreg').onclick=()=>setView(60,0,620); $('zua').onclick=()=>setView(120,110,1400);
+ // ---- 1.33: the heat map — hours under an official air-raid alert in each oblast over 24 h, 7 days or 30 days ------
+// Statistics, never the live state: a violet ramp (no alert colour), drawn over the fills but under every mark, the
+// oblasts under an alert right now outlined in red / yellow on top of it, a legend that says "not live", and off
+// again at every opening. The share of the time decides the colour, so 24 h, 7 d and 30 d read the same way.
+const HEAT_BINS=[2,10,25,45,70], HEAT_DARK=['#2b2556','#3d3488','#5446b3','#6f5fd6','#9486ec','#c0b7f7'], HEAT_DAY=['#e6e2fb','#cbc3f6','#a79bee','#8171dd','#5c4bc3','#3c2e95'];
+let HEAT_D=7, HEAT={}; try{ const v=+sessionStorage.getItem('heatd'); if([1,7,30].includes(v)) HEAT_D=v; }catch(e){}
+function heatBin(p){ let i=0; while(i<HEAT_BINS.length&&p>=HEAT_BINS[i]) i++; return i; }
+async function loadHeat(){ const d=HEAT_D, c=HEAT[d]; if(c&&Date.now()-c.t<600e3) return c.v;
+  try{ const v=await jget('/api/alert_hours?days='+d,15000); HEAT[d]={t:Date.now(),v}; return v; }catch(e){ return null; } }
+async function drawHeat(){ const g=$('heatg'), leg=$('heatleg'); if(!g) return;
+  const on=LAYERS.heat&&!(typeof LITE!=='undefined'&&LITE)&&MAP&&!CITY;
+  leg.hidden=!on; if(!on){ g.innerHTML=''; return; }
+  const v=await loadHeat(); if(!LAYERS.heat) return;
+  const day=document.body.classList.contains('m-day'), ramp=day?HEAT_DAY:HEAT_DARK;
+  $('heatw').innerHTML=[1,7,30].map(d=>`<button type="button" class="${d===HEAT_D?'on':''}" data-d="${d}">${t('hm_'+d)}</button>`).join('');
+  $('heatramp').innerHTML=ramp.map((c,i)=>`<div><i style="background:${c}"></i><small>${i?HEAT_BINS[i-1]+(i===ramp.length-1?'%+':''):'0'}</small></div>`).join('');
+  if(!v){ g.innerHTML=''; $('heatramp').innerHTML=`<span class="hle">${esc(t('hm_err'))}</span>`; return; }
+  const live={}; for(const a of (S&&S.active)||[]){ if(a.alert_type&&a.alert_type!=='air_raid') continue; const L2=a.alert_level==='yellow'?'Y':'R'; live[a.oblast_uid]=(live[a.oblast_uid]==='R'||L2==='R')?'R':'Y'; }
+  const obs=(MAP.oblasts||[]), val=uid=>(v.oblasts||{})[uid];
+  g.innerHTML=obs.map(o=>{ const x=val(o.uid); if(!x) return ''; return `<path class="hmo" d="${o.path}" style="fill:${ramp[heatBin(x.pct)]}"/>`; }).join('')
+    +obs.filter(o=>live[o.uid]).map(o=>`<path class="hmlive ${live[o.uid]}" d="${o.path}"/>`).join('')
+    +obs.map(o=>{ const x=val(o.uid); if(!x||o.uid==='31'||o.uid==='30') return ''; const y=o.uid==='14'?o.cy+14:o.cy+6;
+        return `<text class="hmv" x="${o.cx}" y="${y}" text-anchor="middle">${esc(t('hm_h',Math.round(x.h)))}</text>`; }).join('');
+}
+$('heatw').onclick=e=>{ const b=e.target.closest('button[data-d]'); if(!b) return; HEAT_D=+b.dataset.d; try{sessionStorage.setItem('heatd',String(HEAT_D));}catch(err){} drawHeat(); };
+$('heatx').onclick=()=>{ LAYERS.heat=false; applyLayers(); };
+$('est').onclick=()=>{ESTIMATE=!ESTIMATE;$('est').classList.toggle('on',ESTIMATE);try{localStorage.setItem('est',ESTIMATE?'1':'0')}catch(e){}}; $('est').classList.toggle('on',ESTIMATE); $('zobl').onclick=()=>setView(10,10,260); $('zcity2').onclick=()=>{$('menu').hidden=true;toggleCity(!CITY);}; $('zreg').onclick=()=>setView(60,0,620); $('zua').onclick=()=>setView(120,110,1400);
 let touches={},lastDist=null,lastMid=null,moved=false; const wrap=$('mapwrap');
 // A finger is never perfectly still. A press only becomes a drag past a few screen pixels — the old test was
 // 0.2 km, which at oblast zoom is less than one pixel, so press-and-hold almost never survived to drop the pin.
@@ -2147,7 +2191,7 @@ function idleLine(){
   return bits.join(' ');
 }
 function render(){
-  if(!S) return; const ob=S.oblasts; threatStrip();
+  if(!S) return; const ob=S.oblasts; threatStrip(); if(LAYERS.heat) drawHeat();
   {const all=Object.entries(S.sources),ok=all.filter(([k,v])=>v.ok).length; $('srcs').innerHTML=`<i class="${ok===all.length?'ok':ok?'warn':'bad'}"></i><span class="sn">${ok}/${all.length}</span>`; $('srcs').title=all.map(([k,v])=>`${v.ok?'●':'○'} ${k}`).join('\n');}
   const MYU=MYOBL.uid, MYN=MYOBL.name, isK=MYU==='14';
   const k=ob['31'], ko=ob[MYU]||{status:'N',threats:[]};
@@ -2294,7 +2338,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.32';
+const APP_VERSION='1.33';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

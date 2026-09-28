@@ -184,6 +184,25 @@ A fire also **leaves the live map after an hour** (`FIRE_TTL_MIN`). After that i
 burning all night, and neither belongs on a live map as though it had just happened. A new post about the same
 place brings it back, because that post carries a fresh timestamp.
 
+## A carrier is never a mark
+
+A Tu-95, a Tu-160, a Tu-22M3 or a MiG-31K is over Russia, Crimea or the sea when the channels report it. Any
+Ukrainian place name in such a post is something else — "борти Ту-160 з «Українки»" is an airbase in the Amur
+region, and it was drawn as strategic aviation 40 km south of Kyiv. Their posts raise their banners; they place
+nothing on the map (1.33).
+
+## A reply is its own message
+
+On the channels' web pages a reply shows the message it answers first. Read carelessly, the Air Force's "all clear
+for the MiG-31K" became a second take-off at the very minute the danger was called off. A post is read as what it
+says itself, never as what it quotes.
+
+## The heat map is statistics, and says so
+
+Hours under alert per oblast (1.33) are a record of the past, drawn in a colour no alert uses, under every mark,
+with the oblasts under an alert right now outlined on top and "not live" in its legend. It is off at every opening
+of the app: nobody should open the map at 3 a.m. and see last week.
+
 ## The history layer never buries the live picture
 
 The map carries the last 24 hours and nothing more. Beyond that the dots are denser than the thing somebody

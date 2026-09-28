@@ -149,6 +149,16 @@ tr.m-trial td:first-child{color:#ffd9a8}tr.m-off td{color:var(--ink3)}
 .hml{display:flex;align-items:center;gap:6px;justify-content:flex-end;font:10.5px var(--mono);color:var(--ink3);margin-top:8px}
 .hml i{display:inline-block;width:16px;height:10px;border-radius:2px}
 .nodata{color:var(--ink3);font:13px var(--sans);padding:10px 0}
+/* 1.33 */
+.an3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 14px}@media (max-width:760px){.an3{grid-template-columns:1fr}}
+.an3h{font:600 11px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);margin:4px 0 2px}
+.airg{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px;margin:10px 0}
+.airt{border:1px solid var(--line);padding:8px 10px;font:12.5px/1.5 var(--sans);color:var(--ink2)}
+.airh{font:700 11.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin-bottom:3px}
+.airh i,.airtab .dot{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:6px;vertical-align:0}
+table.airtab td,table.airtab th{font-size:12.5px;padding:5px 4px;white-space:nowrap}table.airtab td.n,table.airtab th:nth-child(4),table.airtab th:nth-child(6){padding-right:16px}
+.hml.bins{flex-wrap:wrap;gap:4px 5px}.hml.bins span{margin-right:6px}
+.hy{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:4px}.hct{font:600 11px var(--mono);color:var(--ink2);text-align:right;align-self:center}.hxt{text-align:right}
 .antip{position:fixed;z-index:50;pointer-events:none;background:#1b2029;border:1px solid #333a47;color:var(--ink);font:12.5px/1.45 var(--sans);padding:7px 10px;border-radius:4px;box-shadow:0 6px 18px rgba(0,0,0,.45);max-width:300px}
 .antip[hidden]{display:none}.antip b{font-weight:600}
 @media (prefers-reduced-motion:reduce){.ntprev.lv-alert,.onl .dot{animation:none}}
@@ -247,7 +257,21 @@ const T={
   an_gen:'figures of {0} · kept 5 min',an_nosum:'no Air Force summary for this date',an_heat_lo:'fewer',an_heat_hi:'more',
   an_k_drones:'Drones launched · {0} d',an_k_missiles:'Missiles launched · {0} d (where counted)',an_k_rate:'Drones shot down / suppressed',
   an_k_jet:'Jet drones — share',an_k_hits:'Locations hit · {0} d',an_k_kyiv:'Kyiv city under alert · {0} d',an_h:'h',
-  an_s_piston:'Shahed-type & other drones',an_s_jet:'Jet drones',an_s_banderol:'Banderol (jet drone)',an_s_down:'Shot down / suppressed — all',an_s_alldr:'All drones launched',
+  an_s_piston:'Shahed-type & other drones',an_s_jet:'Jet drones',an_s_banderol:'Banderol (jet drone)',an_s_down:'Shot down / suppressed — all',
+  an_min:'min',an_air_mig31k:'MiG-31K',an_air_strategic:'Tu-95 / Tu-160',an_air_tu22:'Tu-22M3',an_air_kalibr:'Kalibr (ships)',
+  an_air_n:'{0} take-offs on record',an_air_salvos:'{0} salvos reported',an_air_launched:'a launch reported after {0} of {1}',
+  an_air_delay:'take-off → launch: median {0} (half between {1} and {2}; {3} with both reported)',an_air_upfor:'called off after {0} (median)',
+  an_air_kind:'Carrier',an_air_up_at:'Take-off reported',an_air_launch_at:'Launch reported',an_air_after:'After',an_air_end_at:'Called off',an_air_reports:'Posts',
+  an_c_air:'Carriers: take-offs and launches',an_src_air:'Read from the channels on the map: “зліт / у повітрі”, “пуски”, “відбій”. The time is the first post that said it, not the event itself; a launch expected or threatened is not counted.',
+  an_c_wx:'Weather at the launch sites and drones launched',an_src_wx:'Each dot is a night: the mean over Orel, Kursk, Bryansk, Shatalovo, Millerovo and Primorsko-Akhtarsk, 18:00–06:00 (Open-Meteo), against the drones the Air Force says were launched that night.',
+  an_wx_wind:'Wind',an_wx_cloud:'Cloud cover',an_wx_rain:'Rain',an_wx_drones:'Drones launched',an_wx_r:'r = {0} over {1} nights — {2}',
+  an_wx_none:'no link',an_wx_weak:'weak link',an_wx_mod:'moderate link',an_wx_strong:'strong link',
+  an_wx_note:'A link is not a cause: the number launched follows the plan of the attack as much as the weather. Read it over many nights; the dashed line is the trend.',
+  an_wx_wait:'The weather is fetched a few minutes after the start, then every 6 h (the last 92 nights the first time).',
+  an_c_appr:'Where drones were reported around Kyiv — by side',an_src_appr:'Drone positions the posts named in Kyiv oblast, 20–130 km from the centre, by side of Kyiv, per 24 h from 18:00. A post counts once per side; nothing extrapolated.',
+  an_c_appr_tot:'By side, over the period',an_src_appr_tot:'The same reports, added up: the corridors the drones use.',
+  an_c_obl:'Hours under alert by oblast — all Ukraine',an_src_obl_w:'Official air-raid alerts in any part of the oblast, per week (Monday to Sunday). The colour is the share of the time.',
+  an_src_obl_d:'Official air-raid alerts in any part of the oblast, per day. The colour is the share of the time.',an_obl_week:'week from {0} ({1} d)',an_obl_tot:'total',an_s_alldr:'All drones launched',
   an_m_cruise:'Cruise',an_m_ballistic:'Ballistic',an_m_aeroballistic:'Aeroballistic (Kinzhal)',an_m_antiship:'Anti-ship',an_m_guided:'Guided air missiles',
   an_launched:'launched',an_usednum:'used, no number given',
   an_s_rate:'Drones shot down / suppressed',an_s_jetshare:'Jet drones — share of all drones',an_s_hits:'Locations hit',an_s_debris:'Locations with falling debris',
@@ -315,7 +339,21 @@ const T={
   an_gen:'дані на {0} · зберігаються 5 хв',an_nosum:'за цю дату немає зведення Повітряних сил',an_heat_lo:'менше',an_heat_hi:'більше',
   an_k_drones:'Запущено БпЛА · {0} д',an_k_missiles:'Запущено ракет · {0} д (де вказано)',an_k_rate:'БпЛА збито / подавлено',
   an_k_jet:'Реактивні БпЛА — частка',an_k_hits:'Локацій із влучаннями · {0} д',an_k_kyiv:'Київ під тривогою · {0} д',an_h:'год',
-  an_s_piston:'Shahed та інші БпЛА',an_s_jet:'Реактивні БпЛА',an_s_banderol:'Бандероль (реактивний БпЛА)',an_s_down:'Збито / подавлено — усе',an_s_alldr:'Усього запущено БпЛА',
+  an_s_piston:'Shahed та інші БпЛА',an_s_jet:'Реактивні БпЛА',an_s_banderol:'Бандероль (реактивний БпЛА)',an_s_down:'Збито / подавлено — усе',
+  an_min:'хв',an_air_mig31k:'МіГ-31К',an_air_strategic:'Ту-95 / Ту-160',an_air_tu22:'Ту-22М3',an_air_kalibr:'Калібр (кораблі)',
+  an_air_n:'зльотів зафіксовано: {0}',an_air_salvos:'залпів зафіксовано: {0}',an_air_launched:'пуск повідомлено після {0} з {1}',
+  an_air_delay:'зліт → пуск: медіана {0} (половина — від {1} до {2}; повідомлено обидва: {3})',an_air_upfor:'відбій через {0} (медіана)',
+  an_air_kind:'Носій',an_air_up_at:'Зліт повідомлено',an_air_launch_at:'Пуск повідомлено',an_air_after:'Через',an_air_end_at:'Відбій',an_air_reports:'Дописів',
+  an_c_air:'Носії: зльоти й пуски',an_src_air:'З каналів на мапі: «зліт / у повітрі», «пуски», «відбій». Час — перший допис, що це сказав, а не сама подія; очікуваний чи можливий пуск не рахується.',
+  an_c_wx:'Погода в районах запуску й запущені БпЛА',an_src_wx:'Кожна точка — ніч: середнє по Орлу, Курську, Брянську, Шаталову, Міллерову й Приморсько-Ахтарську, 18:00–06:00 (Open-Meteo), проти кількості БпЛА, запущених тієї ночі за даними Повітряних сил.',
+  an_wx_wind:'Вітер',an_wx_cloud:'Хмарність',an_wx_rain:'Опади',an_wx_drones:'Запущено БпЛА',an_wx_r:'r = {0} за {1} ночей — {2}',
+  an_wx_none:'зв’язку немає',an_wx_weak:'слабкий зв’язок',an_wx_mod:'помірний зв’язок',an_wx_strong:'сильний зв’язок',
+  an_wx_note:'Зв’язок — не причина: кількість запусків залежить від задуму атаки не менше, ніж від погоди. Дивіться на багатьох ночах; пунктир — тенденція.',
+  an_wx_wait:'Погода завантажується за кілька хвилин після старту, далі кожні 6 год (першого разу — останні 92 ночі).',
+  an_c_appr:'Звідки повідомляли про БпЛА навколо Києва — за сторонами',an_src_appr:'Позиції БпЛА, названі в дописах, у Київській області за 20–130 км від центру, за стороною від Києва, за 24 год від 18:00. Допис рахується раз на сторону; нічого не екстрапольовано.',
+  an_c_appr_tot:'За сторонами, за період',an_src_appr_tot:'Ті самі повідомлення разом: коридори, якими йдуть БпЛА.',
+  an_c_obl:'Години під тривогою за областями — вся Україна',an_src_obl_w:'Офіційні повітряні тривоги в будь-якій частині області, за тиждень (пн–нд). Колір — частка часу.',
+  an_src_obl_d:'Офіційні повітряні тривоги в будь-якій частині області, за добу. Колір — частка часу.',an_obl_week:'тиждень з {0} ({1} д)',an_obl_tot:'разом',an_s_alldr:'Усього запущено БпЛА',
   an_m_cruise:'Крилаті',an_m_ballistic:'Балістичні',an_m_aeroballistic:'Аеробалістичні (Кинджал)',an_m_antiship:'Протикорабельні',an_m_guided:'Керовані авіаційні',
   an_launched:'запущено',an_usednum:'застосовано, без числа',
   an_s_rate:'БпЛА збито / подавлено',an_s_jetshare:'Реактивні — частка всіх БпЛА',an_s_hits:'Локацій із влучаннями',an_s_debris:'Локацій із падінням уламків',
@@ -745,9 +783,86 @@ function drawAnalytics(){
     ${card('c8',tr('an_c_kyiv'),tr('an_src_kyiv'),legend([[tr('an_s_city'),C[0],'ln'],[tr('an_s_obl'),C[1],'ln']])+kyivChart,'kyiv')}
     ${card('c9',tr('an_c_starts'),tr('an_src_starts'),heat(A.starts))}
     ${card('c10',tr('an_c_reports'),tr('an_src_reports'),legend(REP.map(([k,c])=>[tr('an_r_'+k),c]))+repChart,'reports')}
-    <div class="an2">${card('c11',tr('an_c_hours'),tr('an_src_hours'),hoursChart)}${card('c12',tr('an_c_heads'),tr('an_src_heads'),hbars(dirs.map((d,i)=>[d,A.headings[i]]),C[0]))}</div>`;
+    <div class="an2">${card('c11',tr('an_c_hours'),tr('an_src_hours'),hoursChart)}${card('c12',tr('an_c_heads'),tr('an_src_heads'),hbars(dirs.map((d,i)=>[d,A.headings[i]]),C[0]))}</div>
+    ${drawMore(A)}`;
 }
-let AN_RS=0; addEventListener('resize',()=>{ clearTimeout(AN_RS); AN_RS=setTimeout(()=>{ if(AN&&TAB==='analytics') drawAnalytics(); },250); });
+// redrawn only when the width changes: a phone fires "resize" when its address bar hides on scroll
+let AN_RS=0; addEventListener('resize',()=>{ clearTimeout(AN_RS); AN_RS=setTimeout(()=>{ if(!AN||TAB!=='analytics') return;
+  const w=Math.round(Math.min(860,Math.max(300,($('an').clientWidth||860)-30))); if(w!==CHW) drawAnalytics(); },250); });
+// ---- 1.33: the carriers, the weather, the sides drones come from, the oblasts ------------------------------------
+const AK=['mig31k','strategic','tu22','kalibr'];
+const fmtm=m=>m==null?'—':(m>=90?`${Math.floor(m/60)} ${tr('an_h')} ${String(m%60).padStart(2,'0')}`:`${m} ${tr('an_min')}`);
+const kt=(x,withDay)=>x?new Date(x).toLocaleString(L==='uk'?'uk-UA':'en-GB',withDay?{timeZone:'Europe/Kyiv',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}:{timeZone:'Europe/Kyiv',hour:'2-digit',minute:'2-digit'}):'—';
+// a generic heat grid: rows × columns, one sequential hue, a legend from fewer to more; `val` picks the colour
+function grid(rowL,colL,m,tipf,opt={}){ const val=opt.val||((r,c,v)=>v), vs=m.flatMap((row,r)=>row.map((v,c)=>val(r,c,v)||0)), mx=Math.max(opt.max||0,1e-9,...vs);
+  const n=colL.length, step=Math.max(1,Math.ceil(n/(opt.ticks||Math.max(4,Math.floor(CHW/90)))));
+  let h=`<div class="hm" style="grid-template-columns:${opt.lw||34}px repeat(${n},minmax(0,1fr))${opt.tot?' 48px':''}"><span></span>`+colL.map((c,i)=>`<span class="hx">${i%step===0?escA(c):''}</span>`).join('')+(opt.tot?`<span class="hx hxt">${escA(opt.tot)}</span>`:'');
+  // fixed bins (the share of the time, as on the map's heat layer) or relative to the largest value
+  const BI=[0,2,4,5,7,8], col=x=>{ if(!(x>0)) return '#161a22'; if(opt.bins){ let i=0; while(i<opt.bins.length&&x>=opt.bins[i]) i++; return SEQ[BI[i]]; }
+    return SEQ[Math.min(SEQ.length-1,Math.floor(x/mx*(SEQ.length-1)))]; };
+  m.forEach((row,r)=>{ h+=`<span class="hy" title="${escA(rowL[r])}">${escA(rowL[r])}</span>`+row.map((v,c)=>`<span class="hc" style="background:${col(val(r,c,v)||0)}" data-tip="${escA(tipf(r,c,v))}"></span>`).join('')
+      +(opt.tot?`<span class="hct">${escA(opt.totf(r))}</span>`:''); });
+  const lg=opt.bins?[0,...opt.bins].map((b,i)=>`<i style="background:${SEQ[BI[i]]}"></i><span>${i<opt.bins.length?b+'–'+opt.bins[i]:b+'+'}%</span>`).join('')
+    :`${escA(tr('an_heat_lo'))}${[0,2,4,6,8].map(i=>`<i style="background:${SEQ[i]}"></i>`).join('')}${escA(tr('an_heat_hi'))}`;
+  return h+`</div><div class="hml${opt.bins?' bins':''}">${lg}</div>`; }
+// a scatter of nights: x a weather measure, y the drones launched; r (Pearson) and a least-squares line when there are
+// enough nights to draw one. A correlation, not a cause — the card says so.
+function pearson(p){ const n=p.length; if(n<3) return null; const mx=p.reduce((s,q)=>s+q.x,0)/n, my=p.reduce((s,q)=>s+q.y,0)/n;
+  let sxy=0,sxx=0,syy=0; p.forEach(q=>{sxy+=(q.x-mx)*(q.y-my);sxx+=(q.x-mx)**2;syy+=(q.y-my)**2;}); return sxx&&syy?sxy/Math.sqrt(sxx*syy):null; }
+function scatter(p,xl,unit,color){ const W=CHW>700?276:CHW,H=200,pl=40,pr=10,pt=10,pb=30;
+  if(p.length<3) return `<div class="nodata">${tr('an_nodata')}</div>`;
+  const x1=nice(Math.max(1,...p.map(q=>q.x))), y1=nice(Math.max(1,...p.map(q=>q.y)));
+  const X=v=>pl+(W-pl-pr)*v/x1, Y=v=>pt+(H-pt-pb)*(1-v/y1); let g='';
+  for(let k=0;k<=4;k++){ const yv=y1*k/4, xv=x1*k/4;
+    g+=`<line x1="${pl}" x2="${W-pr}" y1="${Y(yv)}" y2="${Y(yv)}" class="${k?'gl':'gl0'}"/><text x="${pl-6}" y="${Y(yv)+4}" class="ax" text-anchor="end">${Math.round(yv)}</text>`;
+    g+=`<text x="${X(xv)}" y="${H-14}" class="ax" text-anchor="middle">${Math.round(xv*10)/10}</text>`; }
+  g+=`<text x="${(pl+W-pr)/2}" y="${H-1}" class="ax" text-anchor="middle">${escA(xl)} (${escA(unit)})</text>`;
+  const r=pearson(p);
+  if(p.length>=8){ const n=p.length, mx=p.reduce((s,q)=>s+q.x,0)/n, my=p.reduce((s,q)=>s+q.y,0)/n, sxx=p.reduce((s,q)=>s+(q.x-mx)**2,0);
+    if(sxx){ const b=p.reduce((s,q)=>s+(q.x-mx)*(q.y-my),0)/sxx, a=my-b*mx, y0=Math.min(y1,Math.max(0,a)), ye=Math.min(y1,Math.max(0,a+b*x1));
+      g+=`<line x1="${X(0)}" y1="${Y(y0)}" x2="${X(x1)}" y2="${Y(ye)}" stroke="#8a8983" stroke-width="1.5" stroke-dasharray="5 4" pointer-events="none"/>`; } }
+  g+=p.map(q=>`<circle cx="${X(q.x).toFixed(1)}" cy="${Y(q.y).toFixed(1)}" r="4.5" fill="${color}" stroke="#12151b" stroke-width="2" data-tip="${escA(`<b>${escA(dshort(q.d))}</b><br>${escA(xl)}: <b>${q.x} ${escA(unit)}</b><br>${escA(tr('an_wx_drones'))}: <b>${q.y}</b>`)}"/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H}" class="ch" role="img">${g}</svg><div class="ans">${r==null?'':escA(tr('an_wx_r',r.toFixed(2),p.length,tr(Math.abs(r)<.2?'an_wx_none':Math.abs(r)<.4?'an_wx_weak':Math.abs(r)<.6?'an_wx_mod':'an_wx_strong')))}</div>`; }
+function drawMore(A){
+  const out=[];
+  // the carriers
+  const X=A.air;
+  if(X){ const per=X.per_date, st=X.stats||{};
+    const chart=bars(per.map(r=>r.date),AK.map((k,i)=>({n:tr('an_air_'+k),c:C[i],v:per.map(r=>r[k]||null)})),{h:160});
+    const tiles=AK.map((k,i)=>{ const s=st[k]||{}; const L2=[tr(k==='kalibr'?'an_air_salvos':'an_air_n',s.sorties||0)];
+      if(k!=='kalibr'){ L2.push(tr('an_air_launched',s.launched||0,s.sorties||0)); if(s.delays) L2.push(tr('an_air_delay',fmtm(s.delay_median),fmtm(s.delay_p25),fmtm(s.delay_p75),s.delays)); }
+      if(k==='mig31k'&&s.up_median!=null) L2.push(tr('an_air_upfor',fmtm(s.up_median)));
+      return `<div class="airt"><div class="airh"><i style="background:${C[i]}"></i>${escA(tr('an_air_'+k))}</div>${L2.map(l=>`<div>${escA(l)}</div>`).join('')}</div>`; }).join('');
+    const rows=(X.sorties||[]).slice(0,25).map(s=>`<tr><td><i class="dot" style="background:${C[AK.indexOf(s.kind)]}"></i>${escA(tr('an_air_'+s.kind))}</td><td>${kt(s.start,1)}</td><td>${s.launch?kt(s.launch,!s.start):'—'}</td><td class="n">${s.delay_min!=null?fmtm(s.delay_min):'—'}</td><td>${s.end?kt(s.end):'—'}</td><td class="n">${s.reports}</td></tr>`).join('');
+    out.push(card('c13',tr('an_c_air'),tr('an_src_air'),legend(AK.map((k,i)=>[tr('an_air_'+k),C[i]]))+chart+`<div class="airg">${tiles}</div>`
+      +(rows?`<div class="tscroll"><table class="airtab"><tr><th>${tr('an_air_kind')}</th><th>${tr('an_air_up_at')}</th><th>${tr('an_air_launch_at')}</th><th style="text-align:right">${tr('an_air_after')}</th><th>${tr('an_air_end_at')}</th><th style="text-align:right">${tr('an_air_reports')}</th></tr>${rows}</table></div>`:''),'air')); }
+  // the weather at the launch sites against the drones of that night
+  const WX=(A.weather||[]); const byD={}; A.af.forEach(r=>{ if(r.night_drones!=null) byD[r.date]=r.night_drones; });
+  const pts=f=>WX.filter(w=>w.launch&&w.launch[f]!=null&&byD[w.date]!=null).map(w=>({x:w.launch[f],y:byD[w.date],d:w.date}));
+  const nW=WX.filter(w=>w.launch).length;
+  out.push(card('c14',tr('an_c_wx'),tr('an_src_wx'),nW?`<div class="an3">${[['wind','an_wx_wind','km/h',C[0]],['cloud','an_wx_cloud','%',C[2]],['precip','an_wx_rain','mm',C[4]]].map(([f,l,u,c])=>`<div><div class="an3h">${escA(tr(l))}</div>${scatter(pts(f),tr(l),u,c)}</div>`).join('')}</div><div class="annote" style="margin:8px 0 0">${escA(tr('an_wx_note'))}</div>`:`<div class="nodata">${tr('an_wx_wait')}${A.weather_status&&A.weather_status.error?' — '+escA(A.weather_status.error):''}</div>`,'weather'));
+  // the sides of Kyiv the drones were reported on
+  const AP=A.approach||[]; const dirs=tr('an_dirs').split(','); const tot=[0,0,0,0,0,0,0,0]; AP.forEach(r=>r.s.forEach((v,i)=>tot[i]+=v));
+  const apM=dirs.map((_,i)=>AP.map(r=>r.s[i]));
+  out.push(`<div class="an2">`+card('c15',tr('an_c_appr'),tr('an_src_appr'),tot.some(Boolean)?grid(dirs,AP.map(r=>dshort(r.date)),apM,(r,c,v)=>`<b>${escA(dshort(AP[c].date))} · ${escA(dirs[r])}</b><br>${v} ${escA(tr('an_s_reports').toLowerCase())}`):`<div class="nodata">${tr('an_nodata')}</div>`,'approach')
+    +card('c15b',tr('an_c_appr_tot'),tr('an_src_appr_tot'),hbars(dirs.map((d,i)=>[d,tot[i]]),C[0]))+`</div>`);
+  // hours under alert, oblast by oblast
+  const O=A.obl; if(O&&O.rows&&O.rows.length){ const name=r=>L==='uk'?r.uk.replace(' область',''):r.en;
+    const colL=O.cols.map(c=>O.by==='week'?dshort(c.from):dshort(c.from));
+    out.push(card('c16',tr('an_c_obl'),tr(O.by==='week'?'an_src_obl_w':'an_src_obl_d'),
+      grid(O.rows.map(name),colL,O.rows.map(r=>r.h),(r,c,v)=>{ const cl=O.cols[c], pct=Math.round(v/(cl.days*24)*100);
+        return `<b>${escA(name(O.rows[r]))}</b><br>${escA(O.by==='week'?tr('an_obl_week',dshort(cl.from),cl.days):dshort(cl.from))}: <b>${v} ${escA(tr('an_h'))}</b> (${pct}%)`; },
+        {lw:CHW>600?150:96,val:(r,c,v)=>v/(O.cols[c].days*24)*100,bins:[2,10,25,45,70],tot:tr('an_obl_tot'),totf:r=>`${Math.round(O.rows[r].total_h)} ${tr('an_h')}`}),'oblasts')); }
+  return out.join(''); }
+function csvMore(k,A,tag){
+  if(k==='air') csvDownload(`heimdall-carriers-${tag}.csv`,[['kind','takeoff_utc','launch_utc','stood_down_utc','minutes_takeoff_to_launch','minutes_takeoff_to_stand_down','reports','channels'],
+    ...(A.air.sorties||[]).slice().reverse().map(s=>[s.kind,s.start,s.launch,s.end,s.delay_min,s.up_min,s.reports,(s.channels||[]).join(' ')])]);
+  if(k==='weather'){ const byD={}; A.af.forEach(r=>byD[r.date]=r.night_drones); const F=['wind','gust','cloud','precip','tmin'];
+    csvDownload(`heimdall-weather-${tag}.csv`,[['night_ending','drones_launched_night',...F.map(f=>'launch_sites_'+f),...F.map(f=>'kyiv_'+f)],
+      ...A.weather.map(w=>[w.date,byD[w.date],...F.map(f=>(w.launch||{})[f]),...F.map(f=>(w.kyiv||{})[f])])]); }
+  if(k==='approach') csvDownload(`heimdall-kyiv-approach-${tag}.csv`,[['date','N','NE','E','SE','S','SW','W','NW'],...A.approach.map(r=>[r.date,...r.s])]);
+  if(k==='oblasts') csvDownload(`heimdall-alert-hours-by-oblast-${tag}.csv`,[['oblast',...A.obl.cols.map(c=>c.from),'total_h'],...A.obl.rows.map(r=>[r.en,...r.h,r.total_h])]); }
+
 $('anr').addEventListener('click',e=>{ const b=e.target.closest('button[data-d]'); if(!b) return; AN_DAYS=+b.dataset.d; try{localStorage.setItem('andays',AN_DAYS);}catch(err){} AN=null; loadAnalytics(); });
 // CSV for Excel: UTF-8 with its mark, ';' between columns (what Excel expects in Ukrainian and French settings)
 function csvDownload(name,rows){ const txt='﻿'+rows.map(r=>r.map(v=>{ const s=v==null?'':String(v); return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }).join(';')).join('\r\n');
@@ -756,6 +871,7 @@ document.addEventListener('click',e=>{ const b=e.target.closest('.csvb'); if(!b|
   if(k==='af'){ const T=['drones','jet','banderol','missiles',...MT]; csvDownload(`heimdall-air-force-${tag}.csv`,[['date','summaries',...T.map(x=>'launched_'+x),'used_without_number',...['total','drones','jet','banderol',...MT].map(x=>'down_'+x),'hit_locations','debris_locations'],
       ...A.af.map(r=>[r.date,r.periods.join('+'),...T.map(x=>(r.launched||{})[x]),(r.used||[]).join(' '),...['total','drones','jet','banderol',...MT].map(x=>(r.down||{})[x]),r.periods.length?r.impacts:'',r.periods.length?r.debris:''])]); }
   if(k==='kyiv') csvDownload(`heimdall-kyiv-alerts-${tag}.csv`,[['date','kyiv_city_minutes','kyiv_oblast_minutes','kyiv_city_alerts'],...A.kyiv.map(r=>[r.date,r.city_min,r.oblast_min,r.city_alerts])]);
+  csvMore(k,A,tag);
   if(k==='reports'){ const keys=[...new Set(A.reports.flatMap(r=>Object.keys(r)).filter(x=>x!=='date'))].sort(); csvDownload(`heimdall-kyiv-reports-${tag}.csv`,[['date',...keys],...A.reports.map(r=>[r.date,...keys.map(x=>r[x]||0)])]); } });
 
 $('langsw').addEventListener('click',e=>{
