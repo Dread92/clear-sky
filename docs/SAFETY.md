@@ -93,6 +93,13 @@ At that cadence the countdown is replaced by **LIVE**, because a number flickeri
 as a fault rather than as speed. It turns red the moment a round actually fails, which is the only thing
 there worth noticing.
 
+## A new source is on trial until a person trusts it
+
+Channels can be added from the dashboard (1.31). An added channel starts on **trial**: its posts are shown in
+the feed, marked as such, and nothing else — no mark on the map, no banner, no sound, no push, no count. Only
+the admin, after reading what it posts, puts it on the map. A channel that starts posting rumours can be put
+back on trial or switched off in one click, and its posts leave the map at once.
+
 ## A warning is only raised when something was actually reported
 
 The preventive banner (MiG-31K airborne, ballistic threat) is the loudest thing in the app, so what

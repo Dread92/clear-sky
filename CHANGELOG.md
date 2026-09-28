@@ -2,6 +2,19 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.31.0 — 2026-09-28
+
+### Added
+- **Telegram sources from the dashboard.** The channels table now has, for each channel: **Map / Trial / Off**,
+  **web preview / Telegram API** (when the API is set up), and ✕ to remove an added one; under it, a box to add a
+  channel (`@name`, `t.me/name` or a link to a post). No deploy, and it survives restarts.
+- **A new channel starts on trial.** Its posts are shown in the feed with an orange "source on trial — not on the
+  map" chip and nothing else: no mark, no banner, no sound, no push, not in the statistics or the summaries.
+  Switching it to Map (after a confirmation) makes its posts count from then on, including those already in the
+  window; switching a channel off or removing it takes its posts off the map and out of the feed at once.
+- The six default channels can be switched off or moved to the Telegram API, not removed. At most 30 channels.
+  A channel added for the web preview is checked for readable posts first.
+
 ## 1.30.0 — 2026-09-28
 
 ### Changed
@@ -10,6 +23,7 @@ Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md
   in the header. The notice now opens with the whole logo, name included (a 40 KB WebP, loaded only when the
   notice is shown). The icon files have new names (`static/heimdall-*.png`): a phone that took the 1.29 icon
   identifies icons by their address, so it takes this one as an update too.
+- The dashboard's message now reads **"Message from the system admin"** (was "from the Heimdall team").
 
 ## 1.29.0 — 2026-09-28
 

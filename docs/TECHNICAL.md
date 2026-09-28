@@ -1,6 +1,6 @@
 # Heimdall — technical documentation
 
-**Documented version: 1.30** · last updated 2026-09-28
+**Documented version: 1.31** · last updated 2026-09-28
 
 Heimdall was called **Clear Sky** until 1.29; the repository, the Fly app (`kyiv-air-watch-gb`) and some
 internal names still carry the old name.
@@ -361,8 +361,24 @@ the mirror painted when it returns. `snapshot()` merges duplicates and computes 
 
 ### 7.1 The channels
 
-Only these are read (`AUTHORITATIVE_CHANNELS`, in code on purpose — deployed configs list 33 channels, and a
-config whitelist would have changed nothing on any machine):
+The six defaults are in code (`AUTHORITATIVE_CHANNELS` — deployed configs list 33 channels, and a config
+whitelist would have changed nothing on any machine; `telegram_channels` in a config is still ignored). Since
+1.31 the **dashboard** manages the list on top of them (`State.channel_list`, stored in `kv.channels`, so it
+survives restarts and deploys):
+
+- each channel is **Map** (its posts place marks and can raise banners and alerts), **Trial** (its posts are
+  shown in the feed with their place tags only and a "trial" chip — no threat tag, no mark, no banner, no toast,
+  no push, not in any count or summary) or **Off** (not read, and its posts leave the feed);
+- read via the **web preview** (`t.me/s/…`) or the **Telegram API** (when the `TG_*` secrets are set);
+- **added** channels start on **Trial** — a channel nobody has vetted must not be able to put a drone over
+  somebody's house; the admin promotes it after judging what it posts and the share of it the app reads;
+- the defaults can be switched off, never deleted; a deleted channel stays off for 6 h so its recent posts stop
+  counting at once; at most 30 channels.
+
+How: `Store.feed_since` (every computation — marks, the missile level, statistics, summaries) keeps only Map
+channels; `Store.feed` (what the pages show) drops Off ones and strips a Trial one's threat tags; the `feed`
+event of a Trial post carries `tags: ["trial"]` only. Both readers take the list afresh each round
+(`State.channels_read`). A web channel is checked for readable posts when it is added. The defaults:
 
 | Channel | Kind | Parser |
 |---|---|---|
@@ -491,7 +507,7 @@ can be checked. Without a key the figures are still stored and shown. The model 
   the slider or **▶** (test) plays the loudest alert at the chosen level. The zones keep their relative levels under
   it. Push notifications (app closed) use the phone's own notification sound and volume. And a **shoot-down notice** for a track the reader was warned about — worded so it can never read
   as an all-clear.
-- **The team's message** (1.29): the dashboard publishes one message (UK / EN / FR, info / warning / urgent, for
+- **The admin's message** (1.29; headed "Message from the system admin" since 1.30): the dashboard publishes one message (UK / EN / FR, info / warning / urgent, for
   1 h – 3 days or until removed), stored in `kv.notice` and carried in the alerts state (`notice`), so the live
   line and `/api/state` bring it to both pages as a banner. A reader can close it (remembered on that phone,
   `notice_x`). Optionally sent as a push to every subscribed phone (the Ukrainian text).
@@ -622,8 +638,9 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `POST /api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/test`; `GET /api/push/key` | Web Push |
 | `POST /api/flag` | "this reading is wrong" report |
 | 🔒 `GET /admin`, `/api/usage` | dashboard, usage counters |
-| 🔒 `GET /api/health` | official sources (ok, last check, detail), every channel read (posts / marks 24 h, share read 7 d, last post, reader state), translation backends, lead time over the official alert in Kyiv + oblast (30 days) |
+| 🔒 `GET /api/health` | official sources (ok, last check, detail), every channel read (posts / marks 24 h, share read 7 d, last post, reader state, `mode`, `read_via`, `builtin`), translation backends, lead time over the official alert in Kyiv + oblast (30 days) |
 | 🔒 `GET /api/online` | pages open now with a live line (`total`, `tactical`, `light`, today's peak), the current message, the last push fan-out (phones, seconds, delivered) |
+| 🔒 `POST /api/admin/channel` | `{action: add|set|delete, name, mode: map|trial|off, via: web|api}` — the channels read (§7.1); `add` checks `t.me/s/<name>` for readable posts and starts it on trial |
 | 🔒 `POST /api/admin/notice` | `{text: {uk, en, fr}, level: info|warn|alert, hours: 0–168 (0 = until removed), push: bool}` or `{clear: true}` — the team's message (§9) |
 | 🔒 `GET /api/digests` | the stored nights and weeks: figures, written summary (EN / UK), model |
 | 🔒 `POST /api/digest/run` | `{kind: night|week}` — asks the `Digests` thread to write the last one up now (never calls the model itself) |

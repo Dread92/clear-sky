@@ -57,6 +57,8 @@ body.lite .ticker .tki{color:#fff}
 .upd .cd.live{color:#ff5b52;letter-spacing:.08em;animation:livepulse 1s ease-in-out infinite}
 .upd .cd.live.bad{color:#ff8a3d;animation:none}
 .upd .cd.on{color:var(--green,#2fbf71);letter-spacing:.08em}
+/* a channel the admin added and has not put on the map yet (1.31) */
+.tags span.trial{border:1px dashed #ff8a3d!important;color:#ffb27a!important;background:transparent!important}
 /* the admin's message to every reader (1.29): under the header, until it expires or the reader closes it */
 .notice{display:flex;align-items:flex-start;gap:8px;margin:0;padding:8px 10px 8px 12px;background:#10213b;border-top:1px solid var(--line);border-left:4px solid #5b9cff;color:var(--ink)}
 .notice[hidden]{display:none}.notice.lv-warn{background:#2c1d08;border-left-color:#ff8a3d}.notice.lv-alert{background:#351210;border-left-color:#e0342c}
@@ -708,13 +710,13 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.30</div>
+    <div class="mi bt" id="buildtag">v1.31</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
   <div class="tstrip" id="tstrip" hidden></div>
   <div class="notice lv-warn" id="moved" hidden role="status"><div class="ntb"><b class="nth mvt"></b><span class="mvb"></span><a class="mvgo" href="#"></a></div><button class="nx" type="button" aria-label="✕">✕</button></div>
-  <div class="notice" id="notice" hidden role="status"><div class="ntb"><b class="nth" data-t="nt_from">Heimdall team</b><span class="ntx"></span></div><button class="nx" type="button" data-t-aria="btn_close" aria-label="Close">✕</button></div>
+  <div class="notice" id="notice" hidden role="status"><div class="ntb"><b class="nth" data-t="nt_from">Message from the system admin</b><span class="ntx"></span></div><button class="nx" type="button" data-t-aria="btn_close" aria-label="Close">✕</button></div>
 </header>
 
 <div id="stage">
@@ -2205,7 +2207,7 @@ function renderFeed(posts,flash){
     const body=esc(ptxt(p)); const long=body.length>110||/\n/.test(ptxt(p));
     return `<div class="card ${tags.includes('kyiv')?'kyiv':''} ${isNew?'new':''}"><div class="when">${fmtT(p.ts)}<b>${esc(CH[p.channel]||'@'+p.channel)}</b></div><div class="bd">
       <div class="txt${long?' clamp':''}">${body}</div>${long?`<button class="mo">${t('fd_more')}</button>`:''}
-      ${tags.length?`<div class="tags">${tags.map(x=>`<span class="${x==='kyiv'?'kyiv':''}">${THREAT[x]?.[1]||x}</span>`).join('')}${p.merged>1?`<span class="rep">${t('fd_times',p.merged)}</span>`:''}</div>`:''}</div></div>`;}).join('')
+      ${tags.length?`<div class="tags">${tags.map(x=>`<span class="${x==='kyiv'?'kyiv':x==='trial'?'trial':''}">${x==='trial'?t('fd_trial'):THREAT[x]?.[1]||x}</span>`).join('')}${p.merged>1?`<span class="rep">${t('fd_times',p.merged)}</span>`:''}</div>`:''}</div></div>`;}).join('')
     :`<div class="empty">${t('fd_empty')}</div>`;
   $('feed').querySelectorAll('.mo').forEach(b=>b.onclick=()=>{const tx=b.previousElementSibling;const open=tx.classList.toggle('clamp');b.textContent=open?t('fd_more'):t('fd_less');});
 }
@@ -2270,7 +2272,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.30';
+const APP_VERSION='1.31';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

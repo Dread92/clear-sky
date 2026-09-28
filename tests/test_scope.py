@@ -28,9 +28,10 @@ def test_the_six_channels_and_only_them():
 
 def test_a_config_listing_other_channels_does_not_bring_them_back():
     """Every deployed config.json still lists the old thirty. They must not be read."""
-    tg = server.Telegram(server.State(server.Store(":memory:"), {}),
-                         {"telegram_channels": ["kyivoda", "odesa_alert", "war_monitor"]})
-    assert tg.channels == server.AUTHORITATIVE_CHANNELS
+    st = server.State(server.Store(":memory:"), {"telegram_channels": ["kyivoda", "odesa_alert", "war_monitor"]})
+    server.Telegram(st, st.cfg)
+    # 1.31: what is read is the defaults plus what the dashboard added — never the config's old list
+    assert sorted(st.channels_read("web") + st.channels_read("api")) == sorted(server.AUTHORITATIVE_CHANNELS)
 
 
 def test_a_channel_with_its_preview_switched_off_is_reported_as_unreadable():

@@ -327,7 +327,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.30"
+APP_VERSION = "1.31"
 APP_NAME = "Heimdall"
 BUILD = None    # filled at startup
 
@@ -1018,10 +1018,17 @@ class Store:
                 (channel, text)).fetchone()
         return (row[0], row[1]) if row else (None, None)
 
+    # How each channel is used (State.channel_mode, 1.31): "map" feeds the marks, the banners and every count;
+    # "trial" only shows its posts in the feed, flagged; "off" is not read and not shown. Set by State.
+    mode_of = staticmethod(lambda ch: "map")
+
     def feed_since(self, minutes, limit=200, translate=True):
+        """The posts the marks, the banners, the statistics and the summaries are computed from: only channels
+        on the map. A channel on trial or switched off never reaches them."""
         since = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
         with self.lock:
             rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en FROM feed WHERE ts>=? ORDER BY ts DESC LIMIT ?", (since, limit)).fetchall()
+        rows = [r for r in rows if self.mode_of(r[1]) == "map"]
         # Never a network call here: this runs inside the marks' computation. It used to call the machine
         # translator for any post without an English text — one call per post, each up to 6 s, on every request
         # for the marks — and during an attack the pages' requests piled up behind it until the server froze.
@@ -1029,10 +1036,23 @@ class Store:
                  "text_en": r[5] or (_tr.translate_offline(r[3]) if (translate and _tr) else None)} for r in rows]
 
     def feed(self, limit=80):
+        """The feed as the pages show it. A channel switched off is left out; a channel on trial is shown with its
+        place tags only and "trial" — no threat tag, so nothing on the page is raised by it."""
         with self.lock:
-            rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en,text_fr,en_mt FROM feed ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
-        return [{"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": json.loads(r[4]),
-                 "text_en": r[5] or (_tr.translate_offline(r[3]) if _tr else r[3]), "text_fr": r[6], "en_mt": bool(r[7])} for r in rows]
+            rows = self.conn.execute("SELECT post_id,channel,ts,text,tags,text_en,text_fr,en_mt FROM feed ORDER BY ts DESC LIMIT ?", (limit + 60,)).fetchall()
+        out = []
+        for r in rows:
+            mode = self.mode_of(r[1])
+            if mode == "off":
+                continue
+            tags = json.loads(r[4])
+            if mode == "trial":
+                tags = [t for t in tags if t in ("kyiv", "region", "ua")] + ["trial"]
+            out.append({"post_id": r[0], "channel": r[1], "ts": r[2], "text": _clean_post(r[3]), "tags": tags,
+                        "text_en": r[5] or (_tr.translate_offline(r[3]) if _tr else r[3]), "text_fr": r[6], "en_mt": bool(r[7])})
+            if len(out) >= limit:
+                break
+        return out
 
     def set_translation(self, post_id, lang, text):
         with self.lock:
@@ -1065,6 +1085,13 @@ class Store:
         return {"key": r[0], "source": r[1], "location_uid": r[2], "location_title": r[3], "location_title_en": r[4],
                 "location_type": r[5], "oblast_uid": r[6], "alert_type": r[7], "alert_level": r[8],
                 "started_at": r[9], "finished_at": r[10], "notes": r[11], "threats": json.loads(r[12] or "[]")}
+
+
+def normalize_channel(s):
+    """'@kyiv_airdef', 't.me/kyiv_airdef', 'https://t.me/s/kyiv_airdef' → 'kyiv_airdef'; anything else → None."""
+    s = (s or "").strip()
+    s = re.sub(r"^(?:https?://)?(?:www\.)?(?:t\.me|telegram\.me)/(?:s/)?", "", s, flags=re.I).lstrip("@").split("/")[0].split("?")[0]
+    return s if re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{3,31}", s) else None
 
 
 def canonical_host(cfg):
@@ -1167,6 +1194,96 @@ class State:
             self.notice = json.loads(store.kv_get("notice") or "null")
         except Exception:
             self.notice = None
+        self._channels_load()
+        store.mode_of = self.channel_mode
+
+    # -- the Telegram channels read (1.31) -------------------------------------------------------------------------
+    # The six channels in AUTHORITATIVE_CHANNELS are the defaults, in code. The dashboard can switch any of them
+    # to trial or off, send one through the Telegram API, and add others — stored in kv "channels", so they
+    # survive a restart and a deploy. A channel added from the dashboard starts on TRIAL: its posts appear in the
+    # feed, flagged, but put nothing on the map, raise no banner and send no alert until it is switched to the
+    # map. A channel nobody vetted must not be able to put a drone over somebody's house.
+    CHANNEL_MODES = ("map", "trial", "off")
+    MAX_CHANNELS = 30
+
+    def _channels_load(self):
+        try:
+            saved = json.loads(self.store.kv_get("channels") or "null") or {}
+        except Exception:
+            saved = {}
+        api = {c.lower() for c in (self.cfg.get("telegram_api_channels") or [])}
+        by = {e["name"].lower(): e for e in saved.get("list", []) if isinstance(e, dict) and e.get("name")}
+        out = []
+        for c in AUTHORITATIVE_CHANNELS:
+            e = by.pop(c.lower(), {})
+            out.append({"name": c, "builtin": True, "mode": e.get("mode") if e.get("mode") in self.CHANNEL_MODES else "map",
+                        "via": e.get("via") if e.get("via") in ("web", "api") else ("api" if c.lower() in api else "web")})
+        for e in by.values():
+            out.append({"name": e["name"], "builtin": False, "mode": e.get("mode") if e.get("mode") in self.CHANNEL_MODES else "trial",
+                        "via": e.get("via") if e.get("via") in ("web", "api") else "web", "added": e.get("added")})
+        self.channel_list = out
+        self._deleted = {k: v for k, v in (saved.get("deleted") or {}).items()}
+        self._modes = {e["name"].lower(): e["mode"] for e in out}
+
+    def _channels_save(self):
+        builtin = {c.lower(): c for c in AUTHORITATIVE_CHANNELS}
+        keep = []
+        for e in self.channel_list:
+            if e["builtin"]:
+                dflt_via = "api" if e["name"].lower() in {c.lower() for c in (self.cfg.get("telegram_api_channels") or [])} else "web"
+                if e["mode"] == "map" and e["via"] == dflt_via:
+                    continue            # a default left as it is: nothing to store
+            keep.append({k: e[k] for k in ("name", "mode", "via", "added") if k in e})
+        cut = (datetime.now(timezone.utc) - timedelta(hours=6)).isoformat()
+        self._deleted = {k: v for k, v in self._deleted.items() if v >= cut and k not in builtin}
+        self.store.kv_set("channels", json.dumps({"list": keep, "deleted": self._deleted}, ensure_ascii=False))
+        self._modes = {e["name"].lower(): e["mode"] for e in self.channel_list}
+        self._health_res = None
+        self.publish({"kind": "channels", "ts": now_iso()})       # the feed, the marks and the pages follow at once
+
+    def channel_mode(self, ch):
+        """map / trial / off. A channel removed from the dashboard stays off for the hours its posts could still
+        count; a channel never registered (an old post, the demo) counts as before 1.31."""
+        k = (ch or "").lower()
+        m = self._modes.get(k)
+        if m:
+            return m
+        return "off" if k in self._deleted else "map"
+
+    def channels_read(self, via):
+        return [e["name"] for e in self.channel_list if e["mode"] != "off" and e["via"] == via]
+
+    def channel_update(self, action, name, mode=None, via=None):
+        """The dashboard's changes. Returns (ok, message)."""
+        name = normalize_channel(name)
+        if not name:
+            return False, "not a Telegram channel name"
+        e = next((x for x in self.channel_list if x["name"].lower() == name.lower()), None)
+        with self.lock:
+            if action == "add":
+                if e:
+                    return False, "already in the list"
+                if len(self.channel_list) >= self.MAX_CHANNELS:
+                    return False, f"at most {self.MAX_CHANNELS} channels"
+                self.channel_list.append({"name": name, "builtin": False, "mode": "trial",
+                                          "via": via if via in ("web", "api") else "web", "added": now_iso()})
+                self._deleted.pop(name.lower(), None)
+            elif not e:
+                return False, "not in the list"
+            elif action == "set":
+                if mode in self.CHANNEL_MODES:
+                    e["mode"] = mode
+                if via in ("web", "api"):
+                    e["via"] = via
+            elif action == "delete":
+                if e["builtin"]:
+                    return False, "a default channel can be switched off, not deleted"
+                self.channel_list.remove(e)
+                self._deleted[name.lower()] = now_iso()
+            else:
+                return False, "unknown action"
+        self._channels_save()
+        return True, "ok"
 
     # -- the admin's message to every reader (1.29) --------------------------------------------------------------
     # One message at a time, in up to three languages, shown as a banner on both pages until it expires or is
@@ -1492,7 +1609,10 @@ class State:
                 "SELECT channel, COUNT(*) FROM marker_log WHERE ts>=? AND status IS NULL GROUP BY channel", (since24,))}
             last = {r[0]: r[1] for r in c.execute("SELECT channel, MAX(ts) FROM feed GROUP BY channel")}
         week = {r["channel"]: r for r in self.store.channel_report(7)}
-        names = list(AUTHORITATIVE_CHANNELS) + [ch for ch in list(f24) + list(week) if ch not in AUTHORITATIVE_CHANNELS]
+        listed = [e["name"] for e in self.channel_list]
+        low = {c.lower() for c in listed}
+        names = listed + [ch for ch in list(f24) + list(week) if ch.lower() not in low]
+        reg = {e["name"].lower(): e for e in self.channel_list}
         channels = []
         for ch in dict.fromkeys(names):
             src = sources.get(f"tga:{ch}") or sources.get(f"tg:{ch}") or {}
@@ -1500,7 +1620,9 @@ class State:
             channels.append({"channel": ch, "posts_24h": f24.get(ch, 0), "marks_24h": m24.get(ch, 0), "last_post": last.get(ch),
                              "posts_7d": w.get("posts", 0), "read_7d": w.get("with_marker", 0), "outcomes_7d": w.get("outcomes", 0),
                              "flagged_7d": w.get("flagged", 0), "ok": src.get("ok"), "checked": src.get("last"),
-                             "error": src.get("error"), "via": "api" if f"tga:{ch}" in sources else ("preview" if src else None)})
+                             "error": src.get("error"), "via": "api" if f"tga:{ch}" in sources else ("preview" if src else None),
+                             "mode": self.channel_mode(ch), "listed": ch.lower() in reg, "builtin": bool(reg.get(ch.lower(), {}).get("builtin")),
+                             "read_via": reg.get(ch.lower(), {}).get("via"), "added": reg.get(ch.lower(), {}).get("added")})
         official = [{"name": k, **v} for k, v in sorted(sources.items()) if not k.startswith(("tg:", "tga:"))]
         tr = {"available": [], "paused": {}}
         if _tr:
@@ -1509,7 +1631,8 @@ class State:
                 tr["paused"] = {n: int(u - time.time()) for n, u in _tr._DOWN.items() if u > time.time()}
             except Exception:
                 pass
-        out = {"generated": now_iso(), "official": official, "channels": channels, "translation": tr, "lead": self.lead_times(30)}
+        out = {"generated": now_iso(), "official": official, "channels": channels, "translation": tr, "lead": self.lead_times(30),
+               "tg_api": TelegramAPI.configured(self.cfg), "max_channels": self.MAX_CHANNELS}
         self._health_res = (time.time(), out)
         return out
 
@@ -2414,10 +2537,9 @@ class Telegram(threading.Thread):
     def __init__(self, state, cfg):
         super().__init__(daemon=True)
         self.state, self.cfg = state, cfg
-        self.channels = list(AUTHORITATIVE_CHANNELS)
         extra = [c for c in (cfg.get("telegram_channels") or []) if c not in AUTHORITATIVE_CHANNELS]
         if extra:
-            log(f"telegram: {len(extra)} channel(s) in config ignored — only {', '.join(AUTHORITATIVE_CHANNELS)} are read")
+            log(f"telegram: {len(extra)} channel(s) in config ignored — the list is the defaults plus the dashboard's")
         self.official = OfficialAlerts(state)
         self.seen_channels = set()
         self.api_channels = set()   # channels TelegramAPI is reading right now — this poller leaves them alone
@@ -2438,7 +2560,9 @@ class Telegram(threading.Thread):
                 log(f"telegram {ch} error:", e)
         while True:
             lvl = self.state.missile_active()
-            list(pool.map(one, self.channels))   # 4 channels at a time, ~1 round trip each
+            # the dashboard's list, read afresh each round: a channel added, switched or removed takes effect here
+            chans = self.state.channels_read("web") + [c for c in self.state.channels_read("api") if c not in self.api_channels]
+            list(pool.map(one, chans))   # 4 channels at a time, ~1 round trip each
             time.sleep(rush if lvl >= 2 else fast if lvl else interval)
 
     def poll(self, ch):
@@ -2491,6 +2615,8 @@ class Telegram(threading.Thread):
                     self.state.set_eradar(p["ts"], summ)
                     break
         for p in sorted(new, key=lambda p: p["ts"]):
+            if self.state.channel_mode(ch) == "trial":
+                p = dict(p, tags=["trial"])       # on trial: shown in the feed, raises nothing (no toast, no banner)
             self.state.publish({"kind": "feed", "ts": p["ts"], "post": p})
         tr = getattr(self.state, "tr", None)
         if tr and new:
@@ -2522,11 +2648,11 @@ class TelegramAPI(threading.Thread):
     def __init__(self, state, cfg, tg):
         super().__init__(daemon=True, name="tgapi")
         self.state, self.cfg, self.tg = state, cfg, tg
-        self.channels = [c for c in (cfg.get("telegram_api_channels") or []) if c in AUTHORITATIVE_CHANNELS]
+        self.channels = []          # the channels open right now; which ones is the dashboard's list (State.channels_read)
 
     @staticmethod
     def configured(cfg):
-        return bool(cfg.get("tg_api_id") and cfg.get("tg_api_hash") and cfg.get("tg_session") and cfg.get("telegram_api_channels"))
+        return bool(cfg.get("tg_api_id") and cfg.get("tg_api_hash") and cfg.get("tg_session"))
 
     @staticmethod
     def raw_of(ch, msg):
@@ -2573,18 +2699,27 @@ class TelegramAPI(threading.Thread):
             log("telegram api: session not authorised — run scripts/telegram-login.bat")
             await client.disconnect()
             return
-        ents = {}
-        for ch in self.channels:
-            ents[ch] = await client.get_entity(ch)
-        self.tg.api_channels |= set(self.channels)
-        with self.state.lock:
-            for ch in self.channels:
-                self.state.sources.pop(f"tg:{ch}", None)       # no longer a failed preview source
-        log("telegram api: reading " + ", ".join("@" + c for c in self.channels))
-
+        ents, retry = {}, {}
         try:
             while client.is_connected():
-                for ch, e in ents.items():
+                # the dashboard's list, read afresh each round (1.31): a channel switched to the API, or off, or added
+                want = self.state.channels_read("api")
+                for ch in [c for c in ents if c not in want]:
+                    ents.pop(ch)
+                    self.tg.api_channels.discard(ch)
+                    log("telegram api: no longer reading @" + ch)
+                for ch in [c for c in want if c not in ents and retry.get(c, 0) <= time.time()]:
+                    try:
+                        ents[ch] = await client.get_entity(ch)
+                        self.tg.api_channels.add(ch)
+                        with self.state.lock:
+                            self.state.sources.pop(f"tg:{ch}", None)       # no longer a failed preview source
+                        log("telegram api: reading @" + ch)
+                    except Exception as ex:
+                        retry[ch] = time.time() + 300                        # not every 15 s: Telegram limits this
+                        self.state.set_source(f"tga:{ch}", False, via="Telegram API", error=("cannot open this channel: " + str(ex))[:160])
+                self.channels = list(ents)
+                for ch, e in list(ents.items()):
                     try:
                         msgs = await client.get_messages(e, limit=20)
                         # the parsing and the database work run off this thread's event loop
@@ -2596,7 +2731,7 @@ class TelegramAPI(threading.Thread):
                             await asyncio.sleep(min(int(wait), 600))
                 await asyncio.sleep(self.POLL_MISSILE_S if self.state.missile_active() else self.POLL_S)
         finally:
-            self.tg.api_channels -= set(self.channels)
+            self.tg.api_channels -= set(ents)
             await client.disconnect()
         raise ConnectionError("disconnected from Telegram")
 
@@ -3697,6 +3832,26 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "summaries are not running"}, 503)
                 dg.ask(kind)
                 return self._json({"ok": True, "asked": kind})
+            if u.path == "/api/admin/channel":
+                # the dashboard's list of Telegram channels: add (on trial), map / trial / off, web / api, delete
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                action = str(data.get("action") or "")
+                name = normalize_channel(str(data.get("name") or ""))
+                if not name:
+                    return self._json({"error": "not a Telegram channel name (letters, digits, _; 4–32)"}, 400)
+                via = data.get("via") if data.get("via") in ("web", "api") else None
+                if action == "add" and via != "api":
+                    # can it be read at all? A channel with its web preview off shows no posts at t.me/s/
+                    try:
+                        _, _, body = http_get(f"https://t.me/s/{name}", {"Accept-Language": "uk,en"}, timeout=12)
+                        if b"tgme_widget_message_wrap" not in body:
+                            return self._json({"error": "no public posts at t.me/s/" + name + " — the channel does not exist, is private, "
+                                                        "or has its web preview off" + ("; add it with “Telegram API”" if TelegramAPI.configured(st.cfg) else "")}, 400)
+                    except Exception as e:
+                        return self._json({"error": f"could not reach t.me: {str(e)[:120]}"}, 502)
+                ok, msg = st.channel_update(action, name, data.get("mode"), via)
+                return self._json({"ok": ok, "message": msg, "name": name}, 200 if ok else 400)
             if u.path == "/api/admin/notice":
                 # the admin's message to every reader: a banner on both pages, optionally a push to every phone
                 if not self._admin_ok(q):
@@ -3961,8 +4116,8 @@ def main():
         log("feed:", ", ".join("t.me/" + c for c in cfg["telegram_channels"]))
         if TelegramAPI.configured(cfg):
             TelegramAPI(state, cfg, tg).start()
-        elif cfg.get("telegram_api_channels"):
-            log("telegram api: not configured — " + ", ".join("@" + c for c in cfg["telegram_api_channels"])
+        elif state.channels_read("api"):
+            log("telegram api: not configured — " + ", ".join("@" + c for c in state.channels_read("api"))
                 + " can only be read after scripts/telegram-login.bat (TG_API_ID, TG_API_HASH, TG_SESSION)")
 
     bind = cfg.get("bind", "127.0.0.1")

@@ -62,7 +62,8 @@ and opens the browser. Linux/macOS: `scripts/start.sh`.
 | **Three languages** | Full UI in 🇬🇧 English, 🇺🇦 Ukrainian, 🇫🇷 French — including place names, raions, districts and channel names. See [docs/I18N.md](docs/I18N.md). |
 | **Altitude when it is stated** | A post saying `знижується` marks the target ↓ DESCENDING in crimson — it is diving. Climbing, low, high and values in metres are read the same way. Never inferred: no public source publishes altitude. |
 | **Push notifications** | Web Push (VAPID / RFC 8291, hand-rolled on `cryptography`) wakes the phone with the app closed — for a target reported within your radius, a MiG-31K take-off or a ballistic threat. No siren-start or all-clear pushes: the siren already says that. Sent to every phone at once over kept-open connections: a thousand phones in seconds, not minutes. |
-| **A word from the team** | From the dashboard, one message to every reader — in Ukrainian, English and French, as information, a warning or urgent, for a set time — shown as a banner on both pages, optionally also as a push. |
+| **Sources from the dashboard** | Add a Telegram channel, switch one off, or read it through the Telegram API — no deploy. A new channel starts on trial: shown in the feed, flagged, nothing on the map until you trust it. |
+| **A word from the admin** | From the dashboard, one message to every reader — in Ukrainian, English and French, as information, a warning or urgent, for a set time — shown as a banner on both pages, optionally also as a push. |
 | **Sound you can turn down** | A volume slider, not just on/off: an iPhone played the tones at full media volume. Test it with ▶. |
 | **Share in one tap** | The status of any target as text, for a chat: what, where, when, descent, heading, distance, source, and the caveat that it is not radar. |
 | **Install as an app** | A PWA: add it to the home screen and it runs full-screen with no browser bar. No store, no download. |
@@ -124,7 +125,8 @@ technical reference, updated with every patch.
 | `bind` | `0.0.0.0` | Set to `127.0.0.1` to keep it on this machine only. |
 
 Environment variables and every other key: [docs/TECHNICAL.md §5](docs/TECHNICAL.md#5-runtime-configuration-and-secrets).
-The channels read are fixed in code (`AUTHORITATIVE_CHANNELS`), not in the config.
+The six default channels are in code (`AUTHORITATIVE_CHANNELS`), not in the config; the dashboard adds others
+(on trial until you put them on the map), switches any of them off, or reads one through the Telegram API.
 
 ## HTTP API
 
