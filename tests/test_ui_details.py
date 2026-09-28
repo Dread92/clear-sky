@@ -88,17 +88,17 @@ def test_the_new_logo_is_the_app_icon_and_the_partner_logos_stay():
         m = json.load(open(os.path.join(ROOT, "static", man), encoding="utf-8"))
         assert m["short_name"].startswith("Heimdall")
         for ic in m["icons"]:
-            assert ic["src"].startswith("/static/logo-hd"), ic
+            assert ic["src"].startswith("/static/heimdall-"), ic
             assert os.path.isfile(os.path.join(ROOT, ic["src"].lstrip("/")))
         assert any(ic["purpose"] == "maskable" for ic in m["icons"])
     # the installed Tactical app keeps its identity: an update of the same app, not a second one beside it
     assert json.load(open(os.path.join(ROOT, "static", "manifest.json"), encoding="utf-8"))["id"] == "/m"
     for page in (PAGE, LIGHT):
-        assert 'rel="apple-touch-icon" href="/static/logo-hd-apple-180.png"' in page     # an iPhone's home screen
+        assert 'rel="apple-touch-icon" href="/static/heimdall-apple-180.png"' in page     # an iPhone's home screen
         assert "Clear Sky" not in page
     assert 'src="/static/logo-64.png" alt="07300"' in PAGE          # NGO 07300 stays in the header
     assert "/static/bf-logo.png" in PAGE                             # Black Flame stays in the credits
-    assert '"logo-hd-64.png"' in SRC                                 # the favicon
+    assert '"heimdall-64.png"' in SRC                                 # the favicon
     assert "Clear Sky" not in I18N
 
 

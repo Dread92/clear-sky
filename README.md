@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/brand/heimdall-mark.png" width="160" alt="Heimdall">
+  <img src="docs/brand/heimdall-logo.png" width="280" alt="Heimdall">
 </p>
 
 # Heimdall

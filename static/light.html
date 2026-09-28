@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#0b0d11">
 <title>Heimdall Light</title>
 <link rel="manifest" href="/light.webmanifest">
-<link rel="icon" href="/static/logo-hd-64.png">
-<link rel="apple-touch-icon" href="/static/logo-hd-apple-180.png">
+<link rel="icon" href="/static/heimdall-64.png">
+<link rel="apple-touch-icon" href="/static/heimdall-apple-180.png">
 <script id="carry">
 // 1.29: arriving from the old address with this phone's settings in the link's #fragment — a fragment is never
 // sent to any server. Settings only (a link cannot set a watched place), kept only where this address has nothing
@@ -32,7 +32,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 header{display:flex;align-items:center;gap:8px;padding:10px 14px}
 header b{font:800 17px/1 var(--sans);letter-spacing:.06em}
 header .hlogo{width:26px;height:26px;flex:none;margin-right:-2px}
-#dm .dlogo{display:block;width:88px;height:88px;margin:0 auto 6px}
+#dm .dlogo{display:block;width:160px;height:auto;margin:0 auto 8px}
 /* Light | Tactical: the two versions, as one big switch across the top — the first thing the eye meets,
    each half saying what it is. Not a link hidden in a menu or a footer. */
 .sw{display:flex;margin:0 14px 12px;border:2px solid var(--ora);border-radius:8px;overflow:hidden;box-shadow:0 0 0 3px rgba(255,138,61,.12)}
@@ -176,7 +176,7 @@ footer a{color:var(--blu)}
 </style>
 </head>
 <body>
-<header><img class="hlogo" src="/static/logo-hd-64.png" alt=""><b>HEIMDALL</b><span class="up" id="up"></span><select class="lsel" id="langsel" aria-label="Language"></select></header>
+<header><img class="hlogo" src="/static/heimdall-64.png" alt=""><b>HEIMDALL</b><span class="up" id="up"></span><select class="lsel" id="langsel" aria-label="Language"></select></header>
 <div class="notice lv-warn" id="moved" hidden role="status"><div class="ntb"><b class="nth mvt"></b><span class="mvb"></span><a class="mvgo" href="#"></a></div><button class="nx" type="button" aria-label="✕">✕</button></div>
 <div class="notice" id="notice" hidden role="status"><div class="ntb"><b class="nth" id="nth"></b><span class="ntx"></span></div><button class="nx" type="button" id="noticex" aria-label="✕">✕</button></div>
 <nav class="sw" id="sw"><span class="on"><b id="swl">LIGHT</b><small id="swl2"></small></span><a href="/m"><b id="swt">TACTICAL</b><small id="swt2"></small></a></nav>
@@ -191,7 +191,7 @@ footer a{color:var(--blu)}
 <div id="off" hidden></div>
 
 <footer><div id="disc"></div><div style="margin-top:8px"><a href="/m" id="full"></a></div></footer>
-<div id="dm" hidden><div class="dbox"><img class="dlogo" src="/static/logo-hd.png" alt="Heimdall" loading="lazy"><div class="dmh"><b id="dmt"></b><select class="lsel" id="dmlang" aria-label="Language"></select></div><p id="dm1"></p><p id="dm2"></p><p id="dm3"></p><button id="dmok"></button></div></div>
+<div id="dm" hidden><div class="dbox"><img class="dlogo" src="/static/heimdall-full.webp" alt="Heimdall" width="160" height="147" loading="lazy"><div class="dmh"><b id="dmt"></b><select class="lsel" id="dmlang" aria-label="Language"></select></div><p id="dm1"></p><p id="dm2"></p><p id="dm3"></p><button id="dmok"></button></div></div>
 <div id="pick"><button class="x" id="pickx">✕</button><h3 id="pickh"></h3><p id="pickp"></p>
   <input id="pickq" autocomplete="off"><button class="loc" id="pickloc"></button><div class="res" id="pickres"></div></div>
 <script src="/static/i18n.js"></script>

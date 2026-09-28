@@ -10,7 +10,7 @@ self.addEventListener('push', e => {
   const title = d.title || 'Heimdall';
   const opts = {
     body: d.body || '',
-    icon: '/static/logo-hd-192.png',
+    icon: '/static/heimdall-192.png',
     badge: '/static/logo-hd-badge.png',   // white on transparent: Android draws a badge from its alpha alone
     tag: d.tag || 'alert',
     renotify: true,

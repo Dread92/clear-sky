@@ -2,6 +2,15 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.30.0 — 2026-09-28
+
+### Changed
+- **The logo from its transparent original.** The 1.29 icons were cut out of a picture with the transparency
+  painted in; these come from the real file: a sharper, brighter radar on the home screen, in notifications and
+  in the header. The notice now opens with the whole logo, name included (a 40 KB WebP, loaded only when the
+  notice is shown). The icon files have new names (`static/heimdall-*.png`): a phone that took the 1.29 icon
+  identifies icons by their address, so it takes this one as an update too.
+
 ## 1.29.0 — 2026-09-28
 
 **Clear Sky is now Heimdall.** Same app, same address, same data; a new name and a new logo.

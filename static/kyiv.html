@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="mobile-web-app-capable" content="yes">
 <link rel="manifest" href="/manifest.json">
-<link rel="icon" href="/static/logo-hd-64.png"><link rel="apple-touch-icon" href="/static/logo-hd-apple-180.png">
+<link rel="icon" href="/static/heimdall-64.png"><link rel="apple-touch-icon" href="/static/heimdall-apple-180.png">
 <title>Heimdall</title>
 <script id="carry">
 // 1.29: arriving from the old address with this phone's settings in the link's #fragment — a fragment is never
@@ -34,7 +34,7 @@ button{font:inherit;cursor:pointer}
 #top{position:fixed;left:0;right:0;top:var(--sat);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
 #top .r1{height:40px;display:flex;align-items:center;gap:10px;padding:0 10px 0 8px;border-bottom:1px solid var(--line)}
 #top .logo{width:28px;height:28px;flex:none}#top .logo.ngo{margin-left:-5px}
-.dlogo{display:block;width:96px;height:96px;margin:0 auto 6px}body.lite .dlogo{display:none}
+.dlogo{display:block;width:170px;height:auto;margin:0 auto 8px}body.lite .dlogo{display:none}
 #stats a{color:#8fb4ff}
 /* the one way out of the notice: big, full width, centred, well clear of the links above it — a small button
    at the edge was missed, and the tap landed on something else */
@@ -675,7 +675,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 
 <header id="top">
   <div class="r1">
-    <img class="logo" src="/static/logo-hd-64.png" alt="Heimdall"><img class="logo ngo" src="/static/logo-64.png" alt="07300">
+    <img class="logo" src="/static/heimdall-64.png" alt="Heimdall"><img class="logo ngo" src="/static/logo-64.png" alt="07300">
     <div class="name">Heimdall</div>
     <nav class="vsw" data-t-title="sw_title" title="Two versions"><a href="/light" data-t="sw_light">LIGHT</a><span class="on" data-t="sw_tac">TACTICAL</span></nav>
     <span class="srcs" id="srcs"></span>
@@ -708,7 +708,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.29</div>
+    <div class="mi bt" id="buildtag">v1.30</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -775,7 +775,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
 <div style="margin-top:8px;display:flex;justify-content:space-between"><button class="tgl" id="homeclear" data-t="btn_clear">Clear</button><button class="tgl" onclick="$('homesheet').classList.remove('show')" data-t="btn_close">Close</button></div></div>
 <div class="sheet" id="sheet"><div class="grab"></div><div id="sheetbody"></div></div>
 <div class="toast" id="toast"></div>
-<div class="modal" id="disc" hidden><div class="mbox"><img class="dlogo" src="/static/logo-hd.png" alt="Heimdall" loading="lazy"><div class="type" style="display:flex;align-items:center;gap:8px"><span data-t="d_title">Heimdall — please read</span><select class="lsel" id="dlang" style="margin-left:auto" aria-label="Language"></select></div>
+<div class="modal" id="disc" hidden><div class="mbox"><img class="dlogo" src="/static/heimdall-full.webp" alt="Heimdall" width="170" height="157" loading="lazy"><div class="type" style="display:flex;align-items:center;gap:8px"><span data-t="d_title">Heimdall — please read</span><select class="lsel" id="dlang" style="margin-left:auto" aria-label="Language"></select></div>
   <p data-t-html="d_p1"></p>
   <p data-t-html="d_p2"></p>
   <p data-t-html="d_p3"></p>
@@ -2270,7 +2270,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.29';
+const APP_VERSION='1.30';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work

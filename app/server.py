@@ -327,7 +327,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.29"
+APP_VERSION = "1.30"
 APP_NAME = "Heimdall"
 BUILD = None    # filled at startup
 
@@ -3533,11 +3533,12 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({"ok": False, "stuck": "database"}, 503)
             st.store.lock.release()
             return self._json({"ok": True})
-        if u.path.startswith("/static/logo") or u.path == "/favicon.ico":
-            return self._file(u.path.split("/")[-1] if u.path != "/favicon.ico" else "logo-hd-64.png", "image/png")
+        if u.path.startswith(("/static/logo", "/static/heimdall-")) or u.path == "/favicon.ico":
+            name = u.path.split("/")[-1] if u.path != "/favicon.ico" else "heimdall-64.png"
+            return self._file(name, "image/png" if name.endswith(".png") else None)
         auth = self._authorized(u, q)
         if not auth:
-            body = b"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><body style='font-family:system-ui;background:#0b0e13;color:#e6e9ef;padding:40px;text-align:center'><img src='/static/logo-hd-192.png' style='width:96px;border-radius:18px'><h2>Heimdall</h2><form><input name=key placeholder='access key' style='padding:10px;font-size:16px;border-radius:8px;border:1px solid #333'> <button style='padding:10px 14px;border-radius:8px'>Enter</button></form></body>"
+            body = b"<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'><body style='font-family:system-ui;background:#0b0e13;color:#e6e9ef;padding:40px;text-align:center'><img src='/static/heimdall-192.png' style='width:96px;border-radius:18px'><h2>Heimdall</h2><form><input name=key placeholder='access key' style='padding:10px;font-size:16px;border-radius:8px;border:1px solid #333'> <button style='padding:10px 14px;border-radius:8px'>Enter</button></form></body>"
             self.send_response(401); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         if auth == "set":
             self.send_response(302); self.send_header("Location", u.path or "/"); self.send_header("Set-Cookie", f"uak={q['key'][0]}; Path=/; Max-Age=31536000; SameSite=Lax"); self.end_headers(); return
@@ -3666,7 +3667,7 @@ class Handler(BaseHTTPRequestHandler):
             if u.path.startswith("/static/"):
                 return self._file(u.path[len("/static/"):], None)
             if u.path == "/favicon.ico":
-                return self._file("logo-hd-64.png", "image/png")
+                return self._file("heimdall-64.png", "image/png")
             self._json({"error": "not found"}, 404)
         except (BrokenPipeError, ConnectionResetError):
             pass
@@ -3783,7 +3784,7 @@ class Handler(BaseHTTPRequestHandler):
             body = f.read()
         ext = p.rsplit(".", 1)[-1]
         if ctype is None:
-            ctype = {"js": "text/javascript; charset=utf-8", "css": "text/css; charset=utf-8", "png": "image/png", "svg": "image/svg+xml", "json": "application/json", "html": "text/html; charset=utf-8", "md": "text/markdown"}.get(ext, "application/octet-stream")
+            ctype = {"js": "text/javascript; charset=utf-8", "css": "text/css; charset=utf-8", "png": "image/png", "webp": "image/webp", "svg": "image/svg+xml", "json": "application/json", "html": "text/html; charset=utf-8", "md": "text/markdown"}.get(ext, "application/octet-stream")
         # On 2G every kilobyte is a second. Text goes out gzipped (the map outlines shrink to a third), and a
         # file the phone already holds is answered with a 304 instead of being sent again. "no-cache" still
         # makes the browser ask every time, so a new version is picked up exactly as with "no-store".

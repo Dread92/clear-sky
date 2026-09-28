@@ -1,6 +1,6 @@
 # Heimdall — technical documentation
 
-**Documented version: 1.29** · last updated 2026-09-28
+**Documented version: 1.30** · last updated 2026-09-28
 
 Heimdall was called **Clear Sky** until 1.29; the repository, the Fly app (`kyiv-air-watch-gb`) and some
 internal names still carry the old name.
