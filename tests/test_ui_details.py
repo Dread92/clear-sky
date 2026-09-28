@@ -135,3 +135,15 @@ def test_the_disclaimer_button_is_reachable_on_an_iphone():
         assert "vh" not in b and "margin:auto" in b, box
         a = _rule(src, overlay + "::after")
         assert "safe-area-inset-bottom" in a or "--sab" in a, overlay
+
+
+def test_the_sound_has_a_volume_that_an_iphone_obeys():
+    """1.28: on an iPhone the tones blasted at the phone's media volume. The level is a Web Audio gain (iOS ignores
+    an <audio> element's volume), every tone goes through it, and the slider is in the menu in every language."""
+    assert re.search(r'<input type="range" id="sndvol" min="0" max="100"', PAGE)
+    assert "g.connect(master)" in PAGE and "g.connect(actx.destination)" not in PAGE
+    assert "master.connect(actx.destination)" in PAGE and "master.gain.value=volGain()" in PAGE
+    assert "localStorage.setItem('sndvol'" in PAGE and "let sndVol=50" in PAGE
+    assert ".volume" not in PAGE  # no <audio>.volume: it does nothing on an iPhone
+    for k in ("m_vol", "m_vol_test", "m_vol_test_t", "m_vol_off"):
+        assert I18N.count(k + ":") == 3, k

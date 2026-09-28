@@ -2,6 +2,18 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.28.0 — 2026-09-28
+
+### Changed
+- **Sound has a volume, not just on/off.** On an iPhone the alert tones played at the phone's media volume — often
+  full — and nothing in the app could turn them down (iOS ignores a web page's audio volume). Menu → Alerts now
+  has a volume slider under Sound / Vibration: 0 is off, a new reader starts at 50 %, 100 % is the old level.
+  Every tone goes through one Web Audio gain (the one level an iPhone lets a page set), on a squared curve so the
+  slider sounds even. Letting go of the slider, or ▶ (test), plays the loudest alert at that level, so what you
+  hear is the ceiling. Near-zone and ballistic alerts stay louder than background ones, within that ceiling.
+- Each tone now fades in over 12 ms instead of starting at full level — the click at the start of a square wave
+  was most of the jump.
+
 ## 1.27.0 — 2026-09-28
 
 ### Fixed

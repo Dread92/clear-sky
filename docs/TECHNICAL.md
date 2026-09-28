@@ -1,6 +1,6 @@
 # Clear Sky — technical documentation
 
-**Documented version: 1.27** · last updated 2026-09-27
+**Documented version: 1.28** · last updated 2026-09-27
 
 This is the complete technical reference: what runs, where the data comes from, how a Telegram post becomes a
 mark on a map, how an official alert becomes a colour, what is stored, what is sent, and how to change any of
@@ -431,7 +431,11 @@ can be checked. Without a key the figures are still stored and shown. The model 
   push per 2 min per device — except immediate types, which alert the whole region with no throttle. Siren-start
   and all-clear pushes were removed on purpose (nothing to act on, and they train people to swipe).
 - **In the page**: the Tactical page raises toasts with sound/vibration scaled by zone (near / approach /
-  observe), and a **shoot-down notice** for a track the reader was warned about — worded so it can never read
+  observe). The sound has a **volume** (menu → Alerts: slider 0–100 %, 0 = off, 50 % for a new reader, kept in
+  `localStorage` as `sndvol`): every tone goes through one Web Audio master gain, squared from the slider (50 % =
+  −12 dB), because an iPhone ignores an `<audio>` element's volume. 100 % is the pre-1.28 level; letting go of
+  the slider or **▶** (test) plays the loudest alert at the chosen level. The zones keep their relative levels under
+  it. Push notifications (app closed) use the phone's own notification sound and volume. And a **shoot-down notice** for a track the reader was warned about — worded so it can never read
   as an all-clear.
 
 ## 10. The two pages: Tactical and Light

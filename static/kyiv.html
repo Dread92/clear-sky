@@ -98,6 +98,8 @@ body.lite .tstrip.old{background:#111;color:#ddd;border-color:#555}
 .mrow:not(.z) .mi2{flex:1 1 0;text-align:center}
 .mi2:hover{background:#232833}.mi2.on{border-color:var(--ua-yellow);color:var(--ua-yellow)}.mi2.on::after{content:' ✓'}
 .mi.bt{color:var(--muted);font:11px var(--mono);cursor:default}
+.mrow.vol .ml{margin-right:0}.mrow.vol input{flex:1 1 auto;min-width:70px;margin:0 2px;accent-color:var(--ua-yellow);height:28px}
+.mrow.vol #sndtest{min-width:40px;padding:6px 0;text-align:center}.mrow.vol b{min-width:40px;text-align:right;font:600 11.5px var(--mono);color:var(--ink2)}.mrow.vol.off b,.mrow.vol.off .ml{color:var(--muted)}.mrow.vol.off #sndtest{opacity:.4;pointer-events:none}
 #top .name small{display:block;font:500 9.5px/1 var(--mono);letter-spacing:.14em;color:var(--ink3);margin-top:3px}
 .srcs{display:flex;gap:4px;margin-left:2px;align-items:center}.srcs i{width:6px;height:6px;background:var(--ink3);display:inline-block}.srcs i.ok{background:var(--green)}.srcs i.warn{background:var(--yellow)}.srcs i.bad{background:var(--red)}.srcs .sn{font:600 10px var(--mono);color:var(--ink3);letter-spacing:.02em}@media (max-width:999px){.srcs .sn{display:none}}
 #top .sp{flex:1}
@@ -667,6 +669,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="pushbtn" data-t="m_push">Push notifications (phone, app closed)</button>
     <button class="mi" id="geobtn" data-t="geo_title">Warn me near my location</button>
     <div class="mrow"><button class="mi2 on" id="snd" data-t="m_snd_s">Sound</button><button class="mi2" id="vib" data-t="m_vib_s">Vibration</button></div>
+    <div class="mrow z vol" id="sndrow"><span class="ml" data-t="m_vol">Volume</span><input type="range" id="sndvol" min="0" max="100" step="5" value="50" data-t-aria="m_vol"><b id="sndvolv">50%</b><button class="mi2" id="sndtest" data-t-aria="m_vol_test" data-t-title="m_vol_test_t">▶</button></div>
 
     <div class="mg" data-t="m_g_map">Map</div>
     <button class="mi" id="oblbtn" data-t="m_obl">My oblast…</button>
@@ -686,7 +689,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.27</div>
+    <div class="mi bt" id="buildtag">v1.28</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -772,7 +775,7 @@ const LT=x=>({oblast:t('lt_oblast'),raion:t('lt_raion'),hromada:t('lt_hromada'),
 // static markup: data-t = textContent, data-t-html = innerHTML, data-t-title / data-t-ph = attributes
 document.documentElement.lang=LANG;
 document.querySelectorAll('[data-t]').forEach(el=>el.textContent=t(el.dataset.t)); document.querySelectorAll('[data-t-html]').forEach(el=>el.innerHTML=t(el.dataset.tHtml));
-document.querySelectorAll('[data-t-title]').forEach(el=>el.title=t(el.dataset.tTitle)); document.querySelectorAll('[data-t-ph]').forEach(el=>el.placeholder=t(el.dataset.tPh));
+document.querySelectorAll('[data-t-title]').forEach(el=>el.title=t(el.dataset.tTitle)); document.querySelectorAll('[data-t-aria]').forEach(el=>el.setAttribute('aria-label',t(el.dataset.tAria))); document.querySelectorAll('[data-t-ph]').forEach(el=>el.placeholder=t(el.dataset.tPh));
 // one line at a time, 7 s each, cross-faded — and it never rotates while the tab is hidden
 (()=>{ const el=document.getElementById('tkt'), box=document.getElementById('ticker');
   const lines=()=>{const v=t('tkr'); return Array.isArray(v)?v:[String(v)];};
@@ -862,10 +865,23 @@ function useSlot(id){ if(!SLOT_IDS.includes(id)) return; ACTIVE=id; HOME=SLOTS[i
 let SHOW_UA=false;   // the "show original Ukrainian" switch is gone; Ukrainian readers see the original anyway
 let ESTIMATE=false; try{ESTIMATE=localStorage.getItem('est')==='1';}catch(e){}
 let MAP=null,S=null,MK=[],ttl=45,hist=[],soundOn=true,vibOn=false,seen=new Set(),firstFeed=true,seenMk=new Set();
-try{soundOn=localStorage.getItem('snd')!=='0';vibOn=localStorage.getItem('vib')==='1';}catch(e){}
-$('snd').classList.toggle('on',soundOn);$('vib').classList.toggle('on',vibOn);
+// Sound is a volume now (1.28), not on/off: on an iPhone the tones came out at whatever the phone's media volume
+// was, often full, with no way to turn them down here. 0 on the slider is off; the level is kept apart from it,
+// so Sound off and on again comes back at the same level. A new reader starts at half.
+let sndVol=50,actx,master;   // actx/master: the Web Audio graph, see "audio / notify" below
+const volGain=()=>{ const p=Math.max(0,Math.min(100,sndVol))/100; return p*p; };
+try{soundOn=localStorage.getItem('snd')!=='0';vibOn=localStorage.getItem('vib')==='1';const v=parseInt(localStorage.getItem('sndvol'),10);if(v>0&&v<=100)sndVol=v;}catch(e){}
+$('vib').classList.toggle('on',vibOn);
 const showUA=()=>SHOW_UA||LANG==='uk'; const ptxt=p=>p._txt||(showUA()?p.text:((LANG==='fr'&&p.text_fr)||p.text_en||p.text));
-$('snd').onclick=()=>{soundOn=!soundOn;$('snd').classList.toggle('on',soundOn);try{localStorage.setItem('snd',soundOn?'1':'0')}catch(e){}};
+function sndSave(){ try{localStorage.setItem('snd',soundOn?'1':'0');localStorage.setItem('sndvol',String(sndVol));}catch(e){} }
+function volUI(){ const x=soundOn?sndVol:0; $('sndvol').value=x; $('sndvolv').textContent=soundOn?x+'%':t('m_vol_off');
+  $('snd').classList.toggle('on',soundOn); $('sndrow').classList.toggle('off',!soundOn); if(master) master.gain.value=volGain(); }
+$('snd').onclick=()=>{soundOn=!soundOn;sndSave();volUI();};
+$('sndvol').oninput=e=>{ const x=+e.target.value; soundOn=x>0; if(x>0) sndVol=x; sndSave(); volUI(); };
+// letting go of the slider plays the loudest alert the app has, at that level: what you hear is the ceiling
+$('sndvol').onchange=()=>{ if(soundOn) beep('start',2); };
+$('sndtest').onclick=()=>{ if(soundOn) beep('start',2); };
+volUI();
 // ---- Web Push: works with the page closed (Android Chrome; iPhone: add to home screen first) ----
 let PUSH_SUB=null;
 async function pushInit(){ if(!('serviceWorker' in navigator)||!('PushManager' in window)){$('pushbtn').textContent=t('m_push_ns');return;}
@@ -916,20 +932,28 @@ const proj=(lon,lat)=>[(lon-C[0])*KX,-(lat-C[1])*KY];
 const unproj=(x,y)=>[C[0]+x/KX, C[1]-y/KY];
 
 // ---- audio / notify ----
-let actx;
+// Every tone goes through one master gain set from the volume slider. It has to be Web Audio: an iPhone ignores
+// the volume of an <audio> element (read-only there), a gain is the one level a page can turn down. The slider
+// is squared — half-way is a quarter of the amplitude (-12 dB), which is how a volume control is heard — and
+// 100 % is what the app played before 1.28. Each note fades in and out over a few ms: a square wave switched
+// on at full level starts with a click, and that click is most of the jump.
+function audio(){ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  if(!master){ master=actx.createGain(); master.connect(actx.destination); }
+  master.gain.value=volGain(); if(actx.state==='suspended') actx.resume().catch(()=>{}); return actx; }
 // How loud depends on what the reader can still do about it. Inside the near zone, or anything ballistic:
 // full volume, because the answer is "move now". Out past 30 km it is background — the same sound at the
 // same volume for something 50 km away is how an alert tone stops being heard at all.
 // `vol` is a multiplier: 1 normal, >1 critical, <1 background. 0 means do not play it.
-function beep(kind,vol){ if(!soundOn) return; const v=vol==null?1:vol; if(v<=0) return;
-  try{ actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+function beep(kind,vol){ if(!soundOn||sndVol<=0) return; const v=vol==null?1:vol; if(v<=0) return;
+  try{ const a=audio();
     const crit=v>1.2;
     const seq=kind==='end'?[[660,.12],[880,.2]]
       :crit?[[990,.13],[740,.13],[990,.13],[740,.13],[990,.35]]
       :kind==='threat'?[[520,.1],[520,.1],[520,.1]]:[[880,.15],[660,.15],[880,.15],[660,.3]];
-    let t=actx.currentTime;
-    for(const [f,d] of seq){const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;
-      g.gain.value=Math.min(.14,.07*v);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+d);t+=d+.05;} }catch(e){} }
+    let t=a.currentTime+.02;
+    for(const [f,d] of seq){const o=a.createOscillator(),g=a.createGain(),L=Math.min(.14,.07*v);o.type='square';o.frequency.value=f;
+      g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(L,t+.012);g.gain.setValueAtTime(L,t+d-.02);g.gain.linearRampToValueAtTime(0,t+d);
+      o.connect(g);g.connect(master);o.start(t);o.stop(t+d+.01);t+=d+.05;} }catch(e){} }
 // The zone a warning is about, turned into that multiplier.
 const ZONE_VOL={near:1.8,approach:1,observe:.45};
 function alertVol(m,hi){ if(m&&IMMEDIATE.has(m.type)) return 2;
@@ -2224,7 +2248,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.27';
+const APP_VERSION='1.28';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
