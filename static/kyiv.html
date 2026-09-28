@@ -57,6 +57,13 @@ body.lite .ticker .tki{color:#fff}
 .upd .cd.live{color:#ff5b52;letter-spacing:.08em;animation:livepulse 1s ease-in-out infinite}
 .upd .cd.live.bad{color:#ff8a3d;animation:none}
 .upd .cd.on{color:var(--green,#2fbf71);letter-spacing:.08em}
+/* the Air Force figures, type by type (1.32) */
+.aft .srow b.afc{display:flex;flex-direction:column;align-items:flex-end;gap:0;min-width:58px}.afl{color:#ffb15c}.afd{color:#a8f0cf;font-size:11px}.afn{color:var(--muted)}
+.aft .srow.sub span:first-child{padding-left:14px;color:var(--ink3,#9aa)}.afdb{color:var(--muted)!important}
+.aflist{display:flex;flex-direction:column;gap:6px;margin-top:4px}.afrow{border-bottom:1px solid var(--line);padding:4px 0 6px}
+.afh{font:600 12px var(--sans);color:var(--ink2);display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}.afh a{color:#8fb4ff}.aftot{margin-left:auto;color:#a8f0cf;font:700 12px var(--mono)}
+.afchips{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}.afchip{font:500 11.5px var(--sans);border:1px solid var(--line);border-radius:3px;padding:1px 6px;color:var(--ink2)}
+.afchip b{color:#ffb15c;font-weight:700}.afchip i{color:#a8f0cf;font-style:normal}.afm{font:11px var(--mono);color:var(--muted);margin-top:3px}
 /* a channel the admin added and has not put on the map yet (1.31) */
 .tags span.trial{border:1px dashed #ff8a3d!important;color:#ffb27a!important;background:transparent!important}
 /* the admin's message to every reader (1.29): under the header, until it expires or the reader closes it */
@@ -67,6 +74,14 @@ body.lite .ticker .tki{color:#fff}
 .notice .mvgo{display:inline-block;margin-top:6px;padding:7px 12px;background:var(--ua-yellow);color:#111;font:700 13px var(--sans);border-radius:4px;text-decoration:none}
 .notice .nx{flex:none;background:transparent;border:1px solid var(--line);color:var(--ink2);width:32px;height:32px;border-radius:4px;font:600 14px var(--sans);cursor:pointer}
 body.m-day .notice{background:#e8f0ff;color:#12161c}body.m-day .notice.lv-warn{background:#fff1e0}body.m-day .notice.lv-alert{background:#ffe3e0}
+/* 1.32: the admin's message, loud: bright green for information, bright red — slowly pulsing — for urgent. The same
+   in every display mode; the pulse is one cycle in 1.6 s and stops for a reader who asks for less motion. */
+.notice.lv-info,body.m-day .notice.lv-info{background:#0d7a3e;border-left-color:#5dff9d;color:#fff}
+.notice.lv-alert,body.m-day .notice.lv-alert{background:#c4121c;border-left-color:#ffd0d0;color:#fff;animation:ntp 1.6s ease-in-out infinite}
+.notice.lv-info .nth{color:#d6ffe6}.notice.lv-alert .nth{color:#ffe1e1}
+.notice.lv-info .nx,.notice.lv-alert .nx{color:#fff;border-color:rgba(255,255,255,.6)}
+@keyframes ntp{50%{background:#8e0b13}}
+@media (prefers-reduced-motion:reduce){.notice.lv-alert{animation:none}}
 @keyframes livepulse{0%,100%{opacity:1}50%{opacity:.35}}
 .upd .cd.bad{color:var(--red2)}
 /* The overlay itself scrolls, and it is sized by inset:0 (the part of the screen really visible), never by vh:
@@ -710,7 +725,7 @@ body.lite .mk.inbound .lbl2,body.lite .mk.tohome .lbl2{fill:#ff9ab0}
     <button class="mi" id="supbtn" data-t="m_support">Support the project</button>
     <a class="mi" id="tgbtn" data-t="m_tg" target="_blank" rel="noopener" hidden>Community on Telegram</a>
     <button class="mi" id="aboutbtn" data-t="m_about">About · disclaimer</button>
-    <div class="mi bt" id="buildtag">v1.31</div>
+    <div class="mi bt" id="buildtag">v1.32</div>
   </div>
   <div class="band N" id="kyiv"><div class="dot N"></div><div><div class="big" data-t="loading">Loading…</div><div class="small"></div></div></div>
   <button class="ticker" id="ticker" type="button"><span class="tki">⚠</span><span class="tkt" id="tkt"></span></button>
@@ -2207,7 +2222,7 @@ function renderFeed(posts,flash){
     const body=esc(ptxt(p)); const long=body.length>110||/\n/.test(ptxt(p));
     return `<div class="card ${tags.includes('kyiv')?'kyiv':''} ${isNew?'new':''}"><div class="when">${fmtT(p.ts)}<b>${esc(CH[p.channel]||'@'+p.channel)}</b></div><div class="bd">
       <div class="txt${long?' clamp':''}">${body}</div>${long?`<button class="mo">${t('fd_more')}</button>`:''}
-      ${tags.length?`<div class="tags">${tags.map(x=>`<span class="${x==='kyiv'?'kyiv':x==='trial'?'trial':''}">${x==='trial'?t('fd_trial'):THREAT[x]?.[1]||x}</span>`).join('')}${p.merged>1?`<span class="rep">${t('fd_times',p.merged)}</span>`:''}</div>`:''}</div></div>`;}).join('')
+      ${tags.length?`<div class="tags">${tags.map(x=>`<span class="${x==='kyiv'?'kyiv':x==='trial'?'trial':''}">${x==='trial'?t('fd_trial'):x==='af_summary'?t('fd_af'):THREAT[x]?.[1]||x}</span>`).join('')}${p.merged>1?`<span class="rep">${t('fd_times',p.merged)}</span>`:''}</div>`:''}</div></div>`;}).join('')
     :`<div class="empty">${t('fd_empty')}</div>`;
   $('feed').querySelectorAll('.mo').forEach(b=>b.onclick=()=>{const tx=b.previousElementSibling;const open=tx.classList.toggle('clamp');b.textContent=open?t('fd_more'):t('fd_less');});
 }
@@ -2233,7 +2248,7 @@ function renderHist(){
   if(!$('stats')) $('hist').innerHTML='<div id="stats"></div>';
   renderStats();
 }
-async function loadState(){try{S=await jget('/api/state',12000);H.st=S.h||null;render();if(CITY)paintDistricts();showNotice(S.notice);checkMove(S);}catch(e){}}
+async function loadState(){try{S=await jget('/api/state',12000);H.st=S.h||null;render();if(CITY)paintDistricts();showNotice(S.notice);showNuke(S.nuke);checkMove(S);}catch(e){}}
 let STALE=5;
 async function loadMarkers(){try{const d=await jget('/api/markers',12000);MK=d.markers;H.mk=d.h||null;ttl=d.ttl_minutes||45;STALE=d.stale_minutes||5;linkStatus();if(CITY)paintDistricts();}catch(e){}}
 // ?lang= tells the server somebody reads the feed in English or French: it then translates posts into it, in the
@@ -2245,22 +2260,29 @@ let STATS=null,STAT_DAYS=14;
 async function loadStats(){try{STATS=await jget('/api/stats?days='+STAT_DAYS,15000);renderStats();}catch(e){}}
 function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; const d=STATS;
   // Only the official figures: what the Air Force of the Armed Forces of Ukraine says was launched over the
-  // country, and how much of it was shot down or suppressed, from its own morning summaries. Nothing this app
-  // counted itself — reports read from channels were never totals, and side by side with official numbers they
-  // were read as if they were.
-  const W=d.windows||{}, AF=d.af_days||[];
-  const n=v=>(v===undefined||v===null)?'—':v;
+  // country, and how much of it was shot down or suppressed, from its own summaries — type by type (1.32). A type
+  // a summary names without a number is shown as used (✓), never as 0. Nothing this app counted itself.
+  const W=d.windows||{}, AF=d.af_days||[], ws=['1','7','30'];
+  const af=w=>(W[w]||{}).af||{launched:{},down:{},used:[]};
+  const TYPES=[['drones','🛸'],['jet','↳'],['banderol','🏍'],['cruise','🚀'],['ballistic','🎯'],['aeroballistic','⚡'],['antiship','🌊'],['guided','✈'],['decoys','👻']];
+  const has=k=>ws.some(w=>{const a=af(w);return (a.launched||{})[k]||(a.down||{})[k]||(a.used||[]).includes(k);});
+  const cell=(a,k)=>{ const l=(a.launched||{})[k], dn=(a.down||{})[k], u=(a.used||[]).includes(k), pt=(a.partial||[]).includes(k);
+    const L=l!=null?`<span class="afl"${pt?` title="${esc(t('af_atleast'))}"`:''}>${l}${pt?'+':''}</span>`:u?`<span class="afl" title="${esc(t('af_used'))}">✓</span>`:(dn!=null?`<span class="afl">✓</span>`:'<span class="afn">—</span>');
+    return `<b class="afc">${L}${dn!=null?`<span class="afd">↓${dn}</span>`:''}</b>`; };
   const head=labels=>`<div class="srow hd"><span></span>${labels.map(x=>`<b>${esc(x)}</b>`).join('')}</div>`;
-  const row=(label,vals,color)=>`<div class="srow"><span>${label}</span>${vals.map(v=>`<b style="color:${color}">${n(v)}</b>`).join('')}</div>`;
   const hasAF=!!((W['30']||{}).summaries);
-  const afTable=hasAF?`<div class="wtab">${head([t('s_w1'),t('s_w7'),t('s_w30')])}
-    ${row('🛸 '+esc(t('s_ldr')),['1','7','30'].map(w=>(W[w]||{}).launched_drones),'#ffb15c')}
-    ${row('🚀 '+esc(t('s_lms')),['1','7','30'].map(w=>(W[w]||{}).launched_missiles),'#ff8a8a')}
-    ${row('✕ '+esc(t('st_afdown')),['1','7','30'].map(w=>(W[w]||{}).af_down),'#a8f0cf')}</div>`
+  const rows=TYPES.filter(([k])=>has(k)).map(([k,ic])=>`<div class="srow${k==='jet'?' sub':''}"><span>${ic} ${esc(t('af_t_'+k))}</span>${ws.map(w=>cell(af(w),k)).join('')}</div>`).join('');
+  const hits=ws.some(w=>af(w).impacts)?`<div class="srow"><span>💥 ${esc(t('af_hits'))}</span>${ws.map(w=>`<b class="afc"><span class="afl">${af(w).impacts||0}</span>${af(w).debris?`<span class="afd afdb">${esc(t('af_debris_s',af(w).debris))}</span>`:''}</b>`).join('')}</div>`:'';
+  const afTable=hasAF?`<div class="wtab aft">${head([t('s_w1'),t('s_w7'),t('s_w30')])}${rows}${hits}</div>
+    <div class="sfoot" style="margin-top:4px">${esc(t('af_legend'))}</div>`
    :`<div class="sfoot" style="margin-top:4px">${esc(t('s_nosum'))}</div>`;
   // each summary, newest first, with the post it was read from
   const fd=x=>{ try{ return new Date(x+'T12:00:00Z').toLocaleDateString(LOCALE(),{day:'numeric',month:'short',timeZone:'UTC'}); }catch(e){ return x; } };
-  const list=AF.length?`<div class="wtab">${head(['🛸','🚀','✕'])}${AF.map(x=>`<div class="srow"><span>${esc(fd(x.day))}${x.post?` · <a href="https://t.me/${esc(x.post)}" target="_blank" rel="noopener">${esc(t('st_af_post'))}</a>`:''}</span><b style="color:#ffb15c">${n(x.drones)}</b><b style="color:#ff8a8a">${n(x.missiles)}</b><b style="color:#a8f0cf">${n(x.down)}</b></div>`).join('')}</div>`:'';
+  const chip=(k,x)=>{ const l=(x.launched||{})[k], dn=(x.down_by||{})[k], u=(x.used||[]).includes(k); if(l==null&&dn==null&&!u) return '';
+    return `<span class="afchip">${esc(t('af_t_'+k))} <b>${l!=null?l:'✓'}</b>${dn!=null?` <i>↓${dn}</i>`:''}</span>`; };
+  const list=AF.length?`<div class="aflist">${AF.map(x=>`<div class="afrow"><div class="afh">${esc(fd(x.day))} · ${esc(t(x.period==='day'?'af_day':'af_night'))}${x.post?` · <a href="https://t.me/${esc(x.post)}" target="_blank" rel="noopener">${esc(t('st_af_post'))}</a>`:''}${(x.down_by||{}).total!=null?`<span class="aftot">↓ ${(x.down_by||{}).total}</span>`:''}</div>
+      <div class="afchips">${TYPES.map(([k])=>chip(k,x)).join('')}${x.impacts!=null?`<span class="afchip">💥 ${esc(t('af_hits_n',x.impacts))}</span>`:''}${x.debris!=null?`<span class="afchip">${esc(t('af_debris_s',x.debris))}</span>`:''}</div>
+      ${(x.models||[]).length?`<div class="afm">${esc((x.models||[]).join(' · '))}</div>`:''}</div>`).join('')}</div>`:'';
   el.innerHTML=`<div class="card plain">
     <div class="slbl" style="margin-top:0">${esc(t('st_launched'))}</div>${afTable}
     ${list?`<div class="slbl">${esc(t('st_af_each'))}</div>${list}`:''}
@@ -2272,7 +2294,7 @@ function renderStats(){ if(!STATS) return; const el=$('stats'); if(!el) return; 
 // ---------------------------------------------------------------------------------------------------
 // Contacts — the only place to edit them. A channel left empty simply does not appear, so no dead link
 // ever ships: fill TELEGRAM in when the channel exists.
-const APP_VERSION='1.31';
+const APP_VERSION='1.32';
 const CONTACT={
   hosting:'nomakievip@gmail.com',      // hosting & development  ← replace when there is a separate address
   ngo:'nomakievip@gmail.com',          // NGO 07300 volunteer work
@@ -2501,7 +2523,7 @@ function applySync(d){ const L=window.LiveSync; if(!L) return;
   if(d.mk){ const r=L.part('mk',d.mk,H.mk,MK); if(r===null) loadMarkers();
     else if(r!=='same'){ MK=r.v; H.mk=d.mk.h; linkStatus(); if(CITY)paintDistricts(); } }
   if(d.st){ const r=L.part('st',d.st,H.st,S); if(r===null) loadState();
-    else if(r!=='same'){ S=r.v; S.h=d.st.h; if(d.now) S.now=d.now; H.st=d.st.h; render(); if(CITY)paintDistricts(); showNotice(S.notice); checkMove(S); } }
+    else if(r!=='same'){ S=r.v; S.h=d.st.h; if(d.now) S.now=d.now; H.st=d.st.h; render(); if(CITY)paintDistricts(); showNotice(S.notice); showNuke(S.nuke); checkMove(S); } }
   if(d.fd&&!LITE){ const r=L.part('fd',d.fd,H.fd,lastPosts); if(r===null) loadFeed(true);
     else if(r!=='same'){ H.fd=d.fd.h; renderFeed(r.v,!firstFeed); firstFeed=false; } } }
 // after an alert starts or ends, every open page used to ask for the history at the same instant
@@ -2517,6 +2539,13 @@ function checkMove(st){ const el=$('moved'); if(!el) return; const c=st&&st.conf
   const a=el.querySelector('a'); a.textContent=t('mv_go',c); a.href='https://'+c+location.pathname+(b?'#carry='+b:'');
   el.querySelector('.nx').onclick=()=>{ try{sessionStorage.setItem('moved_x','1');}catch(e){} el.hidden=true; if(typeof syncTop==='function') syncTop(); };
   if(el.hidden){ el.hidden=false; if(typeof syncTop==='function') syncTop(); } }
+// 1.32: a nuclear event, switched on from the dashboard behind two locks (S.nuke). static/nuke.js draws it — the
+// radiation symbol over the map and a banner in the header — and is only downloaded when there is one.
+function showNuke(n){ showNuke.n=n;
+  if(window.HNuke) return HNuke.show(n,{host:$('mapwrap'),before:$('moved'),lang:LANG,after:syncTop,
+    alarm:()=>{ beep('threat',2); if(vibOn&&navigator.vibrate) navigator.vibrate([300,80,300,80,600]); }});
+  if(n&&!showNuke.l){ showNuke.l=1; const s=document.createElement('script'); s.src='/static/nuke.js?v='+APP_VERSION;
+    s.onload=()=>showNuke(showNuke.n); s.onerror=()=>{ showNuke.l=0; }; document.head.appendChild(s); } }
 // the admin's message (S.notice): shown until it expires or this reader closes it — closing is remembered here only
 function showNotice(n){ const el=$('notice'); if(!el) return; let gone=null; try{gone=localStorage.getItem('notice_x');}catch(e){}
   const tx=n&&n.text?(n.text[LANG]||n.text.uk||n.text.en||n.text.fr||''):'';

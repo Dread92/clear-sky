@@ -2,6 +2,40 @@
 
 Every patch adds an entry here and updates [docs/TECHNICAL.md](docs/TECHNICAL.md) — see its §18.
 
+## 1.32.0 — 2026-09-28
+
+### Fixed
+- **The Stats tab was missing nights and every missile.** From 25 Sep the Air Force's summaries were read as news
+  and dropped, so whole nights vanished from the figures; and missiles were never counted, because the Air Force
+  names most of them without a number ("балістичними ракетами Іскандер-М …") and gives the number only for those
+  shot down. The summaries are now read weapon by weapon — drones and the jet ones among them, Banderol, cruise,
+  ballistic, aeroballistic, anti-ship and guided missiles, decoys — launched, shot down, and "used" when no number
+  is given (never 0) — with the hit and debris locations, the launch areas, the main directions and the models
+  named. They are **kept** (a new table, `af_reports`), and a background task recovers the last 14 days of
+  summaries the app missed from the Air Force's channel, so the missing nights come back after the deploy.
+- The Stats tab shows it as a table: a row per weapon type, launched and ↓ shot down, for 24 h / 7 d / 30 d; then
+  each night and day with its figures and a link to the summary.
+
+### Added
+- **The dashboard in tabs**: Live, Analytics, Nights & weeks, Sources, Usage. A red dot on Sources when a source
+  or a channel on the map fails.
+- **Analytics**: the trends of the attacks, 7 days to a year — drones launched per night (Shahed type / jet /
+  Banderol) with the number shot down; missiles shot down by type; the share of drones shot down and the share of
+  jet drones; hit and debris locations; launch areas, directions and models; for Kyiv: hours under alert per day
+  (city and oblast), when alerts start (weekday × hour), what the channels reported by type, by hour and by stated
+  course; the last 7 days against the 7 before. Each table downloads as **CSV for Excel**.
+- **The nuclear event**: from the dashboard, the radiation symbol, pulsing, over the whole map on every page, with
+  a red banner, the admin's text (UK / EN / FR, prefilled with shelter-in-place advice) and one critical tone.
+  Three locks: arm (the server gives a one-time code, 2 minutes, one attempt), type the code and "NUCLEAR EVENT",
+  hold the button 3 s. One click (confirmed) ends it everywhere. The overlay is a separate file loaded only while
+  one is on, so the pages stay as light as they were.
+
+### Changed
+- **The admin's message is loud**: Information is bright green, Urgent bright red with a slow pulse (still for
+  readers who ask for less motion); the dashboard previews the colour while you write.
+- The nights' figures (and their written summaries) take the Air Force's numbers type by type from the kept
+  summaries.
+
 ## 1.31.0 — 2026-09-28
 
 ### Added

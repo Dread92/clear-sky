@@ -100,6 +100,19 @@ the feed, marked as such, and nothing else — no mark on the map, no banner, no
 the admin, after reading what it posts, puts it on the map. A channel that starts posting rumours can be put
 back on trial or switched off in one click, and its posts leave the map at once.
 
+## The nuclear event cannot be switched on by accident
+
+The dashboard can cover the map on every page with the radiation symbol (1.32). A false one would be the worst
+thing this app could ever show — people leaving shelters, or panicking in a city at night — so it sits behind
+three locks: folded away in a danger zone; armed first, which makes the **server** issue a one-time code valid two
+minutes with one attempt, right or wrong; then the code and the phrase `NUCLEAR EVENT` typed in full and the button
+held for three seconds. It is for a nuclear or radiological emergency **confirmed by the authorities or by certain
+evidence**, never a rumour in a channel. Its banner says the app is unofficial and sends the reader to ДСНС and
+the local authorities; the prefilled advice (go indoors, close up, iodine only on official instruction) is the
+authorities' standard advice and is meant to be edited. It pulses once every 1.6 s — a flash rate that can
+trigger seizures is three a second — and holds still for anybody whose phone asks for less motion. It covers the
+map without blocking it: the live marks underneath still work.
+
 ## A warning is only raised when something was actually reported
 
 The preventive banner (MiG-31K airborne, ballistic threat) is the loudest thing in the app, so what
@@ -292,6 +305,10 @@ different weapon, at a different speed, with a different uncertainty ring. Each 
 words, and only a line that names no weapon inherits the post's.
 
 ## A tally of the night is not a sky
+
+The Air Force's summaries are the one tally the app **keeps** (1.32): read weapon by weapon into its statistics
+and the dashboard's Analytics, never onto the map. A weapon the summary names without a number is shown as
+"used" — never counted as zero, and never given a number the Air Force did not give.
 
 "В ніч на 17.09.26 … противник застосував … 8× балістичних ракет по Києву" counts what was fired **last
 night**. It was being drawn as eight ballistic missiles over Kyiv, right now, for the whole time the post

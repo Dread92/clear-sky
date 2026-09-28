@@ -1,6 +1,6 @@
 # Heimdall — technical documentation
 
-**Documented version: 1.31** · last updated 2026-09-28
+**Documented version: 1.32** · last updated 2026-09-28
 
 Heimdall was called **Clear Sky** until 1.29; the repository, the Fly app (`kyiv-air-watch-gb`) and some
 internal names still carry the old name.
@@ -168,6 +168,7 @@ clear-sky/
 | `streams` | **every open page's live line** (`StreamHub`, §5.4): one thread, non-blocking sockets (epoll), the data sent as changes | events + every 15 / 5 / 2 s |
 | `proximity` | per-subscriber distance checks → push | continuous |
 | `AlertsInUa.backfill` | a month of history for the favourite regions | once at start |
+| `AFBackfill` | the Air Force summaries of the last 14 days that `af_reports` lacks: first from the stored feed, then from `t.me/s/kpszsu?before=…` pages (at most 240, stops once nothing is missing) | 60 s after start, then daily |
 
 **One computation for everybody** (`State.cached`): `/api/markers`, `/api/state`, `/api/feed`, `/api/stats`,
 `/api/impacts` are built once per change (the publish sequence `seq`) and at most every few seconds, by one
@@ -387,7 +388,7 @@ event of a Trial post carries `tags: ["trial"]` only. Both readers take the list
 | `kievinfo_kyiv` | live tracker + news | same, with the news guard |
 | `war_monitor` | wider picture, jet drones | general `parse_post` |
 | `eRadarrua` | per-oblast group counts + live lines | `parse_eradar`, `parse_eradar_summary` (counts on oblast tags, never marks) |
-| `kpszsu` | the Air Force | general parser + morning summary (`parse_af_summary`, launch totals) |
+| `kpszsu` | the Air Force | general parser + its summaries, read weapon by weapon (`parse_af_report`, §7.5) |
 
 A channel whose preview shows no messages is marked failed with "web preview disabled by the channel", so "no
 drones reported" and "cannot read this channel" never look the same.
@@ -452,6 +453,35 @@ block for every value:
 
 Fires, ground damage and the channels' own "чисто" are not drawn (`HIDDEN_STATUS` on the pages).
 
+### 7.5 The Air Force's summaries (1.32)
+
+Twice a day `kpszsu` sums up the attack on all of Ukraine: "У ніч на 28 вересня (з 18:00 27 вересня) противник
+атакував 165 ударними БпЛА … (79 із них — реактивні) … збито/подавлено 112 …". Until 1.31 these were read for two
+totals (drones, missiles) and, from 25 Sep, tagged `news` and dropped — so the Stats tab lost whole nights, and
+missiles were never counted at all: the Air Force names most of them **without a number** ("балістичними
+ракетами Іскандер-М") and gives the number only for those shot down.
+
+`parse_af_report(text, ts)` returns, or `None` for anything that is not a summary ("продовжує атакувати" is an
+update):
+
+- `period` (`night` / `day`) and `date` (the morning of the night; the day's own date);
+- `launched` per type — `drones` (Shahed type and other strike drones), `jet` (the "із них — реактивні" part of
+  `drones`, never added to it), `banderol` (a jet drone, never a missile), `cruise`, `ballistic`,
+  `aeroballistic` (Kinzhal), `antiship`, `guided`, `decoys`, and `missiles` when the post gives a missiles total
+  with a breakdown in brackets. A type is counted once, by its most specific name (`AF_TYPES` order);
+- `used`: the types named **without a number** — shown as "used", never counted as 0;
+- `down` per type and `total` (the "збито/подавлено" part, or the headline "ЗБИТО/ПОДАВЛЕНО N");
+- `impacts` and `debris` (the number of **locations**), `areas` (where launched from, "рф" dropped),
+  `directions` (the "основний напрямок" oblasts), `models` (Іскандер-М, Калібр, Кинджал, Циркон, Х-101 …).
+
+`tag_feed_text` tags such a post `af_summary` (kept in the feed; not a live threat: it raises no banner). Every
+summary from `AF_SUMMARY_CHANNELS` is stored in `af_reports` as it is read (`Store.af_save`, `INSERT OR IGNORE`
+on the post id); `Store.af_reports()` keeps one per (date, period) — the Air Force's own post over a re-post, then
+the fullest, then the latest. `AFBackfill` fills the gaps (§5.1). The Stats tab (§10.1), the dashboard's
+Analytics (§8c) and the nights' figures (§8b) all read this table. `parse_af_summary` (the two totals) remains as
+a wrapper for older callers. `tests/test_af_reports.py` pins it on 11 real summaries of 21–28 Sep 2026
+(`tests/fixtures/af_summaries_2026_09.json`).
+
 ## 8. Translation
 
 The feed is Ukrainian; EN and FR readers get a translation.
@@ -478,7 +508,9 @@ official alert (overlaps counted once), number of alerts and the longest, alert 
 one wave), alert levels, minutes per oblast raion; the channels' **reports** (not a count of targets) by type, the
 most-named places, the reported courses (8 sectors), the busiest hours, first / last report; shoot-downs and
 explosions reported and where; how many waves had a mark on the map in the hour before them and the median lead;
-the Air Force's own figures (all of Ukraine). A week also gets the previous week's totals to compare with.
+the Air Force's own figures (all of Ukraine, from `af_reports`: each summary of the period with launched and shot
+down by type, the types used without a number, hit locations, main directions). A week also gets the previous
+week's totals to compare with.
 
 With `ANTHROPIC_API_KEY` set, the figures are sent to the model (`ai_model`) — counts and place names only, never a
 post or anything about a reader — with a system prompt (`AI_SYSTEM`) that allows it to describe them and nothing
@@ -486,6 +518,34 @@ else: no forecast, no guessed intention, target, weapon or damage, "reports" cal
 and Ukrainian. The figures are stored with the text (`digests`), shown under it on the dashboard, so every sentence
 can be checked. Without a key the figures are still stored and shown. The model is only ever called from the
 `Digests` thread — never in a request path. Cost: a few thousand tokens a night, well under a dollar a month.
+
+## 8c. The dashboard (1.32: tabs and Analytics)
+
+`/admin` has five tabs (the last one opened is remembered, `localStorage.admintab`): **Live** (online now, the
+admin's message with a preview in the readers' colours, the nuclear event — §9), **Analytics**, **Nights & weeks**
+(§8b), **Sources** (lead time, official sources, the channels and their controls, translation; a red dot on the
+tab when a source or a channel on the map fails) and **Usage** (the anonymous counters). Each tab loads its own
+data; only Live and Sources refresh on their own (10 s and 60 s).
+
+**Analytics** (`GET /api/analytics?days=7|30|90|365`, `State.analytics`, cached 5 min) — the trends, for the
+owner and his partners, "Excel-like":
+
+- all of Ukraine, from `af_reports` (a date = the night that ends that morning + that day): drones launched
+  (Shahed type / jet / Banderol) with the number shot down; missiles shot down by type (the launched numbers the
+  Air Force gave, and the types used without a number, on hover); the share of drones shot down or suppressed and
+  the share of jet drones (drones only — the missiles launched are not always given, and a rate over everything
+  would read higher than it was); hit and debris locations; launch areas, main directions and models named;
+- Kyiv, from the app's own records: hours under official air-raid alert per day for the city (oblast 31) and the
+  oblast (any raion of 14); when alerts start in the city (weekday × hour); the marks placed over the city and the
+  oblast per 24 h from 18:00 by type (Banderol with the jet drones), by hour, and the drone courses **stated** in
+  posts (8 sectors; none guessed);
+- the KPIs compare the last 7 days with the 7 before; a date without a summary says so instead of showing zeros.
+
+Charts are SVG drawn in the page (no library), in the validated dark categorical order (blue, orange, aqua,
+yellow, magenta — never by rank), one axis each, a legend for two series or more, a tooltip on every mark; the
+width follows the screen so a phone can read them. Every chart's table downloads as **CSV for Excel** (UTF-8
+with its mark, `;` between columns): the Air Force by date and type, Kyiv's alert minutes, Kyiv's reports by
+type. Nothing about a reader is in it.
 
 ## 9. Notifications
 
@@ -510,7 +570,23 @@ can be checked. Without a key the figures are still stored and shown. The model 
 - **The admin's message** (1.29; headed "Message from the system admin" since 1.30): the dashboard publishes one message (UK / EN / FR, info / warning / urgent, for
   1 h – 3 days or until removed), stored in `kv.notice` and carried in the alerts state (`notice`), so the live
   line and `/api/state` bring it to both pages as a banner. A reader can close it (remembered on that phone,
-  `notice_x`). Optionally sent as a push to every subscribed phone (the Ukrainian text).
+  `notice_x`). Optionally sent as a push to every subscribed phone (the Ukrainian text). Since 1.32 it is loud:
+  **Information** is bright green, **Urgent** bright red with a slow pulse (one cycle in 1.6 s, still under
+  `prefers-reduced-motion`), the same in every display mode; Warning stays amber. The dashboard previews it in
+  that colour while it is written.
+- **The nuclear event** (1.32): the one message that covers the map. On the dashboard (Live tab) it is folded
+  away in a danger zone with three locks: **Arm** (the server hands back a one-time 6-character code, valid 2
+  minutes, **one attempt** right or wrong — `State.nuke_arm`), then the code and the phrase `NUCLEAR EVENT` typed
+  in full (the button unlocks only then), then the button **held for 3 s**; `State.nuke_fire` checks the code,
+  its age and the phrase again. The text (UK / EN / FR, prefilled with shelter-in-place advice to edit) and an
+  optional push to every phone (confirmed). It is stored in `kv.nuke`, logged, published as a `nuke` event and
+  carried in the alerts state (`nuke`), so it survives restarts and reaches every open page in seconds. The pages
+  download `static/nuke.js` only while one is on: the radiation trefoil over the whole map (Light: over the
+  radar), pulsing once every 1.6 s and still under reduced motion, `pointer-events: none` so the map still works;
+  a red banner with "NUCLEAR EVENT — RADIATION DANGER", the admin's text (as text, never HTML) and "Heimdall is
+  an unofficial app, not an alert system — follow ДСНС and local authorities"; the banner can be folded, not
+  closed; one critical tone (at the reader's volume) and a vibration, once per event per phone. **End** is one
+  confirmed click and clears every page. `tests/test_nuke_analytics.py` holds the locks.
 - **A new address** (1.29): with `CANONICAL_HOST` set, pages opened on any other address show "Heimdall has moved
   to …" with a button to the new one; the phone's **settings** (language, display, sound, oblast, layers — the
   `CARRY` list) travel in the link's `#fragment` (never sent to a server) and are stored there only where the new
@@ -534,8 +610,9 @@ level-of-detail classes by zoom, OSM tiles under the vector layers below 150 km 
   `HOLD_SLOP_PX` = 10 screen px; the browser's long-press menu is suppressed), or tap the empty Pin chip to arm the
   map (`armPin`, banner with Cancel) and tap where it goes (`dropPin`);
 - tabs: **Feed**; **Alerts** (the live tally of what is on the map, then the official alerts); **Stats** — the Air
-  Force's official figures only (`windows` 24 h / 7 d / 30 d and each summary with a link to its post,
-  `af_days`); **Map** (layers);
+  Force's official figures only, weapon by weapon since 1.32 (§7.5): for 24 h / 7 d / 30 d (`windows[…].af`) a
+  row per type — launched and ↓ shot down, ✓ when used without a number — and the hit locations; then each
+  summary (night / day) with chips and a link to its post (`af_days`); **Map** (layers);
 - **approach marks** (drawn at the town they are heading to): a dashed course coming **into** the town from the
   side the post named, no ray or cone ahead, never dead-reckoned (Est.), no ETA; label "→ Vasylkiv from the NW";
   on Light "heading for Vasylkiv — where it is now was not said";
@@ -629,17 +706,19 @@ All JSON unless stated. Public unless marked 🔒 (`ADMIN_KEY`).
 | `GET /api/state` | active alerts, per-oblast status, sources' health, єРадар counts, config summary |
 | `GET /api/markers` | live marks with evidence, history, staleness |
 | `GET /api/feed?limit=&lang=` | recent posts (`text`, `text_en`, `text_fr`, `en_mt`, tags); `lang` asks for translation |
-| `GET /api/stream?sync=&ev=&p=&lang=` | the live line (§5.4): `hello`, `sync` (changes of `mk`, `st`, `fd` as asked in `sync`) and, unless `ev=0`, the events `start`, `end`, `threat`, `update`, `feed`, `eradar`, `tr`, `notice`; `p=light` counts it as a Light page |
+| `GET /api/stream?sync=&ev=&p=&lang=` | the live line (§5.4): `hello`, `sync` (changes of `mk`, `st`, `fd` as asked in `sync`) and, unless `ev=0`, the events `start`, `end`, `threat`, `update`, `feed`, `eradar`, `tr`, `notice`, `nuke`; `p=light` counts it as a Light page |
 | `GET /api/history?hours=&oblast=` | past alerts (1–168 h; cached, one query per change for every page) |
 | `GET /api/events_log?limit=` | alert events |
 | `GET /api/impacts?hours=` | explosions and confirmed shoot-downs |
-| `GET /api/stats?days=` | statistics; the Stats tab reads only `windows` and `af_days` (the Air Force summaries, each with its `post`) |
+| `GET /api/stats?days=` | statistics; the Stats tab reads only `windows` (with `af`: launched / down by type, used, impacts, debris) and `af_days` (the Air Force summaries, each with its `post`) |
 | `GET /api/places?oblast=` | gazetteer (names, coordinates, oblast) |
 | `POST /api/push/subscribe`, `/api/push/unsubscribe`, `/api/push/test`; `GET /api/push/key` | Web Push |
 | `POST /api/flag` | "this reading is wrong" report |
 | 🔒 `GET /admin`, `/api/usage` | dashboard, usage counters |
 | 🔒 `GET /api/health` | official sources (ok, last check, detail), every channel read (posts / marks 24 h, share read 7 d, last post, reader state, `mode`, `read_via`, `builtin`), translation backends, lead time over the official alert in Kyiv + oblast (30 days) |
-| 🔒 `GET /api/online` | pages open now with a live line (`total`, `tactical`, `light`, today's peak), the current message, the last push fan-out (phones, seconds, delivered) |
+| 🔒 `GET /api/online` | pages open now with a live line (`total`, `tactical`, `light`, today's peak), the current message, the nuclear event (`nuke`), the last push fan-out (phones, seconds, delivered) |
+| 🔒 `GET /api/analytics?days=` | the dashboard's Analytics (§8c), 7–365 days: `af` per date (launched, down, used, impacts, debris, periods), `af_areas`, `af_directions`, `af_models`, `kyiv` per date (city / oblast minutes, city alerts), `starts` (7 × 24), `reports` per date by type, `hours`, `headings` |
+| 🔒 `POST /api/admin/nuke` | `{action: arm}` → `{code, expires_s, phrase}` (refused while one is on); `{action: fire, code, phrase, text: {uk, en, fr}, push}`; `{action: end}` — the nuclear event (§9) |
 | 🔒 `POST /api/admin/channel` | `{action: add|set|delete, name, mode: map|trial|off, via: web|api}` — the channels read (§7.1); `add` checks `t.me/s/<name>` for readable posts and starts it on trial |
 | 🔒 `POST /api/admin/notice` | `{text: {uk, en, fr}, level: info|warn|alert, hours: 0–168 (0 = until removed), push: bool}` or `{clear: true}` — the team's message (§9) |
 | 🔒 `GET /api/digests` | the stored nights and weeks: figures, written summary (EN / UK), model |
@@ -655,12 +734,13 @@ SQLite in WAL mode (`DB_PATH`; on Fly, the volume). Tables:
 | `alerts` | every alert seen (active and finished) — the normalised shape |
 | `events` | start / end / threat / update events |
 | `feed` | posts: `post_id, channel, ts, text, tags, text_en, text_fr, en_mt` |
-| `kv` | small settings: the VAPID key pair, the usage counter's daily salt, and similar |
+| `kv` | small settings: the VAPID key pair, the usage counter's daily salt, the channels (`channels`), the admin's message (`notice`), the nuclear event (`nuke`), and similar |
 | `push_subs` | push subscriptions with a ~10 km cell |
 | `marker_log` | every mark as computed, with its evidence |
 | `outcomes` | shoot-downs, impacts, losses |
 | `channel_stats` | per channel per day: posts, posts with a reading, flagged readings |
 | `digests` | each night / week: the figures (JSON), the summary in EN and UK, the model, any error |
+| `af_reports` | each Air Force summary read (§7.5): `post_id, channel, ts, period, date` and the reading (JSON) — kept for good, one row per post |
 | `flags` | readings people reported as wrong |
 | `corpus_reviews` | verdicts from `/admin` review, merged back with `scripts/corpus.py pull` |
 | `usage`, `usage_seen` | anonymous usage counters |
@@ -689,6 +769,7 @@ python app/server.py --demo --port 8099
 | `test_destination`, `test_scripts_parse` | where it is vs where it is going; every page script parses (node) |
 | `test_load`, `test_watchdog` | no network in the marks' path, one computation for everybody; the watchdog |
 | `test_digests` | a night's figures, the model's rules and answer, windows, owner-only and never in a request |
+| `test_af_reports`, `test_nuke_analytics`, `test_channels` | the Air Force read weapon by weapon, one per night, the backfill; the nuclear event's locks, Analytics, the loud message, both languages on the dashboard; channels from the dashboard |
 
 **The corpus** (`data/corpus.jsonl`, [CORPUS.md](CORPUS.md)): real posts with their expected reading; a
 changed reading fails the suite until it is re-verified as the intended change.

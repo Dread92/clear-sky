@@ -198,6 +198,8 @@ NEWS_CHANNELS = {"kyiv_times_official", "eRadarrua", "kievinfo_kyiv"}
 def is_relevant(text, tags, channel=None):
     """Keep only posts about the air situation: a threat / alert / outcome keyword, a parsed position, or an
     official alert message. Everything else (news, fundraising, culture, ads) is dropped before storage."""
+    if "af_summary" in tags:
+        return True
     if channel in NEWS_CHANNELS:
         if channel == "eRadarrua" and "◦" in text:
             return True
@@ -240,6 +242,11 @@ FORECAST_RX = re.compile(r"оцінка\s+загроз|загальна\s+оці
 
 
 def tag_feed_text(text, channel=None):
+    # 1.32: the Air Force's summary of a night or a day. It was being read as news (dropped, so the statistics lost
+    # every summary from 25 Sep); it is also not a live threat — "балістичними ракетами" in a morning summary must
+    # never light the ballistic banner. It is kept, with this one tag.
+    if channel in AF_SUMMARY_CHANNELS and parse_af_report(text):
+        return ["af_summary"]
     tags = [name for name, rx in FEED_TAGS if rx.search(text)]
     if FORECAST_RX.search(text) and not re.search(r"\bпуск\b|зафіксовано\s+пуск|швидкісн\w*\s+ціл|зліт\s+міг|злетів|у\s+повітрі\s+міг", text, re.I):
         return [t for t in tags if t == "alert"] + ["forecast"]
@@ -303,7 +310,7 @@ def parse_iso(s):
 
 
 BUILD_FILES = ("static/kyiv.html", "static/light.html", "static/light-map.json", "static/glyphs.js", "static/i18n.js", "static/live.js",
-               "static/sw.js", "app/server.py", "app/geo.py", "app/push.py")
+               "static/nuke.js", "static/sw.js", "app/server.py", "app/geo.py", "app/push.py")
 
 
 def build_id():
@@ -327,7 +334,7 @@ def build_id():
 
 # The version the front end shows in its footer, kept here too so /api/version can answer "what is actually
 # running" without anybody reading it off a screenshot. tests/test_version.py pins the two to each other.
-APP_VERSION = "1.31"
+APP_VERSION = "1.32"
 APP_NAME = "Heimdall"
 BUILD = None    # filled at startup
 
@@ -498,28 +505,158 @@ _AF_DOWN_RX = re.compile(r"(?:збито|знищено|подавлен\w+|зб
 
 
 def parse_af_summary(text):
-    """Air Force morning summary → {'drones','missiles','down'} (what was launched over Ukraine, per the Air Force), or None.
-    Only posts that explicitly say the enemy *attacked with N* something count; live "N shaheds over X" posts do not match."""
-    if not text or "атакув" not in text.lower():
+    """Air Force summary → {'drones','missiles','down'} (totals, per the Air Force), or None. Kept for the callers that
+    want totals; the type-by-type reading is parse_af_report. Banderol is a jet drone, never a missile: not in either."""
+    rep = parse_af_report(text)
+    if not rep:
         return None
+    la, dn = rep.get("launched") or {}, rep.get("down") or {}
+    missiles = af_missiles(la)
+    if not la.get("drones") and not missiles and not dn.get("total"):
+        return None
+    return {"drones": la.get("drones", 0), "missiles": min(missiles, 400), "down": dn.get("total", 0)}
+
+# ---- the Air Force's summaries, in full (1.32) ------------------------------------------------------------------
+# "У ніч на 28 вересня противник атакував 165 ударними БпЛА (79 із них - реактивні) … збито/подавлено 112 …
+#  Зафіксовано влучання … на 14 локаціях, а також падіння збитих (уламки) на 7 локаціях." Each weapon type is read
+# on its own, launched and shot down, and a type named without a number ("балістичними ракетами Іскандер-М") is
+# recorded as used, never as zero. Nothing is inferred: what the summary does not say stays unknown.
+AF_TYPES = (
+    ("aeroballistic", r"аеробалістичн\w*(?:\s+ракет\w*)?"),
+    ("ballistic", r"(?<!аеро)балістичн\w*(?:\s+ракет\w*)?"),
+    ("cruise", r"крилат\w*(?:\s+ракет\w*)?"),
+    ("antiship", r"протикорабельн\w*\s+ракет\w*"),
+    ("guided", r"керован\w*\s+(?:авіаційн\w*\s+)?ракет\w*"),
+    ("banderol", r"[«\"“„']?\s*бандерол\w*"),
+    ("decoys", r"(?:дрон\w*|безпілотник\w*)[\s-]*імітатор\w*"),
+    ("drones", r"(?:ворож\w+\s+)?(?:ударн\w+\s+|розвідувальн\w+\s+)?(?:БпЛА|безпілотник\w*|дрон\w*(?![\s-]*імітатор))"),
+    ("missiles", r"ракет\w*"),                  # "13 ракетами" — a total, broken down by type elsewhere or not at all
+)
+AF_MISSILE_TYPES = ("cruise", "ballistic", "aeroballistic", "antiship", "guided")
+
+
+def af_missiles(counts):
+    """Missiles in a launched / shot-down dict: the stated total when there is one, else the sum of the types."""
+    return counts.get("missiles") or sum(counts.get(k, 0) for k in AF_MISSILE_TYPES)
+_AF_TYPE_RX = [(k, re.compile(r"(?<![\d.,])(\d{1,4})(?:-?[а-яіїєґ']{1,3})?\s+(?:[а-яіїєґА-ЯІЇЄҐ'\-]+\s+){0,2}?" + rx, re.I)) for k, rx in AF_TYPES]
+_AF_MENTION_RX = [(k, re.compile(rx, re.I)) for k, rx in AF_TYPES]
+_AF_JET_RX = re.compile(r"\(\s*(?:понад\s+)?(\d{1,4})\s+(?:із|з)\s+них\s*[-–—]\s*реактивн", re.I)
+_AF_MONTHS = {"січня": 1, "лютого": 2, "березня": 3, "квітня": 4, "травня": 5, "червня": 6, "липня": 7, "серпня": 8,
+              "вересня": 9, "жовтня": 10, "листопада": 11, "грудня": 12}
+_AF_MODELS = re.compile(r"Іскандер[\s-]*[МК]?|С-400|KN-23|Калібр|Циркон|Онікс|Кинджал|Х-?\s?(?:101|555|22|32|59|69|31|35)", re.I)
+
+
+def _af_counts(seg):
+    got, used = {}, set()
+    work = seg
+    for k, rx in _AF_TYPE_RX:
+        for m in rx.finditer(work):
+            got[k] = got.get(k, 0) + int(m.group(1))
+        work = rx.sub(" ", work)                          # counted once, by the most specific type
+    for k, rx in _AF_MENTION_RX:
+        if rx.search(seg):
+            used.add(k)
+    return got, used
+
+
+def parse_af_report(text, ts=None):
+    """An Air Force summary (night or day) → what it says, type by type; None for anything else."""
+    if not text:
+        return None
+    low = text.lower()
     m = _AF_ATTACK_RX.search(text)
-    if not m:
+    if not m or "атакува" not in low:
         return None
-    seg = text[m.end():m.end() + 900]
-    seg = re.split(r"\n\s*\n|Станом на|Основний напрямок", seg, maxsplit=1)[0]
-    seg = re.sub(r"\([^)]*\)", " ", seg)                      # "(9 крилатих ... та 4 балістичні)" itemises the total → drop it
-    drones = max([int(x) for x in _AF_DRONES_RX.findall(seg)] or [0])
-    mseg = seg
-    fm = _AF_MISSILE_RX.search(seg)
-    if fm:
-        colon = seg.find(":", fm.end())
-        if 0 <= colon - fm.end() <= 3:                        # "35 ракетами: 6 балістичних, 29 крилатих" → the total, not the list
-            mseg = seg[:fm.end()]
-    missiles = sum(int(x) for x in _AF_MISSILE_RX.findall(mseg))
-    if not drones and not missiles:
+    body = re.sub(r"[ \t]+", " ", text)
+    m = _AF_ATTACK_RX.search(body)
+    rest = body[m.end():]
+    cut = re.search(r"Повітряний напад відбивал|За попередніми даними|Станом на|підтверджено|протиповітрян\w+\s+обороною|"
+                    r"збит\w*\s*/\s*подавл|Основн\w*\s+напрям", rest, re.I)
+    attack = rest[:cut.start()] if cut else rest[:1200]
+    attack_nb = re.sub(r"\([^)]*\)", " ", attack)                # "(79 із них - реактивні)" itemises, it is not a type
+    launched, used = _af_counts(attack_nb)
+    if "missiles" in launched:
+        # "13 ракетами (9 крилатих … та 4 балістичні …)" or "35 ракетами: 6 балістичних, 29 крилатих": the total is the
+        # total; the types after it are its breakdown, read from the brackets as well — never added to it
+        paren = " ".join(re.findall(r"\(([^)]*)\)", attack))
+        more, _ = _af_counts(paren)
+        for k in AF_MISSILE_TYPES:
+            if k in more and k not in launched:
+                launched[k] = more[k]
+    used.discard("missiles")
+    jm = _AF_JET_RX.search(attack)
+    if jm:
+        launched["jet"] = int(jm.group(1))
+    elif re.search(r"в\s+т\.?\s*ч\.?\s+реактивн|реактивн", attack, re.I):
+        used.add("jet")
+    down = {}
+    dm = re.search(r"(?:протиповітрян\w+\s+обороною\s+(?:протягом\s+вказаного\s+періоду\s+)?)?збито\s*/\s*подавлено|протиповітрян\w+\s+обороною\s+збито|"
+                   r"збито\s+та\s+подавлено|збиття\s*/\s*подавлення", rest, re.I)
+    if dm:
+        dseg = rest[dm.end():]
+        dend = re.search(r"Зафіксовано|Атака триває|Станом на \d|Не ігноруйте|Тримаймо", dseg)
+        dseg = dseg[:dend.start()] if dend else dseg[:900]
+        tot = re.match(r"\s*(\d{1,4})\s+(?:ціл|ворожих\s+ціл)", dseg)
+        dm_nb = re.sub(r"\([^)]*\)", " ", dseg)
+        down, _ = _af_counts(dm_nb)
+        down.pop("decoys", None)
+        down.pop("missiles", None)
+        jd = _AF_JET_RX.search(dseg)
+        if jd:
+            down["jet"] = int(jd.group(1))
+        down["total"] = int(tot.group(1)) if tot else sum(v for k, v in down.items() if k not in ("jet", "total"))
+    head = re.search(r"ЗБИТО\s*/\s*ПОДАВЛЕНО\s+(\d{1,4})", text)
+    if head and not down.get("total"):
+        down["total"] = int(head.group(1))
+    if not launched and not down:
         return None
-    dm = _AF_DOWN_RX.search(text)
-    return {"drones": drones, "missiles": min(missiles, 400), "down": int(dm.group(1)) if dm else 0}
+    # which period, and which date it is about (Kyiv): "у ніч на 28 вересня" / "протягом дня 28 вересня"
+    period, date = "other", None
+    pm = re.search(r"(?:у|в)\s+ніч\s+на\s+(\d{1,2})\s+([а-яіїє]+)", body, re.I)
+    if pm:
+        period = "night"
+    else:
+        pm = re.search(r"(?:протягом|впродовж)\s+(?:дня|доби)\s+(\d{1,2})\s+([а-яіїє]+)", body, re.I) or \
+            re.search(r"(\d{1,2})\s+([а-яіїє]+)\s+\d{4}\s+року\s+\(\s*(?:із|з)", body, re.I)
+        if pm:
+            period = "day"
+    posted = parse_iso(ts) if ts else None
+    if pm and pm.group(2).lower() in _AF_MONTHS:
+        mon, dd = _AF_MONTHS[pm.group(2).lower()], int(pm.group(1))
+        yr = (posted.astimezone(kyiv_tz()).year if posted else datetime.now(timezone.utc).year)
+        if posted and mon - posted.astimezone(kyiv_tz()).month > 6:
+            yr -= 1                                            # a January post about 31 December
+        try:
+            date = f"{yr:04d}-{mon:02d}-{dd:02d}"
+            datetime.strptime(date, "%Y-%m-%d")
+        except ValueError:
+            date = None
+    if not date and posted:
+        date = posted.astimezone(kyiv_tz()).strftime("%Y-%m-%d")
+    out = {"period": period, "date": date, "launched": launched, "used": sorted(used - set(launched)),
+           "down": down}
+    im = re.search(r"влучання[^.]*?на\s+(\d{1,4})\s+локаці", body, re.I)
+    if im:
+        out["impacts"] = int(im.group(1))
+    de = re.search(r"падіння\s+збитих[^.]*?на\s+(\d{1,4})\s+локаці", body, re.I)
+    if de:
+        out["debris"] = int(de.group(1))
+    am = re.search(r"(?:із|з)\s+напрямк\w*\s*:\s*([^.\n]+)", re.sub(r"\bрф\.", "рф", body), re.I)
+    if am:
+        areas = []
+        for part in re.split(r",|;|\s+та\s+|\s[-–—]\s", am.group(1)):
+            p = re.sub(r"(?<![\w-])(?:ТОТ|АР\s+Крим|рф|РФ)(?![\w-])\.?", " ", part)
+            p = re.sub(r"\s+", " ", p).strip(" .–—-")
+            if p and len(p) <= 40:
+                areas.append({"Донецької": "Донецьк"}.get(p, p))
+        out["areas"] = list(dict.fromkeys(a for a in areas if a))
+    dirm = re.search(r"Основн\w*\s+напрям\w*\s+удар\w*\s*[-–—:]\s*([^!.\n]+)", body, re.I)
+    if dirm:
+        out["directions"] = [x.strip(" .!") for x in re.split(r",|\s+та\s+|\s+і\s+", dirm.group(1)) if x.strip(" .!")]
+    models = sorted({re.sub(r"\s+", "", x).replace("-", "-") for x in _AF_MODELS.findall(body)})
+    if models:
+        out["models"] = models
+    return out
 
 
 def kyiv_tz():
@@ -699,12 +836,42 @@ class Store:
         c.execute("""CREATE TABLE IF NOT EXISTS digests(
             id TEXT PRIMARY KEY, kind TEXT, period_start TEXT, period_end TEXT, facts TEXT,
             summary_en TEXT, summary_uk TEXT, model TEXT, created TEXT, error TEXT)""")
+        # The Air Force's summaries, read type by type (parse_af_report), one row per post — kept for good: they are
+        # the official series every trend is measured against, and a summary lost is a night missing from it.
+        c.execute("""CREATE TABLE IF NOT EXISTS af_reports(
+            post_id TEXT PRIMARY KEY, channel TEXT, ts TEXT, period TEXT, date TEXT, data TEXT)""")
+        c.execute("CREATE INDEX IF NOT EXISTS ix_af_date ON af_reports(date)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_alerts_started ON alerts(started_at)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_feed_ts ON feed(ts)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_mlog_ts ON marker_log(ts)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_mlog_obl ON marker_log(oblast_uid, ts)")
         c.execute("CREATE INDEX IF NOT EXISTS ix_out_ts ON outcomes(ts)")
         c.commit()
+
+    def af_save(self, post_id, channel, ts, rep):
+        with self.lock:
+            cur = self.conn.execute("INSERT OR IGNORE INTO af_reports(post_id,channel,ts,period,date,data) VALUES(?,?,?,?,?,?)",
+                                    (post_id, channel, ts, rep.get("period"), rep.get("date"), json.dumps(rep, ensure_ascii=False)))
+            self.conn.commit()
+        return bool(cur.rowcount)
+
+    def af_reports(self, since_date="0000"):
+        """One report per (date, period): the Air Force's own post over a re-post, then the fullest, then the latest."""
+        with self.lock:
+            rows = self.conn.execute("SELECT post_id,channel,ts,period,date,data FROM af_reports WHERE date>=? ORDER BY ts",
+                                     (since_date,)).fetchall()
+        best = {}
+        for pid, ch, ts, period, date, data in rows:
+            try:
+                rep = json.loads(data)
+            except Exception:
+                continue
+            size = len(rep.get("launched") or {}) + len(rep.get("down") or {}) + len(rep.get("used") or [])
+            key = (date, period)
+            score = (ch == "kpszsu", size, ts)
+            if key not in best or score >= best[key][0]:
+                best[key] = (score, dict(rep, post=pid, channel=ch, ts=ts))
+        return [v[1] for _, v in sorted(best.items())]
 
     def kv_get(self, k):
         with self.lock:
@@ -1190,10 +1357,17 @@ class State:
         self.cond = threading.Condition()
         self.seq = 0
         self.notifier = Notifier(cfg)
+        # caches are per State: two States (the tests) must never see each other's answers
+        self._resp, self._resp_locks, self._stats_res, self._entries = {}, {}, {}, {}
         try:
             self.notice = json.loads(store.kv_get("notice") or "null")
         except Exception:
             self.notice = None
+        try:
+            self.nuke = json.loads(store.kv_get("nuke") or "null")
+        except Exception:
+            self.nuke = None
+        self._nuke_arm = None
         self._channels_load()
         store.mode_of = self.channel_mode
 
@@ -1296,6 +1470,42 @@ class State:
                 self.set_notice(None)
                 return None
         return n
+
+    # -- a nuclear event (1.32) -----------------------------------------------------------------------------------
+    # The one message that covers the map: the radiation symbol, pulsing, and what to do. Behind two locks, because a
+    # false one would be the worst thing this app could ever show: the dashboard must first ARM (the server hands back
+    # a one-time code valid for two minutes), then FIRE with that code and the phrase typed in full. Ending it is one
+    # step. Every change is logged. It travels in the alerts state (`nuke`), like the admin's message.
+    NUKE_PHRASE = "NUCLEAR EVENT"
+
+    def nuke_arm(self):
+        import secrets
+        code = "".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(6))
+        self._nuke_arm = (code, time.time() + 120)
+        log("NUKE: armed from the dashboard (code valid 2 min)")
+        return code
+
+    def nuke_fire(self, code, phrase, text):
+        arm, self._nuke_arm = self._nuke_arm, None           # one attempt per arming, right or wrong
+        if not arm or time.time() > arm[1]:
+            return False, "not armed, or the arming expired — arm again"
+        if (code or "").strip().upper() != arm[0]:
+            return False, "wrong code — arm again"
+        if (phrase or "").strip().upper() != self.NUKE_PHRASE:
+            return False, f"type the phrase exactly: {self.NUKE_PHRASE}"
+        self.nuke = {"id": f"k{int(time.time() * 1000)}", "since": now_iso(), "text": text}
+        self.store.kv_set("nuke", json.dumps(self.nuke, ensure_ascii=False))
+        log("NUKE: nuclear event ACTIVATED from the dashboard")
+        self.publish({"kind": "nuke", "ts": now_iso(), "nuke": self.nuke})
+        return True, "active"
+
+    def nuke_end(self):
+        was = self.nuke
+        self.nuke, self._nuke_arm = None, None
+        self.store.kv_set("nuke", "")
+        if was:
+            log("NUKE: nuclear event ended from the dashboard")
+        self.publish({"kind": "nuke", "ts": now_iso(), "nuke": None})
 
     def set_notice(self, n):
         self.notice = n
@@ -1592,6 +1802,91 @@ class State:
     def feed_now(self, limit):
         return self.cached(f"feed:{limit}", 15, lambda: self._feed_obj(limit), ver=self.seq)
 
+    # -- the dashboard's analytics (1.32): how the attacks change, week after week ----------------------------------
+    # Three records, each for what it can say, never mixed:
+    #   - the Air Force's summaries (af_reports): what was launched over Ukraine and shot down, type by type, the
+    #     launch areas, the main directions, the missile models, the hits — the official series;
+    #   - the official alerts (alerts): minutes under alert over Kyiv city and the oblast, and when alerts start;
+    #   - the marks this app placed (marker_log), Kyiv city + oblast: reports by type, by hour, their stated courses
+    #     — a volume of REPORTS read from channels, never a count of targets.
+    def analytics(self, days=30):
+        tz = kyiv_tz()
+        now = datetime.now(timezone.utc)
+        today = now.astimezone(tz).date()
+        start_d = today - timedelta(days=days - 1)
+        dates = [(start_d + timedelta(days=i)).isoformat() for i in range(days)]
+        # 1. the Air Force, per date (night + day of the same date added up)
+        af = {d: {"date": d, "launched": {}, "down": {}, "used": [], "impacts": 0, "debris": 0, "periods": []} for d in dates}
+        areas, dirs, models = collections.Counter(), collections.Counter(), collections.Counter()
+        for r in self.store.af_reports(start_d.isoformat()):
+            row = af.get(r.get("date"))
+            if not row:
+                continue
+            row["periods"].append(r.get("period"))
+            for k, v in (r.get("launched") or {}).items():
+                row["launched"][k] = row["launched"].get(k, 0) + v
+            for k, v in (r.get("down") or {}).items():
+                row["down"][k] = row["down"].get(k, 0) + v
+            row["used"] = sorted(set(row["used"]) | set(r.get("used") or []))
+            row["impacts"] += r.get("impacts", 0)
+            row["debris"] += r.get("debris", 0)
+            areas.update(r.get("areas") or [])
+            dirs.update(r.get("directions") or [])
+            models.update(r.get("models") or [])
+        # 2. the official alerts over Kyiv city (31) and the oblast (14): minutes per day, and when they start
+        t0 = datetime(start_d.year, start_d.month, start_d.day, tzinfo=tz).astimezone(timezone.utc)
+        with self.store.lock:
+            # by oblast_uid, whatever the level: the city is one unit (31); "the oblast" is any raion of 14 under alert
+            al = self.store.conn.execute(
+                "SELECT oblast_uid, location_type, alert_level, started_at, finished_at FROM alerts WHERE (finished_at IS NULL OR finished_at>=?) "
+                "AND oblast_uid IN ('31','14') AND alert_type='air_raid'", (t0.isoformat(),)).fetchall()
+        spans = {"31": [], "14": []}
+        starts = [[0] * 24 for _ in range(7)]
+        for uid, _lt, _lvl, sa, fa in al:
+            a, b = parse_iso(sa), parse_iso(fa) or now
+            if not a:
+                continue
+            spans[uid].append((max(a, t0), b))
+            if uid == "31" and a >= t0:
+                k = a.astimezone(tz)
+                starts[k.weekday()][k.hour] += 1
+        kyiv = []
+        for d in dates:
+            dd = datetime.fromisoformat(d).replace(tzinfo=tz)
+            lo, hi = dd.astimezone(timezone.utc), (dd + timedelta(days=1)).astimezone(timezone.utc)
+            row = {"date": d}
+            for uid, key in (("31", "city_min"), ("14", "oblast_min")):
+                row[key] = _union_minutes([(max(a, lo), min(b, hi)) for a, b in spans[uid] if a < hi and b > lo])
+            row["city_alerts"] = len({a for a, _ in spans["31"] if lo <= a < hi})
+            kyiv.append(row)
+        # 3. the marks placed over Kyiv city + oblast: reports by type per 24 h (18:00 → 18:00, named by the morning
+        #    date, like the Air Force's nights), by hour of day, and the courses the posts stated
+        with self.store.lock:
+            ml = self.store.conn.execute("SELECT ts, type, status, heading, jet FROM marker_log WHERE ts>=? AND oblast_uid IN ('31','14')",
+                                         (t0.isoformat(),)).fetchall()
+        rep = {d: {"date": d} for d in dates}
+        hours = [0] * 24
+        heads = [0] * 8
+        for ts, typ, status, heading, jet in ml:
+            k = parse_iso(ts)
+            if not k:
+                continue
+            k = k.astimezone(tz)
+            d = (k + timedelta(hours=6)).date().isoformat()
+            row = rep.get(d)
+            if row is None:
+                continue
+            key = status if status in ("down", "impact") else ("jet" if (typ == "drones" and jet) else (typ or "unknown"))
+            row[key] = row.get(key, 0) + 1
+            if not status:
+                hours[k.hour] += 1
+                if typ == "drones" and heading is not None:
+                    heads[int(((float(heading) % 360) + 22.5) // 45) % 8] += 1
+        return {"days": days, "from": dates[0], "to": dates[-1], "generated": now_iso(),
+                "af": [af[d] for d in dates], "af_areas": areas.most_common(15), "af_directions": dirs.most_common(12),
+                "af_models": models.most_common(12), "kyiv": kyiv, "starts": starts,
+                "reports": [rep[d] for d in dates], "hours": hours, "headings": heads}
+
     # -- the dashboard: is every source alive, is every channel still posting, how early was the map ---------
     _health_res = None
 
@@ -1712,19 +2007,20 @@ class State:
                 lead.append(round((w - before[0]).total_seconds() / 60))
         outc = collections.Counter(r[1] for r in oc)
         oplaces = collections.Counter((r[3] or "") for r in oc if r[1] in ("down", "impact") and r[3] and r[3] != "область")
-        # the Air Force's figures (all of Ukraine): the summaries posted over the period, or — for a night — the
-        # morning summary posted within a few hours after it
+        # the Air Force's figures (all of Ukraine): the summaries kept in af_reports (1.32: type by type, and the
+        # ones the backfill recovered) posted over the period, or — for a night — the morning summary after it
         af_to = min(now, end + timedelta(hours=4)) if kind == "night" else end
         af = {}
-        for p in self.store.feed_since(max(1, int((now - start).total_seconds() / 60) + 1), limit=5000, translate=False):
-            pt = parse_iso(p["ts"])
-            if p.get("channel") not in AF_SUMMARY_CHANNELS or not pt or pt < start or pt > af_to:
+        for r in self.store.af_reports((start.astimezone(tz).date() - timedelta(days=1)).isoformat()):
+            pt = parse_iso(r.get("ts"))
+            if not pt or pt < start or pt > af_to:
                 continue
-            sm = parse_af_summary(p["text"])
-            if sm:
-                d = pt.astimezone(tz).strftime("%d.%m")
-                cur = af.get(d, {"drones": 0, "missiles": 0, "down": 0})
-                af[d] = {k: max(cur[k], sm[k]) for k in cur}
+            la, dn = r.get("launched") or {}, r.get("down") or {}
+            af[f"{r.get('date', '')[8:10]}.{r.get('date', '')[5:7]} {r.get('period')}"] = {
+                "drones": la.get("drones", 0), "missiles": af_missiles(la), "down": dn.get("total", 0),
+                "launched": la, "down_by_type": {k: v for k, v in dn.items() if k != "total"},
+                "used_number_not_given": r.get("used") or [], "hit_locations": r.get("impacts", 0),
+                "debris_locations": r.get("debris", 0), "main_directions": r.get("directions") or []}
         facts = {
             "period": {"kind": kind, "from": loc(start), "to": loc(end), "timezone": "Kyiv"},
             "official_alerts": {
@@ -1823,16 +2119,6 @@ class State:
             in_series = pts >= since
             if in_series:
                 by_day.setdefault(d, dict(empty))
-            summ = parse_af_summary(p["text"]) if p.get("channel") in AF_SUMMARY_CHANNELS else None
-            if summ:
-                for w, acc in windows.items():
-                    if age_d <= w:
-                        acc["summaries"] += 1
-                if in_series:
-                    row = by_day[d]
-                    row["launched_drones"] = max(row["launched_drones"], summ["drones"])
-                    row["launched_missiles"] = max(row["launched_missiles"], summ["missiles"])
-                    row["af_down"] = max(row["af_down"], summ["down"])
             is_d = "drones" in tg
             is_m = bool(tg & {"ballistic_missiles", "cruise_missiles", "unspecified_missiles"})
             if not (is_d or is_m):
@@ -1852,28 +2138,39 @@ class State:
                     by_day[d]["drone_posts"] += 1
                 if is_m:
                     by_day[d]["missile_posts"] += 1
-        # launched totals per window: a re-posted / corrected summary on the same day must not double-count → per-day maxima
-        day_max = {}
-        for p in self.store.feed_since(30 * 24 * 60, limit=60000, translate=False):
-            if p.get("channel") not in AF_SUMMARY_CHANNELS:
-                continue
-            summ = parse_af_summary(p["text"])
-            if not summ:
-                continue
-            pts = parse_iso(p["ts"]) or now
-            d = pts.astimezone(kyiv_tz).strftime("%Y-%m-%d")
-            cur = day_max.get(d, {"drones": 0, "missiles": 0, "down": 0, "age": 0, "post": None, "best": -1, "ch": ""})
-            # the post shown for the day: the fullest summary, the Air Force's own channel over a re-post of it
-            score = summ["drones"] + summ["missiles"]
-            better = score > cur["best"] or (score == cur["best"] and p.get("channel") == "kpszsu" and cur["ch"] != "kpszsu")
-            day_max[d] = {"drones": max(cur["drones"], summ["drones"]), "missiles": max(cur["missiles"], summ["missiles"]),
-                          "down": max(cur["down"], summ["down"]), "age": (now - pts).total_seconds() / 86400,
-                          "post": p.get("post_id") if better else cur["post"], "best": max(score, cur["best"]),
-                          "ch": p.get("channel") if better else cur["ch"]}
-        for d, v in day_max.items():
+        # 3b. the Air Force's own figures, type by type (af_reports: one report per night / day, its own post over a
+        #     re-post). Summed per window; a type the summary named without a number is listed as "used", never 0.
+        reps = self.store.af_reports((now - timedelta(days=31)).astimezone(kyiv_tz).strftime("%Y-%m-%d"))
+        for w, acc in windows.items():
+            acc["af"] = {"launched": {}, "down": {}, "used": [], "impacts": 0, "debris": 0}
+        for r in reps:
+            age_d = (now - (parse_iso(r["ts"]) or now)).total_seconds() / 86400
+            la, dn = r.get("launched") or {}, r.get("down") or {}
+            if r.get("date") in by_day:
+                row = by_day[r["date"]]
+                row["launched_drones"] += la.get("drones", 0)
+                row["launched_missiles"] += af_missiles(la)
+                row["af_down"] += dn.get("total", 0)
             for w, acc in windows.items():
-                if v["age"] <= w:
-                    acc["launched_drones"] += v["drones"]; acc["launched_missiles"] += v["missiles"]; acc["af_down"] += v["down"]
+                if age_d > w:
+                    continue
+                acc["summaries"] += 1
+                acc["launched_drones"] += la.get("drones", 0)
+                acc["launched_missiles"] += af_missiles(la)
+                acc["af_down"] += dn.get("total", 0)
+                af = acc["af"]
+                for k, v in la.items():
+                    af["launched"][k] = af["launched"].get(k, 0) + v
+                for k, v in dn.items():
+                    af["down"][k] = af["down"].get(k, 0) + v
+                af["used"] = sorted(set(af["used"]) | set(r.get("used") or []))
+                af["impacts"] += r.get("impacts", 0)
+                af["debris"] += r.get("debris", 0)
+        for acc in windows.values():
+            af = acc["af"]
+            # counted in some summaries, named without a number in others: the sum is a floor ("8+"), not a total
+            af["partial"] = [k for k in af["used"] if k in af["launched"]]
+            af["used"] = [k for k in af["used"] if k not in af["launched"]]
         # Explosions and confirmed shoot-downs come from parsed posts, and that parsing covers at most 96 h —
         # so they are reported for 24 h and 72 h only. Reporting them "per 30 days" would be a number that is
         # simply missing most of its days.
@@ -1895,9 +2192,14 @@ class State:
                "damage_total": sum(1 for m in imp if m["status"] == "damage"),
                "impact_window_h": min(days * 24, 96), "windows": {str(k): v for k, v in windows.items()},
                "imp_windows": {str(k): v for k, v in imp_windows.items()}, "imp_max_h": min(days * 24, 96),
-               # the Stats tab shows only these: the Air Force's own summaries, one row a day, newest first
-               "af_days": [{"day": d, "drones": v["drones"], "missiles": v["missiles"], "down": v["down"], "post": v["post"]}
-                           for d, v in sorted(day_max.items(), reverse=True)]}
+               # the Stats tab shows only these: the Air Force's own summaries, one row per night / day, newest first
+               "af_days": [{"day": r.get("date"), "period": r.get("period"), "post": r.get("post"),
+                            "drones": (r.get("launched") or {}).get("drones", 0),
+                            "missiles": af_missiles(r.get("launched") or {}),
+                            "down": (r.get("down") or {}).get("total", 0),
+                            **{k: r[k] for k in ("launched", "down_by", "used", "impacts", "debris", "areas", "directions", "models") if k in r},
+                            "down_by": r.get("down") or {}}
+                           for r in sorted(reps, key=lambda r: (r.get("date") or "", r.get("period") != "night", r.get("ts") or ""), reverse=True)]}
         self._stats_res[days] = (time.time(), out)
         return out
 
@@ -2135,7 +2437,7 @@ class State:
                 if t not in o["threats"]:
                     o["threats"].append(t)
         return {"now": now_iso(), "active": active, "oblasts": by_oblast, "sources": sources, "eradar": self.eradar,
-                "notice": self.notice_now(),
+                "notice": self.notice_now(), "nuke": self.nuke,
                 "favourites": self.cfg.get("favourites") or [], "config": {"demo": bool(self.cfg.get("demo")), "canonical": canonical_host(self.cfg),
                 "has_token": bool(self.cfg.get("alerts_in_ua_token")), "channels": self.cfg.get("telegram_channels")}}
 
@@ -2597,6 +2899,10 @@ class Telegram(threading.Thread):
                 continue
             if self.state.store.has_post(post_id):
                 continue          # already stored (and translated) on an earlier poll
+            if ch in AF_SUMMARY_CHANNELS:
+                rep = parse_af_report(text, dt)
+                if rep:
+                    self.state.store.af_save(post_id, ch, dt, rep)
             tags = tag_feed_text(text, ch)
             if not is_relevant(text, tags, ch):
                 self.state.store.mark_seen(post_id)
@@ -2627,6 +2933,90 @@ class Telegram(threading.Thread):
             self.official.ingest(ch, sorted(new, key=lambda p: p["ts"]), initial=ch not in self.seen_channels)
         self.seen_channels.add(ch)
         return new
+
+
+class AFBackfill(threading.Thread):
+    """The Air Force summaries the app did not keep (1.32).
+
+    From 25 Sep the summaries were read as news and dropped, so the statistics lost them. At start, and once a day,
+    this looks for nights of the last 14 days with no summary on record — first in the posts already stored, then,
+    if any is still missing, in @kpszsu's public page history (t.me/s/kpszsu?before=…), a page every second, at most
+    240 pages (the channel posts ~15 pages a day), stopping as soon as no night is missing. It only reads summaries; nothing else from that history is stored."""
+    DAYS, MAX_PAGES = 14, 240
+
+    def __init__(self, state):
+        super().__init__(daemon=True, name="af-backfill")
+        self.state = state
+
+    def missing(self):
+        tz = kyiv_tz()
+        today = datetime.now(tz).date()
+        have = {r["date"] for r in self.state.store.af_reports((today - timedelta(days=self.DAYS)).isoformat()) if r.get("period") == "night"}
+        return [(today - timedelta(days=i)).isoformat() for i in range(1, self.DAYS) if (today - timedelta(days=i)).isoformat() not in have]
+
+    def from_feed(self):
+        st = self.state.store
+        with st.lock:
+            rows = st.conn.execute("SELECT post_id,channel,ts,text FROM feed WHERE channel IN (%s)" % ",".join("?" * len(AF_SUMMARY_CHANNELS)),
+                                   tuple(AF_SUMMARY_CHANNELS)).fetchall()
+        n = 0
+        for pid, ch, ts, text in rows:
+            rep = parse_af_report(text or "", ts)
+            if rep and st.af_save(pid, ch, ts, rep):
+                n += 1
+        return n
+
+    def from_history(self):
+        oldest = (datetime.now(timezone.utc) - timedelta(days=self.DAYS)).isoformat()
+        before, n = None, 0
+        for page_no in range(self.MAX_PAGES):
+            body = None
+            for attempt in range(3):
+                try:
+                    _, _, body = http_get("https://t.me/s/kpszsu" + (f"?before={before}" if before else ""), {"Accept-Language": "uk,en"}, timeout=20)
+                    break
+                except Exception as e:
+                    log("af backfill:", e)
+                    time.sleep(5 * (attempt + 1))
+            if body is None:
+                return n
+            if page_no % 10 == 9 and not self.missing():
+                return n
+            page = body.decode("utf-8", "replace")
+            ids, last_ts = [], None
+            for blk in page.split('<div class="tgme_widget_message_wrap')[1:]:
+                m = re.search(r'data-post="kpszsu/(\d+)"', blk)
+                if not m:
+                    continue
+                ids.append(int(m.group(1)))
+                tm = re.search(r'<div class="tgme_widget_message_text[^"]*"[^>]*>(.*?)</div>', blk, re.S)
+                dt = re.search(r'<time[^>]*datetime="([^"]+)"', blk)
+                if not (tm and dt):
+                    continue
+                last_ts = dt.group(1)
+                text = html.unescape(re.sub(r"<[^>]+>", "", re.sub(r"<br\s*/?>", "\n", tm.group(1))))
+                rep = parse_af_report(text, dt.group(1))
+                if rep and self.state.store.af_save(f"kpszsu/{m.group(1)}", "kpszsu", dt.group(1), rep):
+                    n += 1
+            if not ids or (last_ts and last_ts < oldest):
+                break
+            before = min(ids)
+            time.sleep(1)
+        return n
+
+    def run(self):
+        time.sleep(60)                       # after the start's own work
+        while True:
+            try:
+                n = self.from_feed()
+                if self.missing():
+                    n += self.from_history()
+                if n:
+                    log(f"af backfill: {n} Air Force summaries recovered; nights still missing: {len(self.missing())}")
+                    self.state._stats_res = {}
+            except Exception as e:
+                log("af backfill:", e)
+            time.sleep(24 * 3600)
 
 
 class TelegramAPI(threading.Thread):
@@ -3723,6 +4113,11 @@ class Handler(BaseHTTPRequestHandler):
                     return self._file("admin.html", "text/html; charset=utf-8")
                 usage = getattr(st, "usage", None)
                 return self._json(usage.report(int(q.get("days", ["30"])[0])) if usage else {"days": []})
+            if u.path == "/api/analytics":
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                days = max(7, min(int(q.get("days", ["30"])[0]), 365))
+                return self._send_cached(st.cached(f"analytics:{days}", 300, lambda: st.analytics(days)))
             if u.path == "/api/online":
                 # the dashboard's live counter: how many pages have a live line open right now. A number, by page
                 # type — nothing about who, and nothing kept but today's peak.
@@ -3730,7 +4125,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json({"error": "unauthorized"}, 401)
                 hub = getattr(st, "hub", None)
                 pu = getattr(st, "pusher", None)
-                return self._json({"online": hub.online() if hub else None, "notice": st.notice_now(),
+                return self._json({"online": hub.online() if hub else None, "notice": st.notice_now(), "nuke": st.nuke,
                                    "push_last": getattr(pu, "last_fanout", None), "now": now_iso()})
             if u.path == "/api/version":
                 usage = getattr(st, "usage", None)
@@ -3852,6 +4247,29 @@ class Handler(BaseHTTPRequestHandler):
                         return self._json({"error": f"could not reach t.me: {str(e)[:120]}"}, 502)
                 ok, msg = st.channel_update(action, name, data.get("mode"), via)
                 return self._json({"ok": ok, "message": msg, "name": name}, 200 if ok else 400)
+            if u.path == "/api/admin/nuke":
+                if not self._admin_ok(q):
+                    return self._json({"error": "unauthorized"}, 401)
+                action = data.get("action")
+                if action == "arm":
+                    if st.nuke:
+                        return self._json({"error": "already active"}, 400)
+                    return self._json({"ok": True, "code": st.nuke_arm(), "expires_s": 120, "phrase": st.NUKE_PHRASE})
+                if action == "fire":
+                    text = {k: str((data.get("text") or {}).get(k) or "").strip()[:600] for k in ("uk", "en", "fr")}
+                    text = {k: v for k, v in text.items() if v}
+                    if not text:
+                        return self._json({"error": "the message is empty"}, 400)
+                    ok, msg = st.nuke_fire(data.get("code"), data.get("phrase"), text)
+                    if ok and data.get("push"):
+                        pu = getattr(st, "pusher", None)
+                        if pu and pu.enabled:
+                            pu.queue_all("☢ " + APP_NAME, (text.get("uk") or text.get("en") or text.get("fr"))[:240], "threat")
+                    return self._json({"ok": ok, "message": msg, "nuke": st.nuke}, 200 if ok else 400)
+                if action == "end":
+                    st.nuke_end()
+                    return self._json({"ok": True, "nuke": None})
+                return self._json({"error": "unknown action"}, 400)
             if u.path == "/api/admin/notice":
                 # the admin's message to every reader: a banner on both pages, optionally a push to every phone
                 if not self._admin_ok(q):
@@ -4113,6 +4531,7 @@ def main():
     if cfg.get("telegram_channels"):
         tg = Telegram(state, cfg)
         tg.start()
+        AFBackfill(state).start()
         log("feed:", ", ".join("t.me/" + c for c in cfg["telegram_channels"]))
         if TelegramAPI.configured(cfg):
             TelegramAPI(state, cfg, tg).start()

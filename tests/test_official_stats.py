@@ -20,8 +20,12 @@ def _iso(dt):
     return dt.isoformat()
 
 
-def _summary(d, m, down):
-    return (f"В ніч на 25 вересня (з 18:00) противник атакував {d} ударними БпЛА типу Shahed та дронами-імітаторами"
+MONTHS = ["січня", "лютого", "березня", "квітня", "травня", "червня", "липня", "серпня", "вересня", "жовтня", "листопада", "грудня"]
+
+
+def _summary(d, m, down, when):
+    k = when.astimezone(server.kyiv_tz())
+    return (f"В ніч на {k.day} {MONTHS[k.month - 1]} (з 18:00) противник атакував {d} ударними БпЛА типу Shahed та дронами-імітаторами"
             + (f" та {m} ракетами" if m else "") + f".\n\nСтаном на 08:30 збито/подавлено {down} ворожих цілей.")
 
 
@@ -32,12 +36,14 @@ def _state():
 def test_each_summary_is_listed_with_the_post_it_was_read_from():
     st = _state()
     now = datetime.now(timezone.utc)
+    t1, t2 = now - timedelta(hours=3), now - timedelta(days=2)
     st.store.add_feed([
-        {"post_id": "kpszsu/101", "channel": "kpszsu", "ts": _iso(now - timedelta(hours=3)), "text": _summary(87, 4, 71), "tags": []},
+        {"post_id": "kpszsu/101", "channel": "kpszsu", "ts": _iso(t1), "text": _summary(87, 4, 71, t1), "tags": []},
         # the same night re-posted by a monitoring channel, a minute later: the Air Force's own post is the one linked
-        {"post_id": "war_monitor/9", "channel": "war_monitor", "ts": _iso(now - timedelta(hours=3) + timedelta(minutes=1)), "text": _summary(87, 4, 71), "tags": []},
-        {"post_id": "kpszsu/90", "channel": "kpszsu", "ts": _iso(now - timedelta(days=2)), "text": _summary(64, 12, 60), "tags": []},
+        {"post_id": "war_monitor/9", "channel": "war_monitor", "ts": _iso(t1 + timedelta(minutes=1)), "text": _summary(87, 4, 71, t1), "tags": []},
+        {"post_id": "kpszsu/90", "channel": "kpszsu", "ts": _iso(t2), "text": _summary(64, 12, 60, t2), "tags": []},
     ])
+    server.AFBackfill(st).from_feed()                # 1.32: summaries are kept in af_reports, read from there
     d = st.stats(14)
     days = d["af_days"]
     assert [x["post"] for x in days] == ["kpszsu/101", "kpszsu/90"]           # newest first, one per day
@@ -47,7 +53,9 @@ def test_each_summary_is_listed_with_the_post_it_was_read_from():
 
 def test_the_stats_tab_shows_only_the_air_force_figures():
     body = PAGE[PAGE.index("function renderStats(){"):PAGE.index("// Update notice")]
-    for gone in ("imp_windows", "st_expl", "st_downs", "sbars", "impacts"):
+    # the app's own counts of explosion reports are gone; "impacts" now means the Air Force's own figure
+    # ("влучання … на N локаціях"), read from its summary like the rest (1.32)
+    for gone in ("imp_windows", "st_expl", "st_downs", "sbars", "impacts_total"):
         assert gone not in body, f"the Stats tab still shows {gone}"
     assert "af_days" in body and "st_af_src" in body
     assert "https://t.me/" in body                                           # every figure links to its summary

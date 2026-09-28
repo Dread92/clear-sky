@@ -49,10 +49,12 @@ def test_it_stays_light():
     # 1.29 raised them by ~3 KB (page + static/live.js) for the live line, the team's message and the move to a new
     # address: in exchange the page no longer downloads the alerts and the marks every 15 s (~8 KB gzipped each
     # time) while the line is up.
+    # 1.32 raised them by 0.5 KB: the admin's message in loud colours (green / pulsing red) and the few lines that
+    # download static/nuke.js — only while a nuclear event is on; the overlay itself is not part of the page.
     with open(os.path.join(ROOT, "static", "live.js"), "rb") as fh:
         page += len(gzip.compress(fh.read(), 6))
-    assert page < 23_000, f"the light page is no longer light ({page} B gzipped)"
-    assert page + extra < 64_000, f"page + map data = {page + extra} B gzipped"
+    assert page < 23_500, f"the light page is no longer light ({page} B gzipped)"
+    assert page + extra < 64_500, f"page + map data = {page + extra} B gzipped"
     # 1.29: the live line is allowed — the light variant only (alerts and marks, no feed, no raw events). An open
     # line costs the server nothing any more (one thread holds them all) and the phone ~100 bytes every 15 s,
     # against ~8 KB every 15 s for asking.

@@ -146,7 +146,10 @@ header .up{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;w
 .none{padding:18px 4px;text-align:center}
 .none b{display:block;font-size:15px}.none small{display:block;color:var(--ink3);margin-top:4px;font-size:12.5px}
 .notice{display:flex;align-items:flex-start;gap:8px;margin:0 14px 10px;padding:8px 10px 8px 12px;background:#10213b;border:1px solid var(--line);border-left:4px solid #5b9cff;border-radius:3px}
-.notice[hidden]{display:none}.notice.lv-warn{background:#2c1d08;border-left-color:#ff8a3d}.notice.lv-alert{background:#351210;border-left-color:#e0342c}
+.notice[hidden]{display:none}.notice.lv-warn{background:#2c1d08;border-left-color:#ff8a3d}
+.notice.lv-info{background:#0d7a3e;border-left-color:#5dff9d;color:#fff}.notice.lv-alert{background:#c4121c;border-left-color:#ffd0d0;color:#fff;animation:ntp 1.6s ease-in-out infinite}
+.notice.lv-info .nth{color:#d6ffe6}.notice.lv-alert .nth{color:#ffe1e1}.notice.lv-info .nx,.notice.lv-alert .nx{color:#fff;border-color:rgba(255,255,255,.6)}
+@keyframes ntp{50%{background:#8e0b13}}@media (prefers-reduced-motion:reduce){.notice.lv-alert{animation:none}}
 .notice .ntb{flex:1;min-width:0;font-size:14px;line-height:1.4;white-space:pre-wrap;overflow-wrap:anywhere}
 .notice .nth{display:block;font:700 10.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink2);margin-bottom:2px}
 .notice .mvgo{display:inline-block;margin-top:6px;padding:8px 12px;background:var(--yel);color:#111;font-weight:700;border-radius:4px;text-decoration:none}
@@ -644,7 +647,10 @@ function connectLive(){ if(typeof EventSource==='undefined'||!window.LiveSync) r
     if(d.st){ const r=LiveSync.part('st',d.st,HL.st,STATE); if(r===null) full=true; else if(r!=='same'){ STATE=r.v; HL.st=d.st.h; changed=true; } }
     if(full) refresh(true); else { upd(); if(changed) paint(); } });
   esL.onerror=()=>{ LIVE_ON=false; try{esL.close();}catch(e){} setTimeout(connectLive,5000); }; }
-function upd(){ $('up').textContent=LAST_OK?t('lt_upd',fmtT(new Date(LAST_OK).toISOString())):''; showNotice(STATE&&STATE.notice); checkMove(STATE); }
+function upd(){ $('up').textContent=LAST_OK?t('lt_upd',fmtT(new Date(LAST_OK).toISOString())):''; showNotice(STATE&&STATE.notice); showNuke(STATE&&STATE.nuke); checkMove(STATE); }
+// 1.32: a nuclear event (from the dashboard, behind two locks): static/nuke.js, downloaded only when there is one
+function showNuke(n){ showNuke.n=n; if(window.HNuke) return HNuke.show(n,{host:$('rwrap'),before:$('moved'),flow:1,lang:LANG,alarm:()=>navigator.vibrate&&navigator.vibrate([300,80,300,80,600])});
+  if(n&&!showNuke.l){ showNuke.l=1; const s=document.createElement('script'); s.src='/static/nuke.js'; s.onload=()=>showNuke(showNuke.n); s.onerror=()=>{showNuke.l=0}; document.head.appendChild(s); } }
 // 1.29: the app has a new address (CANONICAL_HOST on the server). On the old one, a banner sends the reader there
 // with this phone's settings in the link's #fragment. Settings only: the watched places never leave this phone —
 // not even in a link, which browser history may keep — so they are set again there.
